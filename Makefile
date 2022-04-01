@@ -32,7 +32,7 @@ DOC_FOLDER := docs
 
 ## Quickstart
 SPHINX_QUICKSTART := sphinx-quickstart
-SPHINX_QUICKSTART_FLAGS := --sep --no-batchfile --project ffdnet $(AUTHORS) $(VERSION) $(LANGUAGE) $(SPHINX_EXTENSIONS)
+SPHINX_QUICKSTART_FLAGS := --sep --no-batchfile --project ParetoRL $(AUTHORS) $(VERSION) $(LANGUAGE) $(SPHINX_EXTENSIONS)
 
 # Build
 BUILDER := html
@@ -46,14 +46,14 @@ DOC_INDEX := index.html
 define INDEX
 
 .. pareto documentation master file, created by
-   sphinx-quickstart on Sat Nov 20 23:38:46 2021.
+   sphinx-quickstart on Fri Apr. 1 10:51:46 2022.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
 .. include:: ../../README.rst
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 5
    :caption: Contents:
 
    modules

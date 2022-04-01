@@ -1,5 +1,5 @@
 """ inspyred_utils.py
-Module which contanis some util functions using the inspyred library.
+Module which contins some util functions using the inspyred library.
 
 This program is free software: you can use, modify and/or
 redistribute it under the terms of the GNU General Public
@@ -21,6 +21,7 @@ from numpy.random import RandomState
 
 import functools
 import numpy as np
+
 
 def choice_without_replacement(rng, n, size):
     result = set()

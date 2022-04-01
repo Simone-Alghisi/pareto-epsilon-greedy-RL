@@ -269,17 +269,18 @@ def plot_observer(population, num_generations, num_evaluations, args):
     entry called 'plot_data'.
 
     If this observer is used, the calling script should also import
-    the matplotlib library and should end the script with::
-
+    the matplotlib library and should end the script with:
+    
     matplotlib.pyplot.show()
 
     Otherwise, the program may generate a runtime error.
 
-    .. note::
+    .. note:
 
     This function makes use of the matplotlib and numpy libraries.
 
     .. Arguments:
+
     population -- the population of Individuals
     num_generations -- the number of elapsed generations
     num_evaluations -- the number of candidate solution evaluations

@@ -3,6 +3,19 @@ Pareto Epsilon Greedy RL
 
 Repository for the I2BIAI project.
 
+About
+-----
+
+* Authors  :
+
+  - `Alghisi Simone <https://github.com/Simone-Alghisi>`_\
+  - `Bortolotti Samuele <https://github.com/samuelebortolotti>`_\ 
+  - `Rizzoli Massimo <https://github.com/massimo-rizzoli>`_\
+  - `Erich Robbi <https://github.com/erich-r>`_\
+
+* Licence   : GPL v3+
+
+
 General information
 -------------------
 
@@ -173,3 +186,100 @@ such as
 -  something which I’m surely missing but could be useful
 
 At the end, depending on what we are using showdown will tell us a lot.
+
+Usage
+=====
+
+To facilitate the use of the application, a ``Makefile`` has been provided; to see its functions, simply call the appropriate ``help`` command with `GNU/Make <https://www.gnu.org/software/make/>`_
+
+.. code-block:: shell
+
+   make help
+
+0. Set up
+^^^^^^^^^
+
+For the development phase, the Makefile provides an automatic method to create a virtual environment.
+
+If you want a virtual environment for the project, you can run the following commands:
+
+.. code-block:: shell
+
+   pip install --upgrade pip
+
+Virtual environment creation in the venv folder
+
+.. code-block:: shell
+
+   make env
+
+Virtual environment activation
+
+.. code-block:: shell
+
+   source ./venv/pareto/bin/activate
+
+Install the requirements listed in ``requirements.txt``
+
+.. code-block:: shell
+
+   make install
+
+1. Documentation
+^^^^^^^^^^^^^^^^
+
+The documentation is built using `Sphinx v4.3.0 <https://www.sphinx-doc.org/en/master/>`_.
+
+If you want to build the documentation, you need to enter the project folder first:
+
+.. code-block:: shell
+
+   cd pareto_rl
+
+Install the development dependencies [``requirements.dev.txt``]
+
+.. code-block:: shell
+
+   make install-dev
+
+Build the Sphinx layout
+
+.. code-block:: shell
+
+   make doc-layout
+
+Build the documentation
+
+.. code-block:: shell
+
+   make doc
+
+Open the documentation
+
+.. code-block:: shell
+
+   make open-doc
+
+2. Pareto front
+^^^^^^^^^^^^^^^
+
+To run the Pareto front you can either type:
+
+.. code-block:: shell
+
+   python -m pareto_rl pareto
+
+Or employ the command of the GNU/Makefile
+
+.. code-block:: shell
+
+   make pareto
+
+3. Training
+^^^^^^^^^^^
+
+Train a model
+-------------
+
+4. Testing
+^^^^^^^^^^
