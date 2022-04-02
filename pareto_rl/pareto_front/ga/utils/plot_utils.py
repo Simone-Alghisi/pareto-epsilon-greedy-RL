@@ -270,7 +270,7 @@ def plot_observer(population, num_generations, num_evaluations, args):
 
     If this observer is used, the calling script should also import
     the matplotlib library and should end the script with:
-    
+
     matplotlib.pyplot.show()
 
     Otherwise, the program may generate a runtime error.

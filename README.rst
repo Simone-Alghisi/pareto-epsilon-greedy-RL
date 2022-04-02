@@ -197,7 +197,7 @@ To facilitate the use of the application, a ``Makefile`` has been provided; to s
    make help
 
 0. Set up
-^^^^^^^^^
+---------
 
 For the development phase, the Makefile provides an automatic method to create a virtual environment.
 
@@ -226,7 +226,7 @@ Install the requirements listed in ``requirements.txt``
    make install
 
 1. Documentation
-^^^^^^^^^^^^^^^^
+----------------
 
 The documentation is built using `Sphinx v4.3.0 <https://www.sphinx-doc.org/en/master/>`_.
 
@@ -261,7 +261,7 @@ Open the documentation
    make open-doc
 
 2. Pareto front
-^^^^^^^^^^^^^^^
+---------------
 
 To run the Pareto front you can either type:
 
@@ -276,10 +276,10 @@ Or employ the command of the GNU/Makefile
    make pareto
 
 3. Training
-^^^^^^^^^^^
+-----------
 
 Train a model
--------------
+~~~~~~~~~~~~~
 
 4. Testing
-^^^^^^^^^^
+----------
