@@ -20,7 +20,7 @@ venv
 # Markdown NOTES
 NOTES.md
 
-# node 
+# node
 node_modules
 
 # transpiled javascript
@@ -28,3 +28,6 @@ node_modules
 
 # log
 log/log.txt
+
+# showdown server
+pokemon-showdown/

@@ -4,29 +4,29 @@ PROJECT_NAME := pareto
 
 # PROGRAMS AND FLAGS
 PYTHON := python3
-PYFLAGS := 
+PYFLAGS :=
 PIP := pip
 NPM := npm
 
 # ======= TRAIN =========
-TRAIN := 
-TRAIN_FLAGS := 
+TRAIN :=
+TRAIN_FLAGS :=
 
 # ======= FORMAT ========
 FORMAT := black
 FORMAT_FLAG := pareto_rl
 
 # ======= TEST  =========
-TEST := 
-TEST_FLAGS := 
+TEST :=
+TEST_FLAGS :=
 
 # ======= PARETO  =========
 PARETO := -m pareto_rl pareto
 PARETO_FLAG :=
 
 # ======= DOC   =========
-AUTHORS := --author "Simone Alghisi, Samuele Bortolotti, Massimo Rizzoli, Erich Robbi" 
-VERSION :=-r 0.1 
+AUTHORS := --author "Simone Alghisi, Samuele Bortolotti, Massimo Rizzoli, Erich Robbi"
+VERSION :=-r 0.1
 LANGUAGE := --language en
 SPHINX_EXTENSIONS := --extensions sphinx.ext.autodoc --extensions sphinx.ext.napoleon --extensions sphinx.ext.viewcode
 DOC_FOLDER := docs
@@ -83,9 +83,13 @@ ECHO := echo -e
 MKDIR := mkdir -p
 OPEN := xdg-open
 SED := sed
-	
+GIT := git
+CD := cd
+NPM := npm
+CP := cp
+
 # RULES
-.PHONY: help env install install-dev train test pareto doc doc-layout format
+.PHONY: help env install install-dev install-showdown train test pareto doc doc-layout format
 
 help:
 	@$(ECHO) '$(YELLOW)Makefile help$(NONE)'
@@ -93,6 +97,7 @@ help:
 	* env 			: generates the virtual environment using venv\n \
 	* install		: install the requirements listed in requirements.txt\n \
 	* install-dev		: install the development requirements listed in requirements.dev.txt\n \
+	* install-showdown	: install the pokémon showdown server \
 	* doc-layout 		: generates the Sphinx documentation layout\n \
 	* format 		: format the code using black\n \
 	* doc 			: generates the documentation (requires an existing documentation layout)\n \
@@ -119,12 +124,20 @@ install-dev:
 	@$(PIP) install -r requirements.dev.txt
 	@$(ECHO) '$(GREEN)Done$(NONE)'
 
+install-showdown:
+	@$(ECHO) '$(GREEN)Installing Pokémon Showdown server..$(NONE)'
+	@$(GIT) clone https://github.com/smogon/pokemon-showdown.git
+	@$(CD) pokemon-showdown; \
+	 $(NPM) install; \
+	 $(CP) config/config-example.js config/config.js
+	@$(ECHO) '$(GREEN)Done$(NONE)'
+
 doc-layout:
 	@$(ECHO) '$(BLUE)Generating the Sphinx layout..$(NONE)'
 	$(SPHINX_QUICKSTART) $(DOC_FOLDER) $(SPHINX_QUICKSTART_FLAGS)
 	@$(ECHO) "\nimport os\nimport sys\nsys.path.insert(0, os.path.abspath('../..'))" >> $(DOC_FOLDER)/source/conf.py
 	@$(ECHO) "$$INDEX" > $(DOC_FOLDER)/source/index.rst
-	@$(SED) -i -e "s/html_theme = 'alabaster'/html_theme = '$(SPHINX_THEME)'/g" $(DOC_FOLDER)/source/conf.py 
+	@$(SED) -i -e "s/html_theme = 'alabaster'/html_theme = '$(SPHINX_THEME)'/g" $(DOC_FOLDER)/source/conf.py
 	@$(ECHO) '$(BLUE)Done$(NONE)'
 
 doc:
