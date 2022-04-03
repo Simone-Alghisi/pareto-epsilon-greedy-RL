@@ -20,5 +20,8 @@ venv
 # Markdown NOTES
 NOTES.md
 
-# node 
+# node
 node_modules
+
+# showdown server
+pokemon-showdown/
