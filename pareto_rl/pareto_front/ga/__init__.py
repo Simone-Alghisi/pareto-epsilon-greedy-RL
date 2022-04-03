@@ -2,6 +2,7 @@
 Pareto GA module
 
 Authors:
+
 - @author Simone Alghisi (simone.alghisi-1@studenti.unitn.it)
 - @author Samuele Bortolotti (samuele.bortolotti@studenti.unitn.it)
 - @author Massimo Rizzoli (massimo.rizzoli@studenti.unitn.it)

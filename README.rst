@@ -219,7 +219,7 @@ Virtual environment activation
 
    source ./venv/pareto/bin/activate
 
-Install the requirements listed in ``requirements.txt``
+Install the requirements listed in ``requirements.txt`` and those ones listed in ``package.json``
 
 .. code-block:: shell
 

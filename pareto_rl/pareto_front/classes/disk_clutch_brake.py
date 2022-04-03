@@ -21,89 +21,44 @@ from inspyred.ec.emo import Pareto
 from inspyred.ec.variators import mutator
 import numpy as np
 import copy
+import json
+from pareto_rl.damage_calculator.requester import damage_request
 
-# parameters, see Deb 2006
-Delta_R = 20  # mm
-L_max = 30  # mm
-delta = 0.5  # mm
-p_max = 1  # MPa
-V_sr_max = 10  # m/s
-n = 250  # rpm
-mu = 0.5
-s = 1.5
-M_s = 40  # Nm
-omega = np.pi * n / 30.0  # rad/s
-rho = 0.0000078  # kg/mm^3
-T_max = 15  # s
-M_f = 3  # Nm
-I_z = 55  # kg*m^2
+pkmn = ['gengar', 'vulpix', 'charmander', 'venusaur']
 
 # possible values
 values = [
-    np.arange(60, 81, 1),
-    np.arange(90, 111, 1),
-    np.arange(1.5, 3.5, 0.5),
-    np.arange(600, 1010, 10),
-    np.arange(2, 10, 1),
+    ['ember', 'hydropump', 'hex', 'toxic'],  #pokemon1.moves,     #4
+    ['vulpix', 'charmander', 'venusaur'],    #pokemon_on_field,   #3
+    ['ember', 'hydropump', 'hex', 'toxic'],  #pokemon2.moves,     #4
+    ['gengar', 'charmander', 'venusaur'],    #pokemon_on_field,   #3
+    ['ember', 'hydropump', 'hex', 'toxic'],  #opponent1.moves,    #4
+    ['gengar', 'vulpix', 'venusaur'],        #pokemon_on_field,   #3
+    ['ember', 'hydropump', 'hex', 'toxic'],  #opponent2.moves,    #4
+    ['gengar', 'vulpix', 'charmander']       #pokemon_on_field    #3
+    #np.arange(60, 81, 1),
+    #np.arange(90, 111, 1),
+    #np.arange(1.5, 3.5, 0.5),
+    #np.arange(600, 1010, 10),
+    #np.arange(2, 10, 1),
 ]
 
-
-class DiskClutchBounder(object):
-    def __call__(self, candidate, args):
-        closest = lambda target, index: min(
-            values[index], key=lambda x: abs(x - target)
-        )
-        for i, c in enumerate(candidate):
-            candidate[i] = closest(c, i)
-        return candidate
-
-
-class ConstrainedPareto(Pareto):
-    def __init__(self, values=None, violations=None, ec_maximize=True):
-        Pareto.__init__(self, values)
-        self.violations = violations
-        self.ec_maximize = ec_maximize
-
-    def __lt__(self, other):
-        if self.violations is None:
-            return Pareto.__lt__(self, other)
-        elif len(self.values) != len(other.values):
-            raise NotImplementedError
-        else:
-            if self.violations > other.violations:
-                # if self has more violations than other
-                # return true if EC is maximizing otherwise false
-                return self.ec_maximize
-            elif other.violations > self.violations:
-                # if other has more violations than self
-                # return true if EC is minimizing otherwise false
-                return not self.ec_maximize
-            elif self.violations > 0:
-                # if both equally infeasible (> 0) than cannot compare
-                return False
-            else:
-                # only consider regular dominance if both are feasible
-                not_worse = True
-                strictly_better = False
-                for x, y, m in zip(self.values, other.values, self.maximize):
-                    if m:
-                        if x > y:
-                            not_worse = False
-                        elif y > x:
-                            strictly_better = True
-                    else:
-                        if x < y:
-                            not_worse = False
-                        elif y < x:
-                            strictly_better = True
-            return not_worse and strictly_better
-
+#class DiskClutchBounder(object):
+#    def __call__(self, candidate, args):
+#        closest = lambda target, index: min(
+#            values[index], key=lambda x: abs(x - target)
+#        )
+#        for i, c in enumerate(candidate):
+#            candidate[i] = closest(c, i)
+#        return candidate
 
 class DiskClutchBrake(benchmarks.Benchmark):
     def __init__(self, constrained=False):
-        benchmarks.Benchmark.__init__(self, 5, 2)
-        self.bounder = DiskClutchBounder()
-        self.maximize = False
+        # n_dimensions and n_objectives
+        benchmarks.Benchmark.__init__(self, 8, 3)
+        # bounder
+        # self.bounder = DiskClutchBounder()
+        self.maximize = True
         self.constrained = constrained
 
     def generator(self, random, args):
@@ -112,77 +67,27 @@ class DiskClutchBrake(benchmarks.Benchmark):
     def evaluator(self, candidates, args):
         fitness = []
         for c in candidates:
-            f1 = np.pi * (c[1] ** 2 - c[0] ** 2) * c[2] * (c[4] + 1) * rho
 
-            M_h = (
-                (2.0 / 3.0)
-                * mu
-                * c[3]
-                * c[4]
-                * (c[1] ** 3 - c[0] ** 3)
-                / (c[1] ** 2 - c[0] ** 2)
-            ) / 1000.0  # N*m
-            T = (I_z * omega) / (M_h + M_f)
+            a1 = json.loads(damage_request(json.dumps({'Attacker': pkmn[0], 'Move': c[0], 'Defender': c[1]})))['damage']
+            a1 = a1[0] if isinstance(a1, list) else a1
+            a2 = json.loads(damage_request(json.dumps({'Attacker': pkmn[1], 'Move': c[2], 'Defender': c[3]})))['damage']
+            a2 = a2[0] if isinstance(a2, list) else a2
+            a3 = json.loads(damage_request(json.dumps({'Attacker': pkmn[2], 'Move': c[4], 'Defender': c[5]})))['damage']
+            a3 = a3[0] if isinstance(a3, list) else a3
+            a4 = json.loads(damage_request(json.dumps({'Attacker': pkmn[3], 'Move': c[6], 'Defender': c[7]})))['damage']
+            a4 = a4[0] if isinstance(a4, list) else a4
 
-            f2 = T
+            f1 = a1 + a2
+
+            f2 = a3 + a4
+
+            f3 = min((261+217) - (a3+a4),0)
 
             fitness.append(
-                ConstrainedPareto([f1, f2], self.constraint_function(c), self.maximize)
+                Pareto([f1, f2, f3], self.maximize)
             )
 
         return fitness
-
-    def constraint_function(self, candidate):
-        if not self.constrained:
-            return 0
-        """Return the magnitude of constraint violations."""
-        A = np.pi * (candidate[1] ** 2 - candidate[0] ** 2)  # mm^2
-        p_rz = candidate[3] / A  # N/mm^2
-        R_sr = (
-            (2.0 / 3.0)
-            * (candidate[1] ** 3 - candidate[0] ** 3)
-            / (candidate[1] ** 2 - candidate[0] ** 2)
-        )  # mm
-        V_sr = np.pi * R_sr * n / 30000.0  # m/s
-
-        M_h = (
-            (2.0 / 3.0)
-            * mu
-            * candidate[3]
-            * candidate[4]
-            * (candidate[1] ** 3 - candidate[0] ** 3)
-            / (candidate[1] ** 2 - candidate[0] ** 2)
-        ) / 1000.0  # N*m
-
-        T = (I_z * omega) / (M_h + M_f)
-
-        violations = 0
-        # g_1
-        if (candidate[1] - candidate[0] - Delta_R) < 0:
-            violations -= candidate[1] - candidate[0] - Delta_R
-        # g_2
-        if (L_max - (candidate[4] + 1) * (candidate[2] + delta)) < 0:
-            violations -= L_max - (candidate[4] + 1) * (candidate[2] + delta)
-        # g_3
-        if (p_max - p_rz) < 0:
-            violations -= p_max - p_rz
-        # g_4
-        if (p_max * V_sr_max - p_rz * V_sr) < 0:
-            violations -= p_max * V_sr_max - p_rz * V_sr
-        # g_5
-        if (V_sr_max - V_sr) < 0:
-            violations -= V_sr_max - V_sr
-        # g_6
-        if (M_h - s * M_s) < 0:
-            violations -= M_h - s * M_s
-        # g_7
-        if T < 0:
-            violations -= T
-        # g_8
-        if (T_max - T) < 0:
-            violations -= T_max - T
-
-        return violations
 
 
 @mutator
@@ -192,6 +97,6 @@ def disk_clutch_brake_mutation(random, candidate, args):
     mutant = copy.copy(candidate)
     for i, m in enumerate(mutant):
         if random.random() < mut_rate:
-            mutant[i] += random.gauss(0, (values[i][-1] - values[i][0]) / 10.0)
+            mutant[i] = random.sample(values[i], 1)[0]
     mutant = bounder(mutant, args)
     return mutant

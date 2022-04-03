@@ -6,6 +6,7 @@ PROJECT_NAME := pareto
 PYTHON := python3
 PYFLAGS := 
 PIP := pip
+NPM := npm
 
 # ======= TRAIN =========
 TRAIN := 
@@ -109,7 +110,8 @@ env:
 
 install:
 	@$(ECHO) '$(GREEN)Installing requirements..$(NONE)'
-	@pip install -r requirements.txt
+	@$(PIP) install -r requirements.txt
+	@$(NPM) install 
 	@$(ECHO) '$(GREEN)Done$(NONE)'
 
 install-dev:

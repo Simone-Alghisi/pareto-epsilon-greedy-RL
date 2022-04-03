@@ -22,3 +22,9 @@ NOTES.md
 
 # node 
 node_modules
+
+# transpiled javascript
+*.js
+
+# log
+log/log.txt

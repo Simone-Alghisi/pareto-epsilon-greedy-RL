@@ -9,6 +9,7 @@ version. You should have received a copy of this license along
 this program. If not, see <http://www.gnu.org/licenses/>.
 
 Authors:
+
 - Simone Alghisi (simone.alghisi-1@studenti.unitn.it)
 - Samuele Bortolotti (samuele.bortolotti@studenti.unitn.it)
 - Massimo Rizzoli (massimo.rizzoli@studenti.unitn.it)
@@ -17,43 +18,38 @@ Authors:
 
 import subprocess
 import os
-from pynpm import NPMPackage
+import logging
 
 
-def install_pkg(path):
-    pkg = NPMPackage("{}/../../package.json".format(path))
-    p = pkg.install(wait=False)
-    p.wait()
+def is_transpiled(file_path: str) -> bool:
+    r"""Returns true if the TypeScript file has been transpiled
+
+    Args:
+        file_path [str]: path of the transpiled JavaScript file
+    """
+    return os.path.isfile(file_path)
 
 
-def is_installed() -> bool:
-    try:
-        # call node to see whether the package is installed
-        ps = subprocess.Popen(("npm", "list", "--depth", "0"), stdout=subprocess.PIPE)
-        output = subprocess.check_output(
-            ("grep", "-c", "@smogon/calc"), stdin=ps.stdout
-        )
-        ps.wait()
-        # decode the bytes read
-        output = output.decode("utf-8")
-    except subprocess.CalledProcessError as e:
-        output = 0
-    return bool(output)
+def damage_request(parameters: str = ""):
+    r"""Asks the @smogol/calc Node module to compute the damage
 
-
-def damage_request(parameters=""):
-    # holds the directory where python script is located
+    Args:
+        parameters [str]: parameters of the @smogol/calc library
+    """
+    # logger
+    print(parameters)
+    logger = logging.getLogger(__name__)
     dir_path = os.path.dirname(os.path.realpath(__file__))
-    if not is_installed():
-        print("Installing required package...")
-        install_pkg(dir_path)
-    try:
-        # call node function
+    if not is_transpiled("{}/ts/dmg_calculator.js".format(dir_path)):
+        # call transpile function
         output = subprocess.check_output(
             ("npm", "run", "tsc", "{}/ts/dmg_calculator.ts".format(dir_path))
         )
+        logger.info("TypeScript dmg_calculator.ts transpiled")
+    try:
+        # call node function
         output = subprocess.check_output(
-            ("node", "{}/ts/dmg_calculator.js".format(dir_path))
+            ("node", "{}/ts/dmg_calculator.js".format(dir_path), "{}".format(parameters))
         )
         # decode the bytes read
         output = output.decode("utf-8").strip()

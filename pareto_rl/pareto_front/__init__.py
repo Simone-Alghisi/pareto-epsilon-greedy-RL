@@ -1,5 +1,4 @@
 """
-
 Pareto module
 Authors:
 

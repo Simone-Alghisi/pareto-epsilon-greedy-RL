@@ -34,10 +34,10 @@ def configure_subparsers(subparsers):
     """
 
     """
-  Subparser parameters:
-  Args:
+    Subparser parameters:
+    Args:
     
-  """
+    """
     parser = subparsers.add_parser("pareto", help="Test the Pareto search")
     parser.set_defaults(func=main)
 

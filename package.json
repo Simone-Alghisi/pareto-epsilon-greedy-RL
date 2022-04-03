@@ -3,6 +3,11 @@
   "scripts": {
     "tsc": "tsc"
   },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/Simone-Alghisi/pareto-epsilon-greedy-RL.git"
+  },
+  "license": "GPL-3.0",
   "version": "0.0.1",
   "dependencies": {
     "@smogon/calc": "^0.6.0",

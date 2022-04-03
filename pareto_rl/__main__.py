@@ -9,6 +9,7 @@ version. You should have received a copy of this license along
 this program. If not, see <http://www.gnu.org/licenses/>.
 
 Authors:
+
 - Simone Alghisi (simone.alghisi-1@studenti.unitn.it)
 - Samuele Bortolotti (samuele.bortolotti@studenti.unitn.it)
 - Massimo Rizzoli (massimo.rizzoli@studenti.unitn.it)
@@ -17,6 +18,16 @@ Authors:
 
 import argparse
 import pareto_rl.pareto_front as processors
+import logging
+
+#: mapping between string logger levels and their actual value
+LOGGER_LEVELS = {
+    "DEBUG": logging.DEBUG,
+    "INFO": logging.INFO,
+    "WARNING": logging.WARNING,
+    "ERROR": logging.ERROR,
+    "CRITICAL": logging.CRITICAL,
+}
 
 
 def get_args():
@@ -31,14 +42,46 @@ def get_args():
     subparsers = parser.add_subparsers(help="sub-commands help")
     processors.pareto_search.configure_subparsers(subparsers)
 
+    # argument of the parser
+    parser.add_argument(
+        "--logger-level", "-ll", choices=LOGGER_LEVELS.keys(), default="WARNING"
+    )
+
     # parse arguments
     parsed_args = parser.parse_args()
+    parsed_args.logger_level = LOGGER_LEVELS.get(parsed_args.logger_level)
 
     return parsed_args
 
 
+def log(level):
+    r"""Initialise the logger.
+
+    Args:
+        level [int]: logging level, one of {logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL}
+    """
+    logger = logging.getLogger(__name__)
+    logger.setLevel(level)
+
+    # create file handler and set level
+    ch = logging.FileHandler(filename="log/log.txt", mode="w", encoding="utf-8")
+    ch.setLevel(level)
+
+    # create formatter
+    formatter = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+
+    # add formatter to ch
+    ch.setFormatter(formatter)
+
+    # add ch to logger
+    logger.addHandler(ch)
+
+
 def main(args):
-    r"""Main function."""
+    r"""Main function"""
+    log(args.logger_level)
     args.func(
         args,
     )
