@@ -7,7 +7,6 @@ PYTHON := python3
 PYFLAGS :=
 PIP := pip
 NPM := npm
-SED := sed
 
 # ======= TRAIN =========
 TRAIN :=
@@ -130,8 +129,8 @@ install-showdown:
 	@$(GIT) clone https://github.com/smogon/pokemon-showdown.git
 	@$(CD) pokemon-showdown; \
 	 $(NPM) install; \
-	 $(CP) config/config-example.js config/config.js \
-	 $(SED) 's/exports.repl = true/exports.repl = false/g' config/config.js
+	 $(CP) config/config-example.js config/config.js; \
+	 $(SED) -i 's/exports.repl = true/exports.repl = false/g' config/config.js
 	@$(ECHO) '$(GREEN)Done$(NONE)'
 
 doc-layout:
