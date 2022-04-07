@@ -9,9 +9,9 @@ About
 * Authors  :
 
   - `Alghisi Simone <https://github.com/Simone-Alghisi>`_\
-  - `Bortolotti Samuele <https://github.com/samuelebortolotti>`_\ 
+  - `Bortolotti Samuele <https://github.com/samuelebortolotti>`_\
   - `Rizzoli Massimo <https://github.com/massimo-rizzoli>`_\
-  - `Erich Robbi <https://github.com/erich-r>`_\
+  - `Robbi Erich <https://github.com/erich-r>`_\
 
 * Licence   : GPL v3+
 
@@ -34,8 +34,8 @@ information whenever is needed in order to complicate things.
 
 .. math::
 
-   Damage = \left( \frac{\left( \frac{2 \times Level}{5} + 2 \right) \times Power \times 
-   A/D}{50} + 2 \right) \times Targets \times Weather \times Critical \times random \times 
+   Damage = \left( \frac{\left( \frac{2 \times Level}{5} + 2 \right) \times Power \times
+   A/D}{50} + 2 \right) \times Targets \times Weather \times Critical \times random \times
    STAB \times Type \times Burn \times other
 
 Let us now tackle the most important parts:

@@ -7,6 +7,7 @@ PYTHON := python3
 PYFLAGS :=
 PIP := pip
 NPM := npm
+SED := sed
 
 # ======= TRAIN =========
 TRAIN :=
@@ -116,7 +117,7 @@ env:
 install:
 	@$(ECHO) '$(GREEN)Installing requirements..$(NONE)'
 	@$(PIP) install -r requirements.txt
-	@$(NPM) install 
+	@$(NPM) install
 	@$(ECHO) '$(GREEN)Done$(NONE)'
 
 install-dev:
@@ -129,7 +130,8 @@ install-showdown:
 	@$(GIT) clone https://github.com/smogon/pokemon-showdown.git
 	@$(CD) pokemon-showdown; \
 	 $(NPM) install; \
-	 $(CP) config/config-example.js config/config.js
+	 $(CP) config/config-example.js config/config.js \
+	 $(SED) 's/exports.repl = true/exports.repl = false/g' config.js
 	@$(ECHO) '$(GREEN)Done$(NONE)'
 
 doc-layout:
