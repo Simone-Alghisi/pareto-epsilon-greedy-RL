@@ -7,7 +7,7 @@ from itertools import count
 from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
 from pareto_rl.dql_agent.classes.player import SimpleRLPlayer
 from poke_env.player.random_player import RandomPlayer
-
+from poke_env.player_configuration import PlayerConfiguration
 def configure_subparsers(subparsers):
   r"""Configure a new subparser for DQL agent.
 
@@ -88,7 +88,7 @@ def get_reward():
 def test_alg(player: SimpleRLPlayer):
   player.reset_battles()
   print(player._actions)
-  player.complete_current_battle()
+  # player.complete_current_battle()
 
 def train():
   device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -116,8 +116,11 @@ def train():
   memory = ReplayMemory(10000)
 
   episode_durations = []
-  env_player = SimpleRLPlayer(battle_format="gen8randombattle")
-  opponent = RandomPlayer(battle_format="gen8randombattle")
+
+  darkrai_player_config = PlayerConfiguration("DarkrAI", None)
+  random_player_config = PlayerConfiguration("DarkrAI-Opponent",None)
+  env_player = SimpleRLPlayer(battle_format="gen8randombattle",player_configuration=darkrai_player_config)
+  opponent = RandomPlayer(battle_format="gen8randombattle",player_configuration=random_player_config)
   env_player.play_against(
     env_algorithm=test_alg,
     opponent=opponent,
