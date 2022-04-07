@@ -131,7 +131,7 @@ install-showdown:
 	@$(CD) pokemon-showdown; \
 	 $(NPM) install; \
 	 $(CP) config/config-example.js config/config.js \
-	 $(SED) 's/exports.repl = true/exports.repl = false/g' config.js
+	 $(SED) 's/exports.repl = true/exports.repl = false/g' config/config.js
 	@$(ECHO) '$(GREEN)Done$(NONE)'
 
 doc-layout:
