@@ -1,7 +1,7 @@
 import torch.nn as nn
 from collections import namedtuple, deque
 import random
-
+import torch
 class DarkrAI(nn.Module):
 
   def __init__(self, input_size, layers, output_size):
@@ -14,12 +14,12 @@ class DarkrAI(nn.Module):
     super(DarkrAI, self).__init__()
     self.layers = nn.ModuleList()
     # input layer
-    self.layers.append(nn.Linear(input_size, layers[0]))
+    self.layers.append(nn.Linear(input_size, layers[0], dtype=torch.float64))
     # hidden layers
-    for i in range(1, len(layers)-1):
-      self.layers.append(nn.Linear(layers[i-1], layers[i]))
+    for i in range(1, len(layers)):
+      self.layers.append(nn.Linear(layers[i-1], layers[i], dtype=torch.float64))
     # output layer
-    self.layers.append(nn.Linear(layers[-1], output_size))
+    self.layers.append(nn.Linear(layers[-1], output_size, dtype=torch.float64))
     self.activation = nn.ReLU()
 
   def forward(self, turn_input):

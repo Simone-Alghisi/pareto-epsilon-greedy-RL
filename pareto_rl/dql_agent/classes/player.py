@@ -24,10 +24,12 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
       len([mon for mon in battle.opponent_team.values() if mon.fainted]) / 6
     )
 
-    # Final vector with 10 components
-    return np.concatenate(
+    obs = np.concatenate(
       [moves_base_power, moves_dmg_multiplier, [remaining_mon_team, remaining_mon_opponent]]
+    # Final vector with 10 components
     )
+
+    return obs
 
   def compute_reward(self, battle) -> float:
     return self.reward_computing_helper(
