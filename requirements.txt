@@ -8,3 +8,4 @@ PyQt5-sip==12.9.1
 pynpm==0.1.2
 torch==1.11.0
 poke-env==0.4.21
+tqdm==4.64.0

@@ -4,11 +4,14 @@ import torch.optim as optim
 import torch.nn as nn
 import math
 import random
+import os
+from tqdm import tqdm
 from itertools import count
 from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
 from pareto_rl.dql_agent.classes.player import SimpleRLPlayer
 from poke_env.player.random_player import RandomPlayer
 from poke_env.player_configuration import PlayerConfiguration
+
 def configure_subparsers(subparsers):
   r"""Configure a new subparser for DQL agent.
 
@@ -36,37 +39,43 @@ def optimize_model(memory, policy_net, target_net, optimiser, args):
   # Compute a mask of non-final states and concatenate the batch elements
   # (a final state would've been the one after which simulation ended)
   non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), device=args['device'], dtype=torch.bool)
-  non_final_next_states = torch.cat([s for s in batch.next_state if s is not None])
-  print(batch.action)
-  state_batch = torch.cat(batch.state)
-  action_batch = torch.cat(batch.action)
-  reward_batch = torch.cat(batch.reward)
+  non_final_next_states = torch.stack([s for s in batch.next_state if s is not None])
+
+  # state_batch = torch.cat(batch.state)
+  state_batch = torch.stack(batch.state)
+  # action_batch = torch.cat(batch.action)
+  action_batch = torch.tensor(batch.action, device=args['device'])
+  reward_batch = torch.cat(batch.reward).double()
 
   # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
   # columns of actions taken. These are the actions which would've been taken
   # for each batch state according to policy_net
-  state_action_values = policy_net(state_batch).gather(1, action_batch)
+  utility = policy_net(state_batch).detach()
+  # For each selected action, select its corresponding utility value
+  state_action_values = utility.gather(1,action_batch.unsqueeze(1)).squeeze()
 
   # Compute V(s_{t+1}) for all next states.
   # Expected values of actions for non_final_next_states are computed based
   # on the "older" target_net; selecting their best reward with max(1)[0].
   # This is merged based on the mask, such that we'll have either the expected
   # state value or 0 in case the state was final.
-  next_state_values = torch.zeros(args['batch_size'], device=args['device'])
-  next_state_values[non_final_mask] = target_net(non_final_next_states).argmax().detach()
+  next_state_values = torch.zeros(args['batch_size'], dtype=torch.float64, device=args['device'])
+  # Select greedily max action (off-policy, Q-Learning)
+  next_state_values[non_final_mask] = target_net(non_final_next_states).max(1)[0]
   # Compute the expected Q values
   expected_state_action_values = (next_state_values * args['gamma']) + reward_batch
 
   # Compute Huber loss
-  criterion = nn.SmoothL1Loss()
-  loss = criterion(state_action_values, expected_state_action_values.unsqueeze(1))
+  # criterion = nn.HuberLoss()
+  criterion = nn.HuberLoss()
+  loss = criterion(state_action_values, expected_state_action_values)
 
   # Optimize the model
-  optimiser.zero_grad()
   loss.backward()
   # for param in policy_net.parameters():
   #   param.grad.data.clamp_(-1, 1)
   optimiser.step()
+  optimiser.zero_grad()
 
 def policy(state, policy_net, args):
   sample = random.random()
@@ -77,32 +86,12 @@ def policy(state, policy_net, args):
       # t.max(1) will return largest column value of each row.
       # second column on max result is index of where max element was
       # found, so we pick action with the larger expected reward.
-      return policy_net(state).argmax().detach().squeeze()
+      return policy_net(state).argmax().detach()
   else:
-    return torch.tensor([[random.randrange(args['n_actions'])]], device=args['device'], dtype=torch.long)
+    return torch.tensor([[random.randrange(args['n_actions'])]], device=args['device'], dtype=torch.long).squeeze()
 
-def get_state():
-  pass
 
-def get_reward():
-  pass
-
-def test_alg(player: SimpleRLPlayer):
-
-  player.reset()
-  # player.reset_battles()
-  print(player._actions)
-
-  action = player.action_space[0]
-
-  observation,reward,done,info = player.step(action)
-  print(observation)
-  print(reward)
-  print(info)
-  # player.complete_current_battle()
-
-def train(player,**args):
-
+def train(player: SimpleRLPlayer, **args):
   hidden_layers = [32, 16]
   n_actions = len(player.action_space)
   args['n_actions'] = n_actions
@@ -113,14 +102,13 @@ def train(player,**args):
   target_net.eval()
 
   optimiser = optim.Adam(policy_net.parameters())
-  memory = ReplayMemory(30)
+  memory = ReplayMemory(10000)
 
   episode_durations = []
 
-
   # train loop
-  num_episodes = 50
-  for i_episode in range(num_episodes):
+  num_episodes = 5000
+  for i_episode in tqdm(range(num_episodes), desc='Training', unit='episodes'):
     # games
     # Initialize the environment and state
 
@@ -131,10 +119,9 @@ def train(player,**args):
       # turns
       # Select and perform an action
       action = policy(state, policy_net, args)
-      print(action)
       observation, reward, done, _ = player.step(action)
       observation = torch.from_numpy(observation).double().to(args['device'])
-      print(reward)
+      # print(reward)
 
       reward = torch.tensor([reward], device=args['device'])
 
@@ -159,12 +146,60 @@ def train(player,**args):
     if i_episode % args['target_update'] == 0:
       target_net.load_state_dict(policy_net.state_dict())
   print(episode_durations)
+  player.complete_current_battle()
+  model_path = os.path.abspath('./models/best.pth')
+  torch.save(policy_net.state_dict(), model_path)
+
+
+def eval(player: SimpleRLPlayer, **args):
+  hidden_layers = [32, 16]
+  n_actions = len(player.action_space)
+  args['n_actions'] = n_actions
+  input_size = 10
+  policy_net = DarkrAI(input_size, hidden_layers, n_actions).to(args['device'])
+
+  model_path = os.path.abspath('./models/best.pth')
+  if os.path.exists(model_path):
+    policy_net.load_state_dict(torch.load(model_path))
+  else:
+    print(f'Error: No model found for evaluation')
+    return
+  policy_net.eval()
+
+  player.reset_battles()
+
+  episode_durations = []
+  num_episodes = 100
+  for _ in tqdm(range(num_episodes), desc='Evaluating', unit='episodes'):
+    observation = torch.from_numpy(player.reset()).double().to(args['device'])
+    state = observation
+    for t in count():
+      # action = policy(state, policy_net, args)
+      # Follow learned policy
+      action = policy_net(state).argmax()
+      observation, _, done, _ = player.step(action)
+      observation = torch.from_numpy(observation).double().to(args['device'])
+
+      # Observe new state
+      if not done:
+        next_state = observation
+      else:
+        episode_durations.append(t + 1)
+        break
+
+      # Move to the next state
+      state = next_state
+
+  print(episode_durations)
+  player.complete_current_battle()
+  print(f'DarkrAI has won {player.n_won_battles} out of {num_episodes} games')
+
 
 def main(args):
 
   device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
   args = {
-    'batch_size':16,
+    'batch_size': 128,
     'gamma': 0.999,
     'target_update': 10,
     'eps_start': 0.9,
@@ -179,8 +214,17 @@ def main(args):
 
   env_player = SimpleRLPlayer(battle_format="gen8randombattle",player_configuration=darkrai_player_config)
   opponent = RandomPlayer(battle_format="gen8randombattle",player_configuration=random_player_config)
+
+  # Train
   env_player.play_against(
     env_algorithm=train,
+    opponent=opponent,
+    env_algorithm_kwargs=args
+  )
+
+  # Evaluate
+  env_player.play_against(
+    env_algorithm=eval,
     opponent=opponent,
     env_algorithm_kwargs=args
   )
