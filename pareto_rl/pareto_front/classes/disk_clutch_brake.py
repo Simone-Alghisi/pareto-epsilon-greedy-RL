@@ -28,14 +28,14 @@ pkmn = ['gengar', 'vulpix', 'charmander', 'venusaur']
 
 # possible values
 values = [
-    ['ember', 'hydropump', 'hex', 'toxic'],  #pokemon1.moves,     #4
-    ['vulpix', 'charmander', 'venusaur'],    #pokemon_on_field,   #3
-    ['ember', 'hydropump', 'hex', 'toxic'],  #pokemon2.moves,     #4
-    ['gengar', 'charmander', 'venusaur'],    #pokemon_on_field,   #3
-    ['ember', 'hydropump', 'hex', 'toxic'],  #opponent1.moves,    #4
-    ['gengar', 'vulpix', 'venusaur'],        #pokemon_on_field,   #3
-    ['ember', 'hydropump', 'hex', 'toxic'],  #opponent2.moves,    #4
-    ['gengar', 'vulpix', 'charmander']       #pokemon_on_field    #3
+    ['sludge bomb', 'shadow ball', 'hex', 'toxic'],                 #pokemon1.moves,     #4    # Gengar
+    ['vulpix', 'charmander', 'venusaur'],                           #pokemon_on_field,   #3
+    ['fire fang', 'flamethrower', 'sunny day', 'will-o-wisp'],      #pokemon2.moves,     #4    # Vulpix
+    ['gengar', 'charmander', 'venusaur'],                           #pokemon_on_field,   #3
+    ['fire punch', 'ember', 'earth power', 'tackle'],               #opponent1.moves,    #4    # Charmander
+    ['gengar', 'vulpix', 'venusaur'],                               #pokemon_on_field,   #3
+    ['energy ball', 'sleep powder', 'frenzy plant', 'leaf storm'],  #opponent2.moves,    #4    # Venusaur
+    ['gengar', 'vulpix', 'charmander']                              #pokemon_on_field    #3
     #np.arange(60, 81, 1),
     #np.arange(90, 111, 1),
     #np.arange(1.5, 3.5, 0.5),
@@ -43,21 +43,10 @@ values = [
     #np.arange(2, 10, 1),
 ]
 
-#class DiskClutchBounder(object):
-#    def __call__(self, candidate, args):
-#        closest = lambda target, index: min(
-#            values[index], key=lambda x: abs(x - target)
-#        )
-#        for i, c in enumerate(candidate):
-#            candidate[i] = closest(c, i)
-#        return candidate
-
 class DiskClutchBrake(benchmarks.Benchmark):
     def __init__(self, constrained=False):
         # n_dimensions and n_objectives
-        benchmarks.Benchmark.__init__(self, 8, 3)
-        # bounder
-        # self.bounder = DiskClutchBounder()
+        benchmarks.Benchmark.__init__(self, 8, 4)
         self.maximize = True
         self.constrained = constrained
 
@@ -66,27 +55,30 @@ class DiskClutchBrake(benchmarks.Benchmark):
 
     def evaluator(self, candidates, args):
         fitness = []
-        for c in candidates:
+        request = {'requests': []}
+        for i, c in enumerate(candidates):
+            request['requests'].append(prepare_request(pkmn, c))
 
-            a1 = json.loads(damage_request(json.dumps({'Attacker': pkmn[0], 'Move': c[0], 'Defender': c[1]})))['damage']
-            a1 = a1[0] if isinstance(a1, list) else a1
-            a2 = json.loads(damage_request(json.dumps({'Attacker': pkmn[1], 'Move': c[2], 'Defender': c[3]})))['damage']
-            a2 = a2[0] if isinstance(a2, list) else a2
-            a3 = json.loads(damage_request(json.dumps({'Attacker': pkmn[2], 'Move': c[4], 'Defender': c[5]})))['damage']
-            a3 = a3[0] if isinstance(a3, list) else a3
-            a4 = json.loads(damage_request(json.dumps({'Attacker': pkmn[3], 'Move': c[6], 'Defender': c[7]})))['damage']
-            a4 = a4[0] if isinstance(a4, list) else a4
+        result = damage_request(json.dumps(request))
+        result = json.loads(result)
 
-            f1 = a1 + a2
+        for r in result['results']:
+            attacks = []
+            for attack in r.values():
+                damage = attack['damage']
+                attacks.append(damage.pop() if isinstance(damage, list) else damage)
 
-            f2 = a3 + a4
+            f1 = attacks[0] + attacks[1]
 
-            f3 = min((261+217) - (a3+a4),0)
+            f2 = attacks[2] + attacks[3]
+
+            f3 = max((261+217) - f2, 0)
+
+            f4 = max((301+219) - f1, 0)
 
             fitness.append(
-                Pareto([f1, f2, f3], self.maximize)
+                Pareto([f1, f2, f3, f4], self.maximize)
             )
-
         return fitness
 
 
@@ -100,3 +92,12 @@ def disk_clutch_brake_mutation(random, candidate, args):
             mutant[i] = random.sample(values[i], 1)[0]
     mutant = bounder(mutant, args)
     return mutant
+
+
+def prepare_request(pkmn, c):
+    return {
+        0: {'Attacker': pkmn[0], 'Move': c[0], 'Defender': c[1]},
+        1: {'Attacker': pkmn[1], 'Move': c[2], 'Defender': c[3]},
+        2: {'Attacker': pkmn[2], 'Move': c[4], 'Defender': c[5]},
+        3: {'Attacker': pkmn[3], 'Move': c[6], 'Defender': c[7]}
+    }

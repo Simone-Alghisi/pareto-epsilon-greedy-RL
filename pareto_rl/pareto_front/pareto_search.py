@@ -83,14 +83,14 @@ def pareto_search(args):
     args["objective_1"] = "Brake Mass (kg)"
     args["objective_2"] = "Stopping Time (s)"
 
-    args["variator"] = [variators.blend_crossover, disk_clutch_brake_mutation]
+    args["variator"] = [variators.uniform_crossover, disk_clutch_brake_mutation]
 
     args["fig_title"] = "NSGA-2"
 
     rng = NumpyRandomWrapper()
 
     final_pop, final_pop_fitnesses = nsga2(
-        rng, problem, display=display, num_vars=5, **args
+        rng, problem, display=display, num_vars=8, **args
     )
 
     print("Final Population\n", final_pop)
