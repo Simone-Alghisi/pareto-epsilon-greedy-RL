@@ -24,6 +24,7 @@ import copy
 import json
 from pareto_rl.damage_calculator.requester import damage_request
 
+# possible pokemon
 pkmn = ['gengar', 'vulpix', 'charmander', 'venusaur']
 
 # possible values
@@ -36,19 +37,13 @@ values = [
     ['gengar', 'vulpix', 'venusaur'],                               #pokemon_on_field,   #3
     ['energy ball', 'sleep powder', 'frenzy plant', 'leaf storm'],  #opponent2.moves,    #4    # Venusaur
     ['gengar', 'vulpix', 'charmander']                              #pokemon_on_field    #3
-    #np.arange(60, 81, 1),
-    #np.arange(90, 111, 1),
-    #np.arange(1.5, 3.5, 0.5),
-    #np.arange(600, 1010, 10),
-    #np.arange(2, 10, 1),
 ]
 
-class DiskClutchBrake(benchmarks.Benchmark):
-    def __init__(self, constrained=False):
+class NextTurnTest(benchmarks.Benchmark):
+    def __init__(self):
         # n_dimensions and n_objectives
         benchmarks.Benchmark.__init__(self, 8, 4)
         self.maximize = True
-        self.constrained = constrained
 
     def generator(self, random, args):
         return [random.sample(values[i], 1)[0] for i in range(self.dimensions)]
@@ -56,7 +51,7 @@ class DiskClutchBrake(benchmarks.Benchmark):
     def evaluator(self, candidates, args):
         fitness = []
         request = {'requests': []}
-        for i, c in enumerate(candidates):
+        for _, c in enumerate(candidates):
             request['requests'].append(prepare_request(pkmn, c))
 
         result = damage_request(json.dumps(request))
@@ -82,12 +77,39 @@ class DiskClutchBrake(benchmarks.Benchmark):
         return fitness
 
 
+class NextTurn(benchmarks.Benchmark):
+    def __init__(self, battle):
+        # n_dimensions and n_objectives
+        benchmarks.Benchmark.__init__(self, len(battle.all_active_pokemons)*2, 4)
+        self.maximize = True
+        self.battle = battle
+
+    def generator(self, random, args):
+        battle = self.battle
+        moves = []
+        for i, key, mon in enumerate(battle.all_active_pokemons.items()):
+            if i < 2:
+                # select random move name
+                move_name = random.choice(list(mon.moves.keys()))
+                random_move = mon.moves[move_name]
+                moves.append()
+                print(random_move.request_target)
+                print(random_move.deduced_target)
+                print(random_move.target)
+                print(random_move.id)
+                print(random_move)
+            else:
+                ...
+
+        return [random.ch(mon.moves, 1) for key, mon in battle.all_active_pokemons]
+
+
 @mutator
-def disk_clutch_brake_mutation(random, candidate, args):
+def next_turn_mutation(random, candidate, args):
     mut_rate = args.setdefault("mutation_rate", 0.1)
     bounder = args["_ec"].bounder
     mutant = copy.copy(candidate)
-    for i, m in enumerate(mutant):
+    for i, _ in enumerate(mutant):
         if random.random() < mut_rate:
             mutant[i] = random.sample(values[i], 1)[0]
     mutant = bounder(mutant, args)
@@ -101,3 +123,4 @@ def prepare_request(pkmn, c):
         2: {'Attacker': pkmn[2], 'Move': c[4], 'Defender': c[5]},
         3: {'Attacker': pkmn[3], 'Move': c[6], 'Defender': c[7]}
     }
+

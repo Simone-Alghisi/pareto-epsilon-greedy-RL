@@ -16,12 +16,14 @@ Authors:
 - Erich Robbi (erich.robbi@studenti.unitn.it)
 """
 
+from typing_extensions import final
 from inspyred.ec import variators
 from pareto_rl.pareto_front.ga.utils.inspyred_utils import NumpyRandomWrapper
 from pareto_rl.pareto_front.ga.nsga2 import nsga2
-from pareto_rl.pareto_front.classes.disk_clutch_brake import (
-    DiskClutchBrake,
-    disk_clutch_brake_mutation,
+from pareto_rl.pareto_front.classes.next_turn import (
+    NextTurn,
+    NextTurnTest,
+    next_turn_mutation,
 )
 import matplotlib.pyplot as plt
 
@@ -39,6 +41,9 @@ def configure_subparsers(subparsers):
     
     """
     parser = subparsers.add_parser("pareto", help="Test the Pareto search")
+    parser.add_argument(
+      "--dry", action='store_true', default=False, help="Run without showing plots"
+    )
     parser.set_defaults(func=main)
 
 
@@ -47,10 +52,8 @@ def main(args):
     Args:
       args: command line arguments
     """
-    # check some parameters
-    # TODO
 
-    print("\n### Testing Pareto search ###")
+    print("\n### Pareto search ###")
     print("> Parameters:")
     for p, v in zip(args.__dict__.keys(), args.__dict__.values()):
         print("\t{}: {}".format(p, v))
@@ -59,41 +62,49 @@ def main(args):
     pareto_search(args)
 
 
-def pareto_search(args):
-    r"""Main function which ..
+def pareto_search(args, battle=None):
+    r"""Main function which runs the pareto search returning the final population and final population fitness
     Args:
       args: command line arguments
     """
 
-    display = True
+    # If dry do not show any plot
+    display = not args.dry
 
     # parameters for NSGA-2
-    args = {}
-    args["pop_size"] = 50
-    args["max_generations"] = 10
-    constrained = False
+    nsga2_args = {}
+    nsga2_args["pop_size"] = 50
+    nsga2_args["max_generations"] = 10
 
     """
-  -------------------------------------------------------------------------
-  """
+    -------------------------------------------------------------------------
+    """
+    if battle is not None:
+      problem = NextTurn()
+    else:
+      problem = NextTurnTest()
 
-    problem = DiskClutchBrake(constrained)
-    if constrained:
-        args["constraint_function"] = problem.constraint_function
-    args["objective_1"] = "Brake Mass (kg)"
-    args["objective_2"] = "Stopping Time (s)"
+    # name of the objective for plot purpose
+    nsga2_args["objective_0"] = "Mon Dmg"
+    nsga2_args["objective_1"] = "Opp Dmg"
+    nsga2_args["objective_2"] = "Mon HP"
+    nsga2_args["objective_3"] = "Opp HP"
 
-    args["variator"] = [variators.uniform_crossover, disk_clutch_brake_mutation]
+    # crossover and mutation
+    nsga2_args["variator"] = [variators.uniform_crossover, next_turn_mutation]
 
-    args["fig_title"] = "NSGA-2"
+    nsga2_args["fig_title"] = "Pokémon NSGA-2"
 
     rng = NumpyRandomWrapper()
 
     final_pop, final_pop_fitnesses = nsga2(
-        rng, problem, display=display, num_vars=8, **args
+        rng, problem, display=display, num_vars=8, **nsga2_args
     )
 
-    print("Final Population\n", final_pop)
-    print("Final Population Fitnesses\n", final_pop_fitnesses)
-    plt.ioff()
-    plt.show()
+    if not args.dry:
+      print("Final Population\n", final_pop)
+      print("Final Population Fitnesses\n", final_pop_fitnesses)
+      plt.ioff()
+      plt.show()
+    
+    return final_pop, final_pop_fitnesses

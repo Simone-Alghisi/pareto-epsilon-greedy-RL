@@ -16,9 +16,12 @@ Authors:
 - Erich Robbi (erich.robbi@studenti.unitn.it)
 """
 
+import asyncio
 import argparse
-import pareto_rl.pareto_front as processors
+import pareto_rl.pareto_front as pareto_processor
+import pareto_rl.test as test_processor
 import logging
+import matplotlib
 from pareto_rl.dql_agent import agent
 
 #: mapping between string logger levels and their actual value
@@ -41,12 +44,16 @@ def get_args():
 
     # subparsers
     subparsers = parser.add_subparsers(help="sub-commands help")
-    processors.pareto_search.configure_subparsers(subparsers)
+    pareto_processor.pareto_search.configure_subparsers(subparsers)
+    test_processor.pareto_battle.configure_subparsers(subparsers)
     agent.configure_subparsers(subparsers)
 
-    # argument of the parser
+    # arguments of the parser
     parser.add_argument(
-        "--logger-level", "-ll", choices=LOGGER_LEVELS.keys(), default="WARNING"
+        "--logger-level", "-ll", choices=LOGGER_LEVELS.keys(), default="WARNING", help="Logger level"
+    )
+    parser.add_argument(
+        "--matplotlib-backend", "-mb", choices=matplotlib.rcsetup.interactive_bk, default="QtAgg", help="Matplotlib interactive backend"
     )
 
     # parse arguments
@@ -84,6 +91,7 @@ def log(level):
 def main(args):
     r"""Main function"""
     log(args.logger_level)
+    matplotlib.use(args.matplotlib_backend)
     args.func(
         args,
     )

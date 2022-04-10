@@ -219,7 +219,7 @@ def plot_results_multi_objective_2D(
     fig.subplots_adjust(right=0.8)
 
 
-def plot_results_multi_objective_PF(individuals, title):
+def plot_results_multi_objective_PF(individuals, title, args):
     num_objectives = len(individuals[0].fitness)
 
     if num_objectives < 2:
@@ -232,13 +232,14 @@ def plot_results_multi_objective_PF(individuals, title):
             ".b",
             markersize=7,
         )
-        plt.xlabel("f0")
-        plt.ylabel("f1")
+        plt.xlabel(args["objective_0"])
+        plt.ylabel(args["objective_1"])
     else:
         # Creates two subplots and unpacks the output array immediately
         f, axes = plt.subplots(
             num_objectives, num_objectives, sharex="col", sharey="row"
         )
+        f.suptitle(title)
         for i in range(num_objectives):
             for j in range(num_objectives):
                 axes[i, j].plot(
@@ -247,8 +248,8 @@ def plot_results_multi_objective_PF(individuals, title):
                     ".b",
                     markersize=7,
                 )
-                axes[i, j].set_xlabel("f" + str(j))
-                axes[i, j].set_ylabel("f" + str(i))
+                axes[i, j].set_xlabel(args["objective_" + str(j)])
+                axes[i, j].set_ylabel(args["objective_" + str(i)])
         f.subplots_adjust(hspace=0.30)
         f.subplots_adjust(wspace=0.30)
 

@@ -97,7 +97,7 @@ def nsga2(
             )
 
         plot_utils.plot_results_multi_objective_PF(
-            final_pop, kwargs["fig_title"] + " (Pareto front)"
+            final_pop, kwargs["fig_title"] + " (Pareto front)", kwargs
         )
 
     return final_pop_candidates, final_pop_fitnesses

@@ -4,9 +4,10 @@ PROJECT_NAME := pareto
 
 # PROGRAMS AND FLAGS
 PYTHON := python3
-PYFLAGS :=
+PYFLAGS := -m
+MAIN := pareto_rl
+MAIN_FLAGS := -mb TkAgg 
 PIP := pip
-NPM := npm
 
 # ======= TRAIN =========
 TRAIN :=
@@ -21,8 +22,12 @@ TEST :=
 TEST_FLAGS :=
 
 # ======= PARETO  =========
-PARETO := -m pareto_rl pareto
+PARETO := pareto
 PARETO_FLAG :=
+
+# ======= PARETO BATTLE =========
+PARETO_BATTLE := pareto-battle
+PARETO_BATTLE_FLAG :=
 
 # ======= DOC   =========
 AUTHORS := --author "Simone Alghisi, Samuele Bortolotti, Massimo Rizzoli, Erich Robbi"
@@ -89,7 +94,7 @@ NPM := npm
 CP := cp
 
 # RULES
-.PHONY: help env install install-dev install-showdown train test pareto doc doc-layout format
+.PHONY: help env install install-dev install-showdown train test pareto doc doc-layout format start-showdown pareto-battle
 
 help:
 	@$(ECHO) '$(YELLOW)Makefile help$(NONE)'
@@ -104,7 +109,9 @@ help:
 	* open-doc 		: opens the documentation\n \
 	* train 		: train the network\n \
 	* test 		: test the network\n \
-	* pareto 		: run the pareto front algorithm"
+	* pareto 		: run the pareto front algorithm\n \
+	* start-showdown 	: starts the showdown server\n \
+	* pareto-battle 	: starts a battle with an agents having Pareto optimal moves"
 
 env:
 	@$(ECHO) '$(GREEN)Creating the virtual environment..$(NONE)'
@@ -134,6 +141,13 @@ install-showdown:
 	 $(SED) -i 's/exports.noguestsecurity = false/exports.noguestsecurity = true/g' config/config.js
 	@$(ECHO) '$(GREEN)Done$(NONE)'
 
+start-showdown:
+	@$(ECHO) '$(BLUE)Starting Pokémon Showdown server..$(NONE)'
+	(sleep 1; $(OPEN) http://localhost:8000) &
+	@$(CD) pokemon-showdown; \
+	$(NPM) start --no-secure
+	@$(ECHO) '$(BLUE)Done$(NONE)'
+
 doc-layout:
 	@$(ECHO) '$(BLUE)Generating the Sphinx layout..$(NONE)'
 	$(SPHINX_QUICKSTART) $(DOC_FOLDER) $(SPHINX_QUICKSTART_FLAGS)
@@ -155,17 +169,22 @@ open-doc:
 
 train:
 	@$(ECHO) '$(BLUE)Training the network..$(NONE)'
-	@$(PYTHON) $(PYFLAGS) $(TRAIN) $(TRAIN_FLAGS)
+	@$(PYTHON) $(PYFLAGS) $(MAIN) $(MAIN_FLAGS) $(TRAIN) $(TRAIN_FLAGS)
 	@$(ECHO) '$(BLUE)Done$(NONE)'
 
 test:
 	@$(ECHO) '$(BLUE)Testing the network..$(NONE)'
-	@$(PYTHON) $(PYFLAGS) $(TEST) $(TEST_FLAGS)
+	@$(PYTHON) $(PYFLAGS) $(MAIN) $(MAIN_FLAGS) $(TEST) $(TEST_FLAGS)
+	@$(ECHO) '$(BLUE)Done$(NONE)'
+
+pareto-battle:
+	@$(ECHO) '$(BLUE)Battle with Pareto moves..$(NONE)'
+	@$(PYTHON) $(PYFLAGS) $(MAIN) $(MAIN_FLAGS) $(PARETO_BATTLE) $(PARETO_BATTLE_FLAG)
 	@$(ECHO) '$(BLUE)Done$(NONE)'
 
 pareto:
 	@$(ECHO) '$(BLUE)Running the pareto..$(NONE)'
-	@$(PYTHON) $(PYFLAGS) $(PARETO) $(PARETO_FLAG)
+	@$(PYTHON) $(PYFLAGS) $(MAIN) $(MAIN_FLAGS) $(PARETO) $(PARETO_FLAG)
 	@$(ECHO) '$(BLUE)Done$(NONE)'
 
 format:

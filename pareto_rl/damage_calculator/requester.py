@@ -38,7 +38,7 @@ def damage_request(parameters: str = ""):
     """
     # logger
     logger = logging.getLogger(__name__)
-    logger.info(parameters)
+    logger.debug(parameters)
     dir_path = os.path.dirname(os.path.realpath(__file__))
     if not is_transpiled("{}/ts/dmg_calculator.js".format(dir_path)):
         # call transpile function
