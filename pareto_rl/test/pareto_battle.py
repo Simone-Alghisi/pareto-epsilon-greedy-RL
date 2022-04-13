@@ -16,6 +16,9 @@ def configure_subparsers(subparsers):
     
     """
     parser = subparsers.add_parser("pareto-battle", help="Test the Pareto agent")
+    parser.add_argument(
+      "player", type=str, default="nextSeason", help="Player to challenge"
+    )
     parser.set_defaults(func=main)
 
 def main(args):
@@ -37,4 +40,4 @@ async def pareto_battle(args):
   p_player = ParetoPlayer(
     player_configuration=PlayerConfiguration("ParetoPlayer", None),
   )
-  await p_player.send_challenges(opponent='nextSeason', n_challenges=1)
+  await p_player.send_challenges(opponent='calchera32', n_challenges=1)

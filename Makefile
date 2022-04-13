@@ -6,7 +6,7 @@ PROJECT_NAME := pareto
 PYTHON := python3
 PYFLAGS := -m
 MAIN := pareto_rl
-MAIN_FLAGS := -mb TkAgg 
+MAIN_FLAGS :=
 PIP := pip
 
 # ======= TRAIN =========
@@ -27,7 +27,7 @@ PARETO_FLAG :=
 
 # ======= PARETO BATTLE =========
 PARETO_BATTLE := pareto-battle
-PARETO_BATTLE_FLAG :=
+PARETO_BATTLE_FLAG := calchera32
 
 # ======= DOC   =========
 AUTHORS := --author "Simone Alghisi, Samuele Bortolotti, Massimo Rizzoli, Erich Robbi"

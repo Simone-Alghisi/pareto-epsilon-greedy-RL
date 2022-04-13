@@ -17,9 +17,12 @@ Authors:
 """
 
 from typing_extensions import final
+from typing import Tuple, Optional, List
 from inspyred.ec import variators
 from pareto_rl.pareto_front.ga.utils.inspyred_utils import NumpyRandomWrapper
+from poke_env.environment.pokemon import Pokemon
 from pareto_rl.pareto_front.ga.nsga2 import nsga2
+from poke_env.player.battle_order import BattleOrder
 from pareto_rl.pareto_front.classes.next_turn import (
     NextTurn,
     NextTurnTest,
@@ -62,7 +65,7 @@ def main(args):
     pareto_search(args)
 
 
-def pareto_search(args, battle=None):
+def pareto_search(args, orders: Optional[List[Tuple[BattleOrder, Pokemon]]] = None):
     r"""Main function which runs the pareto search returning the final population and final population fitness
     Args:
       args: command line arguments
@@ -79,7 +82,9 @@ def pareto_search(args, battle=None):
     """
     -------------------------------------------------------------------------
     """
-    if battle is not None:
+    if orders is not None:
+      # Orders in DoubleBattleOrders and the respective pokémon received
+      print(f"{orders[0][0]} {orders[0][1]}")
       problem = NextTurn()
     else:
       problem = NextTurnTest()
