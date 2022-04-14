@@ -1,16 +1,16 @@
-from typing import overload
-import numpy as np
 from poke_env.player.player import Player
+from poke_env.environment.move import Move, SPECIAL_MOVES
+from poke_env.environment.move_category import MoveCategory
+from poke_env.environment.pokemon import Pokemon
+from poke_env.environment.pokemon_type import PokemonType
 from poke_env.environment.abstract_battle import AbstractBattle
 from poke_env.player.battle_order import (
     BattleOrder,
-    DefaultBattleOrder,
-    DoubleBattleOrder,
 )
 from poke_env.teambuilder.teambuilder import Teambuilder
 from pareto_rl.pareto_front.pareto_search import pareto_search
 import random
-
+import json
 
 class ParetoPlayer(Player):
     r"""ParetoPlayer, should perform only Pareto optimal moves"""
@@ -21,113 +21,124 @@ class ParetoPlayer(Player):
         )
 
     def choose_move(self, battle: AbstractBattle) -> BattleOrder:
-        active_orders = [[], []] # active orders
-        for (
-            idx,
-            (orders, mon, switches, moves, can_mega, can_z_move, can_dynamax),
-        ) in enumerate(
-            zip(
-                active_orders,
-                battle.active_pokemon,
-                battle.available_switches,
-                battle.available_moves,
-                battle.can_mega_evolve,
-                battle.can_z_move,
-                battle.can_dynamax,
-            )
-        ):
-            # if there are pokémons
+        pareto_args = {}
+
+        # your mons
+        pos = -1
+        for mon, moves in zip(battle.active_pokemon, battle.available_moves):
             if mon:
-                # gets all the possible targets
                 targets = {
-                    move: battle.get_possible_showdown_targets(move, mon)
+                    move: self.get_possible_showdown_targets(battle, mon, move, pos)
                     for move in moves
                 }
-                # merges orders in the following way
-                orders.extend(
-                    # an array of Battle orders, with move and target
-                    # which basically is only a union of move and target pokémon: Optional[Union[Move, Pokemon]]
-                    [
-                        BattleOrder(move, move_target=target)
-                        for move in moves
-                        for target in targets[move]
-                    ]
-                )
+                print(targets)
+                pareto_args[pos] = targets
+            pos -= 1
 
-                # for ord in orders:
-                #    print(f"{ord[0]}{ord[1]}")
-
-                # includes also possible switches
-                # orders.extend([(mon, BattleOrder(switch)) for switch in switches])
-
-                # if the poémon can Megaevolve, then we can add this possibility
-                # if can_mega:
-                #    orders.extend(
-                #        [
-                #            (mon, BattleOrder(move, move_target=target, mega=True))
-                #            for move in moves
-                #            for target in targets[move]
-                #        ]
-                #    )
-                
-                # the same for the z move
-                # if can_z_move:
-                #    available_z_moves = set(mon.available_z_moves)
-                #    orders.extend(
-                #        [
-                #            (mon, BattleOrder(move, move_target=target, z_move=True))
-                #            for move in moves
-                #            for target in targets[move]
-                #            if move in available_z_moves
-                #        ]
-                #    )
-
-                # and obv for dynamax
-                # if can_dynamax:
-                #    orders.extend(
-                #        [
-                #            (mon, BattleOrder(move, move_target=target, dynamax=True))
-                #            for move in moves
-                #            for target in targets[move]
-                #        ]
-                #    )
-
-                # if you have to switch
-                if sum(battle.force_switch) == 1:
-                    # A boolean indicating whether the active pokemon is forced to switch out.
-                    if orders:
-                        # returns a random order
-                        return orders[int(random.random() * len(orders))]
-                    # basically returns showdown's default move order.
-                    # This order will result in the first legal order - according to showdown's
-                    # ordering - being chosen.
-                    return self.choose_default_move()
-
-        # get the two active pokémons
-        first_mon, second_mon = battle.active_pokemon
-
-        # create a double battle order
-        orders = DoubleBattleOrder.join_orders(*active_orders)
-
-        # define the Pareto Battle oder, which is basically a touple of 
-        # double battle order and respectively the pokémon which performs
-        # the chosen moves
-        pareto_orders = []
-        for ord in orders:
-            pareto_orders.append((ord, (first_mon, second_mon)))
+        # opponent mons
+        pos = 1
+        for mon in battle.opponent_active_pokemon:
+            if mon:
+                if mon.species.strip().lower() == 'Zigzagoon-Galar'.strip().lower():
+                    moves = {Move("doubleedge"), Move("surf"), Move('knockoff'), Move('thunderbolt')}
+                else:
+                    moves = {Move("fireblast"), Move("firefang"), Move('fling'), Move('seismictoss')}
+                # in the general case, first retrieve known moves and then infer the other probabilistically
+                #moves = mon.moves # pokemon used moves
+                targets = {
+                    move: self.get_possible_showdown_targets(battle, mon, move, pos)
+                    for move in moves
+                }
+                print(targets)
+                pareto_args[pos] = targets
+            pos += 1
         
-        if orders:
-            # you have to turn the pareto optimal move for that pokémon
-            args = lambda: None
-            args.dry = True
-            return pareto_search(args, orders = pareto_orders)
+        # remove invalid targets for basic
+        for pos, moves in pareto_args.items():
+            for m, targets in moves.items():
+                tmp_targets = targets.copy()
+                for t in targets:
+                    if (t not in pareto_args) and (t < 3):
+                        tmp_targets.remove(t)
+                pareto_args[pos][m] = tmp_targets
+
+        print(pareto_args)
+        return self.choose_random_doubles_move(battle)
+    
+    # https://github.com/hsahovic/poke-env/blob/1a35c10648fd99797c0e4fe1eb595c295b4ea8ba/src/poke_env/environment/double_battle.py#L215
+    def get_possible_showdown_targets(
+        self,
+        battle: AbstractBattle,
+        pokemon: Pokemon,
+        move: Move,
+        self_position: int,
+        dynamax: bool = False,
+    ):
+        # Struggle or Recharge
+        if move.id in SPECIAL_MOVES and move.id == "recharge":
+            return [battle.EMPTY_TARGET_POSITION]
+
+        map_ally = {-2: -1, -1: -2, 1: 2, 2: 1}
+        # identify the ally position
+        ally_position = map_ally[self_position]
+        # identify the opponent positions
+        opponent_positions = [1, 2] if self_position < 0 else [-1, -2]
+
+        if dynamax or pokemon.is_dynamaxed:
+            if move.category == MoveCategory.STATUS:
+                targets = [battle.EMPTY_TARGET_POSITION]
+            else:
+                targets = opponent_positions
+        elif move.non_ghost_target and (
+            PokemonType.GHOST not in pokemon.types
+        ):  # fixing target for Curse
+            return [battle.EMPTY_TARGET_POSITION]
         else:
-            return DefaultBattleOrder()
+            targets = {
+                "adjacentAlly": [ally_position],  # helping hand
+                "adjacentAllyOrSelf": [ally_position, self_position],
+                "adjacentFoe": opponent_positions,
+                "all": [3],  # hail
+                "allAdjacent": [3],  # earthquake
+                "allAdjacentFoes": [4],  # muddy water
+                "allies": [5],  # all but only allies - e.g. life dew
+                "allySide": [
+                    5
+                ],  # all allies, but even when switching - e.g. lightscreen
+                "allyTeam": [5],  # all teams (generally all status moves)
+                "any": [ally_position, *opponent_positions],
+                "foeSide": [6],
+                "normal": [ally_position, *opponent_positions],
+                "randomNormal": opponent_positions,
+                "scripted": [7],
+                "self": [self_position],
+                battle.EMPTY_TARGET_POSITION: [battle.EMPTY_TARGET_POSITION],
+                None: opponent_positions,
+            }[move.deduced_target]
 
+        pokemon_ids = set(battle._opponent_active_pokemon.keys())
+        pokemon_ids.update(battle._active_pokemon.keys())
+        player_role, opponent_role = (
+            (battle.player_role, battle.opponent_role)
+            if self_position < 0
+            else (battle.opponent_role, battle.player_role)
+        )
 
-    # implement abstract method
-    # def choose_move(self, battle: AbstractBattle) -> BattleOrder:
-        # return self.choose_random_doubles_move(battle)
+        # use this in the pareto
+
+        # targets_to_keep = {
+        #    {
+        #        f"{player_role}a": -1,
+        #        f"{player_role}b": -2,
+        #        f"{opponent_role}a": 1,
+        #        f"{opponent_role}b": 2,
+        #    }[pokemon_identifier]
+        #    for pokemon_identifier in pokemon_ids
+        #}
+        #targets_to_keep.add(battle.EMPTY_TARGET_POSITION)
+        #targets = [target for target in targets if target in targets_to_keep]
+
+        return targets
 
 
 # qui
