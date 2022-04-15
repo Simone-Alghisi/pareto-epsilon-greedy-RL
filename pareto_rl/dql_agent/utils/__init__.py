@@ -1,5 +1,5 @@
 """
-DQL agent module
+Utils dql_agent
 
 Authors:
 
@@ -10,5 +10,3 @@ Authors:
 
 Università di Trento 2022
 """
-
-__all__ = ['agent']

@@ -28,7 +28,6 @@ def nsga2(
     problem,
     display=False,
     num_vars=0,
-    use_bounder=True,
     variator=None,
     **kwargs
 ):
@@ -44,9 +43,10 @@ def nsga2(
     else:
         algorithm.variator = variator
 
+    # poss problem to args
+    kwargs["problem"] = problem
+
     kwargs["num_selected"] = kwargs["pop_size"]
-    if use_bounder:
-        kwargs["bounder"] = problem.bounder
 
     if display and problem.objectives == 2:
         algorithm.observer = [inspyred_utils.initial_pop_observer]

@@ -16,19 +16,23 @@ Authors:
 - Erich Robbi (erich.robbi@studenti.unitn.it)
 """
 
-from typing_extensions import final
-from typing import Tuple, Optional, List
+from typing import Dict, List
 from inspyred.ec import variators
 from pareto_rl.pareto_front.ga.utils.inspyred_utils import NumpyRandomWrapper
 from poke_env.environment.pokemon import Pokemon
+from pareto_rl.dql_agent.utils.move import Move
+from poke_env.environment.double_battle import DoubleBattle
 from pareto_rl.pareto_front.ga.nsga2 import nsga2
-from poke_env.player.battle_order import BattleOrder
+from poke_env.player.battle_order import BattleOrder, DoubleBattleOrder
 from pareto_rl.pareto_front.classes.next_turn import (
     NextTurn,
-    NextTurnTest,
     next_turn_mutation,
+    next_turn_crossover,
+    NextTurnTest,
+    next_turn_test_mutation
 )
 import matplotlib.pyplot as plt
+from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 
 
 def configure_subparsers(subparsers):
@@ -45,7 +49,7 @@ def configure_subparsers(subparsers):
     """
     parser = subparsers.add_parser("pareto", help="Test the Pareto search")
     parser.add_argument(
-      "--dry", action='store_true', default=False, help="Run without showing plots"
+        "--dry", action="store_true", default=False, help="Run without showing plots"
     )
     parser.set_defaults(func=main)
 
@@ -65,7 +69,11 @@ def main(args):
     pareto_search(args)
 
 
-def pareto_search(args, orders: Optional[List[Tuple[BattleOrder, Pokemon]]] = None):
+def pareto_search(
+    args,
+    battle: DoubleBattle = None,
+    pokemon_mapper: PokemonMapper = None,
+) -> DoubleBattleOrder:
     r"""Main function which runs the pareto search returning the final population and final population fitness
     Args:
       args: command line arguments
@@ -82,21 +90,20 @@ def pareto_search(args, orders: Optional[List[Tuple[BattleOrder, Pokemon]]] = No
     """
     -------------------------------------------------------------------------
     """
-    if orders is not None:
-      # Orders in DoubleBattleOrders and the respective pokémon received
-      print(f"{orders[0][0]} {orders[0][1]}")
-      problem = NextTurn()
+    if (battle is not None) and (pokemon_mapper is not None):
+        problem = NextTurn(battle, pokemon_mapper)
+        # crossover and mutation
+        nsga2_args["variator"] = [next_turn_crossover, next_turn_mutation]
     else:
-      problem = NextTurnTest()
+        problem = NextTurnTest()
+        # crossover and mutation
+        nsga2_args["variator"] = [variators.uniform_crossover, next_turn_test_mutation]
 
     # name of the objective for plot purpose
     nsga2_args["objective_0"] = "Mon Dmg"
     nsga2_args["objective_1"] = "Opp Dmg"
     nsga2_args["objective_2"] = "Mon HP"
     nsga2_args["objective_3"] = "Opp HP"
-
-    # crossover and mutation
-    nsga2_args["variator"] = [variators.uniform_crossover, next_turn_mutation]
 
     nsga2_args["fig_title"] = "Pokémon NSGA-2"
 
@@ -107,9 +114,12 @@ def pareto_search(args, orders: Optional[List[Tuple[BattleOrder, Pokemon]]] = No
     )
 
     if not args.dry:
-      print("Final Population\n", final_pop)
-      print("Final Population Fitnesses\n", final_pop_fitnesses)
-      plt.ioff()
-      plt.show()
-    
+        print("Final Population\n", final_pop)
+        print("Final Population Fitnesses\n", final_pop_fitnesses)
+        plt.ioff()
+        plt.show()
+
+    print("Final Population\n", final_pop)
+    print("Final Population Fitnesses\n", final_pop_fitnesses)
+
     return final_pop, final_pop_fitnesses
