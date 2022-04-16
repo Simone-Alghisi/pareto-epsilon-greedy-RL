@@ -100,7 +100,7 @@ function damageRequest(request: any){
     const gen = Generations.get(8);
     let field = getOptionalParam(value['field']);
     // Get args
-    let args_attacker = getOptionalParam(value['attacker']['name']); // attacker name
+    let args_attacker = getOptionalParam(value['attacker']['args']); // attacker args
     let args_target = getOptionalParam(value['target']['args']) // target name
     let result: any = calculate(
       gen,

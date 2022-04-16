@@ -72,8 +72,8 @@ def main(args):
 def pareto_search(
     args,
     battle: DoubleBattle = None,
-    pokemon_mapper: PokemonMapper = None,
-) -> DoubleBattleOrder:
+    pm: PokemonMapper = None,
+) -> List[DoubleBattleOrder]:
     r"""Main function which runs the pareto search returning the final population and final population fitness
     Args:
       args: command line arguments
@@ -84,14 +84,14 @@ def pareto_search(
 
     # parameters for NSGA-2
     nsga2_args = {}
-    nsga2_args["pop_size"] = 50
-    nsga2_args["max_generations"] = 10
+    nsga2_args["pop_size"] = 40
+    nsga2_args["max_generations"] = 80
 
     """
     -------------------------------------------------------------------------
     """
-    if (battle is not None) and (pokemon_mapper is not None):
-        problem = NextTurn(battle, pokemon_mapper)
+    if (battle is not None) and (pm is not None):
+        problem = NextTurn(battle, pm)
         # crossover and mutation
         nsga2_args["variator"] = [next_turn_crossover, next_turn_mutation]
     else:
@@ -119,7 +119,20 @@ def pareto_search(
         plt.ioff()
         plt.show()
 
-    print("Final Population\n", final_pop)
-    print("Final Population Fitnesses\n", final_pop_fitnesses)
+    orders = []
 
-    return final_pop, final_pop_fitnesses
+    for c in final_pop:
+        first_order = None
+        second_order = None
+        for i in range(0, len(c), 2):
+            pos = pm.get_field_pos_from_genotype(i)
+            move = c[i]
+            target = c[i+1] if c[i+1] < 3 else 0
+            if pos < 0:
+                if first_order is None:
+                    first_order = BattleOrder(move, move_target=target)
+                else:
+                    second_order = BattleOrder(move, move_target=target)
+        orders.append(DoubleBattleOrder(first_order=first_order, second_order=second_order))
+
+    return orders

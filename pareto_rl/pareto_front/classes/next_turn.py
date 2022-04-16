@@ -23,8 +23,8 @@ from pareto_rl.dql_agent.utils.move import Move
 from pareto_rl.damage_calculator.requester import damage_request
 from poke_env.environment.double_battle import DoubleBattle
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
-from pareto_rl.dql_agent.utils.utils import get_pokemon_showdown_name
-import numpy as np
+from pareto_rl.dql_agent.utils.utils import get_pokemon_showdown_name, compute_opponent_stats
+from typing import List, Tuple, Dict
 import copy
 import json
 
@@ -137,18 +137,26 @@ class NextTurn(benchmarks.Benchmark):
 
     def evaluator(self, candidates, args):
         fitness = []
-        "{-1: {moves: [-2, 2, 1]}}"
-        "[{-1: {'attacker': {'name': 'mon_name', 'args': {...}}, 'target': {'name': 'mon_name', 'args': {...}}, 'move': 'move_name', 'field': {...}}, 1: {}, 2: {}}, {}, {}]"
-        "[ciao, -1]"
-        "get_pos_from_genotype() -> -1"
         pm = args["problem"].pm
         requests = []
 
-        for _, c in enumerate(candidates):
+        for c in candidates:
             requests.append(prepare_request(c, pm))
 
         results = damage_request(json.dumps(requests))
         results = json.loads(results)
+
+        n_mon = 0
+        n_opp = 0
+
+        starting_hp: Dict[int, int] = {}
+        for pos, mon in pm.pos_to_mon.items():
+            if pos < 0:
+                starting_hp[pos] = mon.current_hp
+                n_mon += 1
+            else:
+                starting_hp[pos] = compute_opponent_stats('hp', mon)
+                n_opp += 1
 
         for c, r in zip(candidates, results):
             mon_dmg = 0
@@ -156,26 +164,61 @@ class NextTurn(benchmarks.Benchmark):
             opp_dmg = 0
             opp_hp = 0
 
-            for i in range(0, len(c), 2):
-                attacker_pos = pm.get_field_pos_from_genotype(i)
-                attacker = pm.pos_to_mon[attacker_pos]
+            # retrieve the current turn order of the pokemon
+            turn_order = get_turn_order(c, pm)
+
+            # a dictionary to decide wheter one mon has been
+            # defeated and cannot attack anymore
+            remaining_hp = starting_hp.copy()
+
+            dmg_taken = {}
+
+            for attacker_pos in turn_order:
+                # that pokemon is already dead (like the neurons in ReLU)
+                if remaining_hp[attacker_pos] == 0:
+                    continue
+                
+                gene_idx = pm.mon_indexes.index(attacker_pos)*2
+                target_pos = c[gene_idx+1]
+                move = c[gene_idx]
+                
+                # handle all the various cases with different numbers other than
+                # the default pokemon position for showdown 
                 if str(attacker_pos) not in r:
                     continue
-                damage = r[str(attacker_pos)]["damage"]
-                if attacker_pos < 0:
-                    mon_dmg += damage.pop() if isinstance(damage, list) else damage
-                    mon_hp += attacker._current_hp
-                else:
-                    opp_dmg += damage.pop() if isinstance(damage, list) else damage
-                    # find a way to discover which kind of info you know about opponent HP
-                    # opp_hp = ...
-                    if attacker.species.lower() == 'Zigzagoon'.lower():
-                        opp_hp += 280
-                    else:
-                        opp_hp += 232
 
-            mon_hp = max(mon_hp - opp_dmg, 0)
-            opp_hp = max(opp_hp - mon_dmg, 0)
+                damage = r[str(attacker_pos)]["damage"]
+                if isinstance(damage, list):
+                    damage = damage[len(damage)//2]
+
+                damage = damage*move.accuracy
+                
+                if target_pos not in dmg_taken:
+                    dmg_taken[target_pos] = 0
+
+                # only if they are ally the damage increases
+                if target_pos*attacker_pos < 0:
+                    dmg_taken[target_pos] += damage
+
+                remaining_hp[target_pos] = max(0, remaining_hp[target_pos] - damage)
+
+            for pos, hp in remaining_hp.items():
+                if pos < 0:
+                    mon_hp += (hp/starting_hp[pos])
+                else:
+                    opp_hp += (hp/starting_hp[pos])
+
+            mon_hp = (mon_hp/n_mon)*100
+            opp_hp = (opp_hp/n_opp)*100
+
+            for pos, dmg in dmg_taken.items():
+                if pos < 0:
+                    opp_dmg += min(1, (dmg/starting_hp[pos]))
+                else:
+                    mon_dmg += min(1, (dmg/starting_hp[pos]))
+            
+            mon_dmg = (mon_dmg/n_opp)*100
+            opp_dmg = (opp_dmg/n_mon)*100
 
             fitness.append(Pareto([mon_dmg, mon_hp, opp_dmg, opp_hp], self.maximize))
         return fitness
@@ -282,3 +325,26 @@ def prepare_request(c, pm: PokemonMapper):
             "field": {}
         }
     return request
+
+
+def get_turn_order(c, pm: PokemonMapper, last_turn = None) -> List[int]:
+    turn_order: List[Tuple(int, int, int)] = []
+
+    if last_turn is not None:
+        # for the moment, do not consider previous turn
+        pass
+    else:
+        for i in range(0, len(c), 2):
+            pos = pm.get_field_pos_from_genotype(i)
+            mon = pm.pos_to_mon[pos]
+            if pos < 0:
+                mon_speed = mon.stats["spe"]
+            else:
+                mon_speed = compute_opponent_stats('spe', mon)
+            move = c[i]
+            move_priority = move.priority
+            turn_order.append((pos, move_priority, mon_speed))
+        
+        # sort the moves based first on their priority and then the speed of the pokemons
+        turn_order.sort(key=lambda x: (x[1], x[2]), reverse=True)
+        return [x[0] for x in turn_order]

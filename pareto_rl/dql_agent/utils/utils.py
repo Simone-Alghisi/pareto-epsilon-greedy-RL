@@ -5,6 +5,8 @@ from poke_env.environment.move_category import MoveCategory
 from poke_env.environment.pokemon import Pokemon
 from poke_env.environment.pokemon_type import PokemonType
 from poke_env.environment.double_battle import DoubleBattle
+from typing import Dict, List, Any
+import math
 
 # https://github.com/hsahovic/poke-env/blob/1a35c10648fd99797c0e4fe1eb595c295b4ea8ba/src/poke_env/environment/double_battle.py#L215
 def get_possible_showdown_targets(
@@ -81,5 +83,72 @@ def get_possible_showdown_targets(
 	return targets
 
 
-def get_pokemon_showdown_name(pokemon: Pokemon):
-	return POKEDEX[pokemon.species]["name"]
+def prepare_pokemon_request(mon: Pokemon) -> Dict[str, Any]:
+	request: Dict = {}
+	# insert species
+	request['species'] = mon.species
+	# pokemon types
+	request['types'] = []
+	if mon.types:
+		request['types'] = [ t.name for t in mon.types ]
+	# pokemon weight
+	request['weightkg'] = mon.weight
+	# pokemon level
+	request['level'] = mon.level
+	# pokemon gender
+	request['gender'] = None 
+	if mon.gender:
+		request['gender'] = mon.gender.name
+	# ability
+	request['ability'] = None
+	if mon.ability:
+		request['ability'] = mon.ability
+	# dynamax
+	request['isDynamixed'] = mon.is_dynamaxed
+	# item
+	request['item'] = None
+	if mon.item:
+		request['item'] = mon.item
+	# boots
+	# Target format 'hp', 'at', 'df', 'sa', 'sd', 'sp'
+	# Current format "atk": 0, "def": 0, "spa": 0, "spd": 0,"spe": 0,
+	request['boosts'] = {}
+	request['boost']['at'] = mon.boost['atk']
+	request['boost']['df'] = mon.boost['def']
+	request['boost']['sa'] = mon.boost['spa']
+	request['boost']['sd'] = mon.boost['spd']
+	request['boost']['sp'] = mon.boost['spe']
+	# stats
+	request['stats'] = {}
+	request['stats']['at'] = mon.stats['atk'] if mon.stats['atk'] is not None else 0 # probably do some other things
+	request['stats']['df'] = mon.stats['def'] if mon.stats['def'] is not None else 0 # probably do some other things
+	request['stats']['sa'] = mon.stats['spa'] if mon.stats['spa'] is not None else 0 # probably do some other things
+	request['stats']['sd'] = mon.stats['spd'] if mon.stats['spd'] is not None else 0 # probably do some other things
+	request['stats']['sp'] = mon.stats['spe'] if mon.stats['spe'] is not None else 0 # probably do some other things
+	# status
+	request['status'] = None 
+	if mon.status:
+		request['status'] = mon.status.name
+	# toxicCounter
+	request['toxicCounter'] = mon.status_counter
+	# current hp
+	request['curHP'] = mon.current_hp
+	return request
+
+def get_pokemon_showdown_name(mon: Pokemon):
+	return POKEDEX[mon.species]["name"]
+
+
+def compute_opponent_stats(stat: str, mon: Pokemon):
+	opp_stat = 0
+	# these computation does not assume anything about EV and natures
+	if stat == 'hp':
+		opp_stat = math.floor(
+			((2*mon.base_stats[stat]+31)*mon.level)/100
+		) + mon.level + 10
+	else:
+		# for this moment *1 is useless could be used for the nature
+		opp_stat = math.floor((math.floor(
+			((2*mon.base_stats[stat]+31)*mon.level)/100
+		) + 5)*1)
+	return opp_stat
