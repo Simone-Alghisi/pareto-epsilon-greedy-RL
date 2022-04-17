@@ -31,3 +31,6 @@ log/log.txt
 
 # showdown server
 pokemon-showdown/
+
+# dist
+dist

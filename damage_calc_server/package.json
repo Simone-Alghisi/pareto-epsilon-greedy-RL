@@ -1,0 +1,44 @@
+{
+  "name": "damage_calc_server",
+  "version": "1.0.0",
+  "description": "Simple end-point for @smogon/calc requests",
+  "main": "index.ts",
+  "directories": {
+    "lib": "lib"
+  },
+  "scripts": {
+    "start": "node dist/app.js",
+    "build": "tsc -p .",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "clean": "rm -r dist/* || true",
+    "postinstall": "tsc -p .",
+    "lint": "eslint . --ext .ts",
+    "lintfix": "eslint . --ext .ts --fix",
+    "typedoc": "typedoc --out doc ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Simone-Alghisi/pareto-epsilon-greedy-RL.git"
+  },
+  "author": "Simone Alghisi, Bortolotti Samuele, Rizzoli Massimo, Robbi Erich",
+  "license": "GPL-3.0-or-later",
+  "bugs": {
+    "url": "https://github.com/Simone-Alghisi/pareto-epsilon-greedy-RL/issues"
+  },
+  "homepage": "https://github.com/Simone-Alghisi/pareto-epsilon-greedy-RL#readme",
+  "dependencies": {
+    "@smogon/calc": "^0.6.0",
+    "dotenv": "^16.0.0",
+    "express": "^4.17.3"
+  },
+  "devDependencies": {
+    "@types/dotenv": "^8.2.0",
+    "@types/express": "^4.17.13",
+    "@types/node": "^17.0.24",
+    "@typescript-eslint/eslint-plugin": "^5.19.0",
+    "@typescript-eslint/parser": "^5.19.0",
+    "eslint": "^8.13.0",
+    "typedoc": "^0.22.15",
+    "typescript": "^4.6.3"
+  }
+}
