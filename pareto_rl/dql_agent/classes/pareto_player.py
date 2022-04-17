@@ -18,11 +18,12 @@ class ParetoPlayer(Player):
         super(ParetoPlayer, self).__init__(
             battle_format="gen82v2doubles", team=StaticTeambuilder(), **kwargs
         )
+        self.last_turn = []
 
     def choose_move(self, battle: DoubleBattle) -> BattleOrder:
         pokemon_mapper = PokemonMapper(battle)
         args = Namespace(dry=True)
-        orders = pareto_search(args, battle, pokemon_mapper)
+        orders = pareto_search(args, battle, pokemon_mapper, self.last_turn)
         return orders[int(random.random() * len(orders))]
         #return self.choose_random_doubles_move(battle)
 
@@ -42,7 +43,8 @@ class ParetoPlayer(Player):
             battle = await self._create_battle(battle_info)
         else:
             battle = await self._get_battle(split_messages[0][0])
-        
+
+        self.last_turn = []
         for i, split_message in enumerate(split_messages[1:]):
             if len(split_message) <= 1:
                 continue
@@ -56,10 +58,11 @@ class ParetoPlayer(Player):
                         await self._handle_battle_request(battle)
                         battle.move_on_next_request = False
             # TODO extract all relevant information to exploit the last turn knowledge
-            #elif split_message[1] == 'move':
-            #    print(split_message)
-            #    if i+1 < len(split_messages[1:]):
-            #        print(split_messages[1:][i+1])
+            elif split_message[1] == 'move':
+                # append the actual order of the pokemon to last turn and their move
+                mon = split_message[2]
+                move = split_message[3]
+                self.last_turn.append((mon, move))
             elif split_message[1] == "win" or split_message[1] == "tie":
                 if split_message[1] == "win":
                     battle._won_by(split_message[2])

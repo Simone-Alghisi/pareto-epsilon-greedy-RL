@@ -16,7 +16,7 @@ Authors:
 - Erich Robbi (erich.robbi@studenti.unitn.it)
 """
 
-from typing import Dict, List
+from typing import Dict, List, Tuple
 from inspyred.ec import variators
 from pareto_rl.pareto_front.ga.utils.inspyred_utils import NumpyRandomWrapper
 from poke_env.environment.pokemon import Pokemon
@@ -73,6 +73,7 @@ def pareto_search(
     args,
     battle: DoubleBattle = None,
     pm: PokemonMapper = None,
+    last_turn: List[Tuple[str, str]] = None 
 ) -> List[DoubleBattleOrder]:
     r"""Main function which runs the pareto search returning the final population and final population fitness
     Args:
@@ -84,14 +85,14 @@ def pareto_search(
 
     # parameters for NSGA-2
     nsga2_args = {}
-    nsga2_args["pop_size"] = 40
-    nsga2_args["max_generations"] = 80
+    nsga2_args["pop_size"] = 4
+    nsga2_args["max_generations"] = 10
 
     """
     -------------------------------------------------------------------------
     """
     if (battle is not None) and (pm is not None):
-        problem = NextTurn(battle, pm)
+        problem = NextTurn(battle, pm, last_turn)
         # crossover and mutation
         nsga2_args["variator"] = [next_turn_crossover, next_turn_mutation]
     else:

@@ -119,12 +119,13 @@ def prepare_static_request(pkmn, c):
     }
 
 class NextTurn(benchmarks.Benchmark):
-    def __init__(self, battle: DoubleBattle, pm: PokemonMapper):
+    def __init__(self, battle: DoubleBattle, pm: PokemonMapper, last_turn: List[Tuple[str, str]]):
         # n_dimensions and n_objectives
         benchmarks.Benchmark.__init__(self, pm.alive_pokemon_number() * 2, 4)
         self.maximize = True
         self.battle = battle
         self.pm = pm
+        self.last_turn = last_turn
 
     def generator(self, random, args):
         turn = []
@@ -138,6 +139,7 @@ class NextTurn(benchmarks.Benchmark):
     def evaluator(self, candidates, args):
         fitness = []
         pm = args["problem"].pm
+        last_turn = args["problem"].last_turn
         requests = []
 
         for c in candidates:
@@ -165,7 +167,7 @@ class NextTurn(benchmarks.Benchmark):
             opp_hp = 0
 
             # retrieve the current turn order of the pokemon
-            turn_order = get_turn_order(c, pm)
+            turn_order = get_turn_order(c, pm, last_turn)
 
             # a dictionary to decide wheter one mon has been
             # defeated and cannot attack anymore
@@ -196,7 +198,7 @@ class NextTurn(benchmarks.Benchmark):
                 if target_pos not in dmg_taken:
                     dmg_taken[target_pos] = 0
 
-                # only if they are ally the damage increases
+                # only if they are opponents the damage increases
                 if target_pos*attacker_pos < 0:
                     dmg_taken[target_pos] += damage
 
@@ -328,23 +330,84 @@ def prepare_request(c, pm: PokemonMapper):
 
 
 def get_turn_order(c, pm: PokemonMapper, last_turn = None) -> List[int]:
-    turn_order: List[Tuple(int, int, int)] = []
+    turn_order: List[Tuple[int, int, int]] = []
 
-    if last_turn is not None:
+    map_showdown_to_pos = {
+        'p1a': -1,
+        'p1b': -2,
+        'p2a': 1,
+        'p2b': 2
+    }
+
+    # This does not probably cover every case, but it's something
+    if last_turn is not None and len(last_turn) > 0:
+        actual_turn = []
+        predicted_turn = []
+
         # for the moment, do not consider previous turn
-        pass
-    else:
-        for i in range(0, len(c), 2):
-            pos = pm.get_field_pos_from_genotype(i)
+        for mon_str, move_str in last_turn:
+            # convert from showdown to pokemon instance
+            showdown_pos = mon_str.split(':')[0]
+            pos = map_showdown_to_pos[showdown_pos]
+            # handle if a mon died
+            if pos not in pm.pos_to_mon:
+                continue
             mon = pm.pos_to_mon[pos]
-            if pos < 0:
+            if mon.stats["spe"] is not None:
                 mon_speed = mon.stats["spe"]
             else:
-                mon_speed = compute_opponent_stats('spe', mon)
-            move = c[i]
+                mon_speed = compute_opponent_stats("spe", mon)
+            move_id = Move.retrieve_id(move_str)
+            move = Move(move_id)
             move_priority = move.priority
-            turn_order.append((pos, move_priority, mon_speed))
-        
-        # sort the moves based first on their priority and then the speed of the pokemons
-        turn_order.sort(key=lambda x: (x[1], x[2]), reverse=True)
-        return [x[0] for x in turn_order]
+            actual_turn.append((pos, mon, move_priority, mon_speed))
+            predicted_turn.append((pos, mon, move_priority, mon_speed))
+
+        predicted_turn.sort(key=lambda x: (x[2], x[3]), reverse=True)
+
+        already_examined = set()
+        i = 0
+        j = 0
+
+        while i < len(actual_turn) and j < len(predicted_turn):
+            pos, mon, move_priority, mon_speed = actual_turn[i]
+            pr_pos, pr_mon, pr_move_priority, pr_mon_speed = predicted_turn[j]
+
+            if pr_pos in already_examined:
+                # we already adjusted the speed of that pokemon
+                j += 1
+            elif pos != pr_pos:
+                if move_priority == pr_move_priority:
+                    # at least one is an opponent, so I do not know everything about him
+                    if pos > 0:
+                        if "stats" not in mon._last_request:
+                            mon._last_request["stats"] = {"atk": None, "def": None, "spa": None, "spd": None, "spe": None}
+                        # consider case where mon it's faster
+                        mon.stats["spe"] = pr_mon_speed + 1
+                        print(f"{mon} should be faster, increasing speed up to {mon.stats['spe']}")
+                    elif pos < 0 and pr_pos > 0:
+                        if "stats" not in pr_mon._last_request:
+                            mon._last_request["stats"] = {"atk": None, "def": None, "spa": None, "spd": None, "spe": None}
+                        pr_mon.stats["spe"] = mon.stats["spe"]
+                        print(f"{pr_mon} should be slower, so I probably got it wrong previously")
+                already_examined.add(pos)
+                i += 1
+            else:
+                # we predicted correctly
+                i += 1
+                j += 1
+
+    for i in range(0, len(c), 2):
+        pos = pm.get_field_pos_from_genotype(i)
+        mon = pm.pos_to_mon[pos]
+        if mon.stats["spe"] is not None:
+            mon_speed = mon.stats["spe"]
+        else:
+            mon_speed = compute_opponent_stats("spe", mon)
+        move = c[i]
+        move_priority = move.priority
+        turn_order.append((pos, move_priority, mon_speed))
+    
+    # sort the moves based first on their priority and then the speed of the pokemons
+    turn_order.sort(key=lambda x: (x[1], x[2]), reverse=True)
+    return [x[0] for x in turn_order]
