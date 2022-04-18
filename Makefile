@@ -1,6 +1,7 @@
 # FOLDERS
 VENV := venv
 PROJECT_NAME := pareto
+DAMAGE_CALC_FOLDER := damage_calc_server
 
 # PROGRAMS AND FLAGS
 PYTHON := python3
@@ -94,24 +95,26 @@ NPM := npm
 CP := cp
 
 # RULES
-.PHONY: help env install install-dev install-showdown train test pareto doc doc-layout format start-showdown pareto-battle
+.PHONY: help env install install-dev install-showdown train test pareto doc doc-layout format start-showdown pareto-battle start-damage-calc-server install-damage-calc-server
 
 help:
 	@$(ECHO) '$(YELLOW)Makefile help$(NONE)'
 	@$(ECHO) " \
-	* env 			: generates the virtual environment using venv\n \
-	* install		: install the requirements listed in requirements.txt\n \
-	* install-dev		: install the development requirements listed in requirements.dev.txt\n \
-	* install-showdown	: install the pokémon showdown server \
-	* doc-layout 		: generates the Sphinx documentation layout\n \
-	* format 		: format the code using black\n \
-	* doc 			: generates the documentation (requires an existing documentation layout)\n \
-	* open-doc 		: opens the documentation\n \
-	* train 		: train the network\n \
-	* test 		: test the network\n \
-	* pareto 		: run the pareto front algorithm\n \
-	* start-showdown 	: starts the showdown server\n \
-	* pareto-battle 	: starts a battle with an agents having Pareto optimal moves"
+	* env 				: generates the virtual environment using venv\n \
+	* install			: install the requirements listed in requirements.txt\n \
+	* install-dev			: install the development requirements listed in requirements.dev.txt\n \
+	* install-showdown		: install the pokémon showdown server\n \
+	* install-damage-calc-server	: install the damage calculator server\n \
+	* doc-layout 			: generates the Sphinx documentation layout\n \
+	* format 			: format the code using black\n \
+	* doc 				: generates the documentation (requires an existing documentation layout)\n \
+	* open-doc 			: opens the documentation\n \
+	* train 			: train the network\n \
+	* test 			: test the network\n \
+	* pareto 			: run the pareto front algorithm\n \
+	* start-showdown 		: starts the showdown server\n \
+	* start-damage-calc-server 	: starts the damage calculator server\n \
+	* pareto-battle 		: starts a battle with an agents having Pareto optimal moves"
 
 env:
 	@$(ECHO) '$(GREEN)Creating the virtual environment..$(NONE)'
@@ -146,6 +149,18 @@ start-showdown:
 	(sleep 1; $(OPEN) http://localhost:8000) &
 	@$(CD) pokemon-showdown; \
 	$(NPM) start --no-secure
+	@$(ECHO) '$(BLUE)Done$(NONE)'
+
+install-damage-calc-server:
+	@$(ECHO) '$(GREEN)Installing Damage Calc server..$(NONE)'
+	@$(CD) $(DAMAGE_CALC_FOLDER); \
+	 $(NPM) install;
+	@$(ECHO) '$(GREEN)Done$(NONE)'
+
+start-damage-calc-server:
+	@$(ECHO) '$(BLUE)Starting Damage Calc server..$(NONE)'
+	@$(CD) $(DAMAGE_CALC_FOLDER); \
+	$(NPM) run start;
 	@$(ECHO) '$(BLUE)Done$(NONE)'
 
 doc-layout:
