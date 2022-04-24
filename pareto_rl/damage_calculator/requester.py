@@ -19,7 +19,10 @@ Authors:
 import subprocess
 import os
 import logging
+import requests
 
+#: node server url, in the case it is employed
+SERVER_URL = "http://localhost:8080/api/v1/damagecalc"
 
 def is_transpiled(file_path: str) -> bool:
     r"""Returns true if the TypeScript file has been transpiled
@@ -30,7 +33,22 @@ def is_transpiled(file_path: str) -> bool:
     return os.path.isfile(file_path)
 
 
-def damage_request(parameters: str = ""):
+def damage_request_server(request: dict):
+    r"""Asks the @smogol/calc Node module to compute the damage
+
+    The @smogol/calc should be hosted on a node server available at
+    SERVER_URL url
+
+    Args:
+        request [dict]: dictionary request
+    """
+    result = requests.post(SERVER_URL, json=request)
+    if result.status_code != 200:
+        raise Exception(f"Error in the request format, server answered with status code {result.status_code}")
+    return result.text
+
+
+def damage_request_subprocess(parameters: str = ""):
     r"""Asks the @smogol/calc Node module to compute the damage
 
     Args:

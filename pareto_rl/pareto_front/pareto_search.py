@@ -76,8 +76,14 @@ def pareto_search(
     last_turn: List[Tuple[str, str]] = None 
 ) -> List[DoubleBattleOrder]:
     r"""Main function which runs the pareto search returning the final population and final population fitness
+    It can perform it either on a Showdown battle or on some static pokemon team
     Args:
-      args: command line arguments
+        - args: command line arguments
+        - battle [DoubleBattle] = None: Pokémon battle
+        - pm [PokemonMapper] = None: pokemon mapper
+        - last_turn [List[Tuple[str, str]]] = None: last turn
+    Returns:
+        - lists of [DoubleBattleOrder]
     """
 
     # If dry do not show any plot

@@ -53,8 +53,8 @@ export class DamageCalcRoute extends CommonRoutes implements ConfigureRoutes {
      * The output will be the damage returned by @smogon/calc for each reques
     */
     this.app.post('/api/v1/damagecalc', [
-      //damageCalcMiddleware.setupReq,
-      //damageCalcMiddleware.validateRequestBatch,
+      damageCalcMiddleware.setupReq,
+      damageCalcMiddleware.validateRequestBatch,
       damageController.calc
     ]);
   }

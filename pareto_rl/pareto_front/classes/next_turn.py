@@ -20,15 +20,13 @@ from inspyred import benchmarks
 from inspyred.ec.emo import Pareto
 from inspyred.ec.variators import mutator, crossover
 from pareto_rl.dql_agent.utils.move import Move
-from pareto_rl.damage_calculator.requester import damage_request
+from pareto_rl.damage_calculator.requester import damage_request_subprocess, damage_request_server
 from poke_env.environment.double_battle import DoubleBattle
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from pareto_rl.dql_agent.utils.utils import get_pokemon_showdown_name, compute_opponent_stats, prepare_pokemon_request
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Union
 import copy
 import json
-import requests
-import time
 
 # possible pokemon
 pkmn = ["gengar", "vulpix", "charmander", "venusaur"]
@@ -102,7 +100,7 @@ class NextTurnTest(benchmarks.Benchmark):
             request["requests"].append(prepare_static_request(pkmn, c))
 
         # ask for the damage to the damage requester
-        result = damage_request(json.dumps(request))
+        result = damage_request_subprocess(json.dumps(request))
         result = json.loads(result)
 
         # compute the fitenss
@@ -170,8 +168,22 @@ class NextTurn(benchmarks.Benchmark):
         self.battle = battle
         self.pm = pm
         self.last_turn = last_turn
+        # buffer for the actual turn, it stores the result of the damage calculator
+        # without the need of sending a request
+        self.turn_buffer = {}
 
-    def generator(self, random, args):
+    def generator(self, random, args) -> List[Union[Move, int]]:
+        r"""
+        Returns an initial set of individuals with a fixed
+        number of genes (two for each mon) that is used to encode 
+        the moves performed and the target in the current turn.
+        Args:
+            - random: a random generator
+            - args: args passed to the instance
+        Returns:
+            - candidates [List]: the initial list of candidates for the
+            current turn
+        """
         turn = []
         # who does what against who
         for _, moves in self.pm.moves_targets.items():
@@ -180,24 +192,29 @@ class NextTurn(benchmarks.Benchmark):
             turn += [random_move, random_target]
         return turn
 
-    def evaluator(self, candidates, args):
+    def evaluator(self, candidates, args) -> List[Pareto]:
+        r"""
+        Evaluates the current set of candidates based on 4 different
+        objectives (two for the allies and two for the opponents), i.e. 
+        - the damage inflicted to the opponents;
+        - the remaining HP. 
+        For the computation of the damage, smogon damage_calculator is
+        used (request to a local instance).
+        Args:
+            - candidates: set of candidate individuals
+        Returns:
+            - fitness: list containing a Pareto problem with the value
+            for the 4 objectives that need to be maximized
+        """
         fitness = []
         pm = args["problem"].pm
         last_turn = args["problem"].last_turn
         request = {"requests": []}
 
-        for c in candidates:
-            request["requests"].append(prepare_request(c, pm))
-        a = time.time() 
-        result = requests.post("http://localhost:8080/api/v1/damagecalc", json=request)
-        b = time.time()
-        print(b-a)
-        #results = damage_request(json.dumps(requests))
-        result = json.loads(result.text)
-
         n_mon = 0
         n_opp = 0
 
+        a = time.time()
         starting_hp: Dict[int, int] = {}
         for pos, mon in pm.pos_to_mon.items():
             if pos < 0:
@@ -206,14 +223,40 @@ class NextTurn(benchmarks.Benchmark):
             else:
                 starting_hp[pos] = mon.current_hp*compute_opponent_stats('hp', mon)/100
                 n_opp += 1
+        for c in candidates:
 
-        for c, r in zip(candidates, result):
+            # prepare a possible request for the candidate 
+            possible_requests = prepare_request(c, pm)
+            for i in range(0, len(c), 2):
+                # insert the elements in the buffer
+                attacker_pos = pm.get_field_pos_from_genotype(i)
+                # target
+                target_pos = c[i+1]
+                # move
+                move = c[i]
+                # key of the hash
+                key = hash(f"{attacker_pos}{target_pos}{move}")
+                # exploit the turn buffer
+                if key in self.turn_buffer:
+                    r = self.turn_buffer[key]
+                # TODO... handle cases with 3/4/5 .... as targets
+                elif attacker_pos in possible_requests:
+                    # send the request
+                    request["requests"] = [{ attacker_pos: possible_requests[attacker_pos] }]
+                    r = damage_request_server(request)
+                    r = json.loads(r)
+                    # save the result in the buffer
+                    self.turn_buffer[key] = r
+
+            ###################
+
             mon_dmg = 0
             mon_hp = 0
             opp_dmg = 0
             opp_hp = 0
 
             # retrieve the current turn order of the pokemon
+            # TODO split into two 1. update estimates 2. compute current turn
             turn_order = get_turn_order(c, pm, last_turn)
 
             # a dictionary to decide wheter one mon has been
@@ -275,6 +318,22 @@ class NextTurn(benchmarks.Benchmark):
 
 @mutator
 def next_turn_mutation(random, candidate, args):
+    r"""
+    NextTurn mutation function.
+    The mutation consists in choosing for the individual a new random move, which
+    must be performed on a valid target. 
+    If the newly defined move cannot be perfomed on the target of the old one, then a 
+    new target is defined.
+    If that is not possible, then the move is not changed. In such way, we are able to 
+    perform a mutation operator without affecting the validity of the individual.
+
+    Args:
+        - random: random number generator
+        - candidate: candidate individual
+        - args: inspyred parameter.
+    Returns:
+        - mutant: mutated individual (if mutated)
+    """
     mut_rate = args.setdefault("mutation_rate", 0.1)
     mutant = copy.deepcopy(candidate)
     problem = args["problem"]
@@ -308,13 +367,12 @@ def next_turn_mutation(random, candidate, args):
 
 @crossover
 def next_turn_crossover(random, mom, dad, args):
-    # TODO update the documentation (taken originally from inspyred)
     r"""Return the offspring of uniform crossover on the candidates.
-    This function performs uniform crossover (UX). For each element 
+    This function performs uniform crossover (UX). Every two elements 
     of the parents, a biased coin is flipped to determine whether 
     the first offspring gets the 'mom' or the 'dad' element. An 
     optional keyword argument in args, ``ux_bias``, determines the bias.
-    .. Arguments:
+    Args:
        random -- the random number generator object
        mom -- the first parent candidate
        dad -- the second parent candidate
@@ -325,7 +383,9 @@ def next_turn_crossover(random, mom, dad, args):
       (default 1.0)
     - *ux_bias* -- the bias toward the first candidate in the crossover 
       (default 0.5)
-    
+
+    Returns:
+    - children
     """
     ux_bias = args.setdefault('ux_bias', 0.5)
     crossover_rate = args.setdefault('crossover_rate', 1.0)
@@ -346,8 +406,20 @@ def next_turn_crossover(random, mom, dad, args):
     return children
 
 
-def prepare_request(c, pm: PokemonMapper):
+def prepare_request(c, pm: PokemonMapper) -> Dict[int, Dict[str, Dict[str, any]]]:
+    r"""
+    Function which prepares the requests to send to the damage calculator
+    server in order to evaluate the individual fitness
+
+    Args:
+    - c: candidate individual
+    - pm [PokemonMapper]
+    
+    Returns:
+    - requests [Dict]: request ready to be sent.
+    """
     request = {}
+    # for each of the pokemon in the individual (at most 4)
     for i in range(0, len(c), 2):
         # attacker
         attacker_pos = pm.get_field_pos_from_genotype(i)
@@ -377,6 +449,21 @@ def prepare_request(c, pm: PokemonMapper):
 
 
 def get_turn_order(c, pm: PokemonMapper, last_turn = None) -> List[int]:
+    r"""
+    Returns a possible turn order (prediction) based on the current moves
+    to be perfomed in the genotype for the current turn and the estimated
+    speed.
+    Args:
+        - c: a candidate (genotype) encoding moves and target for each
+        attacker
+        - pm [PokemonMapper]
+        - last_turn: the last turn which has been performed (TODO... maybe
+        move it in a separate function)
+    Returns:
+        turn_order [List[int]]: a list encoding the possible turn order 
+        containing the position of the attacker that will act (from first 
+        to last)
+    """
     turn_order: List[Tuple[int, int, int]] = []
 
     map_showdown_to_pos = {
@@ -416,6 +503,7 @@ def get_turn_order(c, pm: PokemonMapper, last_turn = None) -> List[int]:
         i = 0
         j = 0
 
+        # updating the beliefs concerning the opponent pokemon speed/priority
         while i < len(actual_turn) and j < len(predicted_turn):
             pos, mon, move_priority, mon_speed = actual_turn[i]
             pr_pos, pr_mon, pr_move_priority, pr_mon_speed = predicted_turn[j]
@@ -444,6 +532,7 @@ def get_turn_order(c, pm: PokemonMapper, last_turn = None) -> List[int]:
                 i += 1
                 j += 1
 
+    # build the turn orders according to the priorities.
     for i in range(0, len(c), 2):
         pos = pm.get_field_pos_from_genotype(i)
         mon = pm.pos_to_mon[pos]

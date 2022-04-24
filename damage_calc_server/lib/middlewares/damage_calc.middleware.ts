@@ -1,4 +1,5 @@
 import { Response, Request, NextFunction } from 'express';
+import { exit } from 'process';
 import { CommonMiddleware } from '../common/middlewares/common.middleware';
 
 /**
@@ -159,6 +160,8 @@ export class DamageCalcMiddleware extends CommonMiddleware {
   setupReq(req: Request, res: Response, next: NextFunction) :void{
     if(req.params && !req.body){
       req.body = req.params;
+      next();
+    } else if(req.body) {
       next();
     } else {
       res.status(422).json({ error: 'Unprocessable entity' });
