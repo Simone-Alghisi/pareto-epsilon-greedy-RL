@@ -45,7 +45,7 @@ def configure_subparsers(subparsers):
     """
     Subparser parameters:
     Args:
-    
+        dry [bool]: whether to run without showing any plot 
     """
     parser = subparsers.add_parser("pareto", help="Test the Pareto search")
     parser.add_argument(
@@ -100,7 +100,7 @@ def pareto_search(
         # crossover and mutation
         nsga2_args["variator"] = [variators.uniform_crossover, next_turn_test_mutation]
 
-    # name of the objective for plot purpose
+    # name of the objective for plot purposes
     nsga2_args["objective_0"] = "Mon Dmg"
     nsga2_args["objective_1"] = "Opp Dmg"
     nsga2_args["objective_2"] = "Mon HP"
@@ -110,6 +110,7 @@ def pareto_search(
 
     rng = NumpyRandomWrapper()
 
+    # runs nsga2
     final_pop, final_pop_fitnesses = nsga2(
         rng, problem, display=display, num_vars=8, **nsga2_args
     )
@@ -122,6 +123,9 @@ def pareto_search(
 
     orders = []
 
+    # Build battle orders starting from the 
+    # final population by the means of the 
+    # Pokémon mapper
     for c in final_pop:
         first_order = None
         second_order = None

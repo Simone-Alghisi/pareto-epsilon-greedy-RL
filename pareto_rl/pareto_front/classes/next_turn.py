@@ -65,23 +65,47 @@ values = [
 
 
 class NextTurnTest(benchmarks.Benchmark):
+    r"""NextTurnTest, which inherit from the benchmarks.Benchmark
+    
+    It is the problem class which deals with a predefined set of pokémon, 
+    not attached to any Showdown pokémon battle
+    """
+
     def __init__(self):
+        r"""NexTurnTest initialization
+        """
         # n_dimensions and n_objectives
         benchmarks.Benchmark.__init__(self, 8, 4)
+        # whether to maximize or minimize the data
         self.maximize = True
 
     def generator(self, random, args):
+        r"""Generator function, employed to generate a random population
+        Args:
+            - random: random number generator
+            - args: command line arguments
+        """
         return [random.sample(values[i], 1)[0] for i in range(self.dimensions)]
 
     def evaluator(self, candidates, args):
+        r"""Evaluator function, computes the fitness for the actual population
+        Args:
+            - candidates: actual population
+            - args: command line arguments
+        """
         fitness = []
         request = {"requests": []}
+        # prepare the damage request starting from the actual population
         for _, c in enumerate(candidates):
             request["requests"].append(prepare_static_request(pkmn, c))
 
+        # ask for the damage to the damage requester
         result = damage_request(json.dumps(request))
         result = json.loads(result)
 
+        # compute the fitenss
+        # This fitness tries to to maximize the ally pokémon damage
+        # and in the meanwhile minimise the opponent damage
         for r in result["results"]:
             attacks = []
             for attack in r.values():
@@ -102,15 +126,28 @@ class NextTurnTest(benchmarks.Benchmark):
 
 @mutator
 def next_turn_test_mutation(random, candidate, args):
+    r"""Mutation
+    Args:
+        - random: random number generator
+        - candidate: individual
+        - args: command line arguments
+    """
     mut_rate = args.setdefault("mutation_rate", 0.1)
     mutant = copy.copy(candidate)
     for i, _ in enumerate(mutant):
         if random.random() < mut_rate:
+            # random sample a pokémon
             mutant[i] = random.sample(values[i], 1)[0]
     return mutant
 
 
 def prepare_static_request(pkmn, c):
+    r"""Prepare static request method, employed in order to
+    prepare a request to the damage calculator
+    Args:
+        - pkmn: current pokemon
+        - c: pokémon array
+    """
     return {
         0: {"Attacker": pkmn[0], "Move": c[0], "Defender": c[1]},
         1: {"Attacker": pkmn[1], "Move": c[2], "Defender": c[3]},
@@ -119,6 +156,11 @@ def prepare_static_request(pkmn, c):
     }
 
 class NextTurn(benchmarks.Benchmark):
+    r"""NextTurn, which inherit from the benchmarks.Benchmark
+    
+    It is the problem class which deals with a Pokémon battle 
+    attatched to one Showdown pokémon battle
+    """
     def __init__(self, battle: DoubleBattle, pm: PokemonMapper, last_turn: List[Tuple[str, str]]):
         # n_dimensions and n_objectives
         benchmarks.Benchmark.__init__(self, pm.alive_pokemon_number() * 2, 4)

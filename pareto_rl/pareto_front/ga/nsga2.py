@@ -31,21 +31,34 @@ def nsga2(
     variator=None,
     **kwargs
 ):
-    """run NSGA2 on the given problem"""
+    r"""NSGA2 algorithm
+
+    Args:
+        - random: random number generator
+        - problem, problem to solve
+        - display=False, wether to display plots
+        - num_vars=0, how many variables does the problem have
+        - variator=None, crossover and mutation to apply
+        - **kwargs, additional arguments such as the population size
+        and the number of generations
+    """
 
     # create dictionaries to store data about initial population, and lines
     initial_pop_storage = {}
 
     algorithm = NSGA2(random)
+    # algorithm terminator
     algorithm.terminator = terminators.generation_termination
+
+    # crossover and mutation
     if variator is None:
         algorithm.variator = [variators.blend_crossover, variators.gaussian_mutation]
     else:
         algorithm.variator = variator
 
-    # poss problem to args
+    # pass problem to args
     kwargs["problem"] = problem
-
+    # population size
     kwargs["num_selected"] = kwargs["pop_size"]
 
     if display and problem.objectives == 2:
@@ -53,6 +66,7 @@ def nsga2(
     else:
         algorithm.observer = inspyred_utils.initial_pop_observer
 
+    # evolve
     final_pop = algorithm.evolve(
         evaluator=problem.evaluator,
         maximize=problem.maximize,
@@ -69,6 +83,7 @@ def nsga2(
     final_pop_fitnesses = np.asarray([guy.fitness for guy in final_pop])
     final_pop_candidates = np.asarray([guy.candidate[0:num_vars] for guy in final_pop])
 
+    # whether to display or not the plot
     if display:
         # Plot the parent and the offspring on the fitness landscape
         # (only for 1D or 2D functions)
