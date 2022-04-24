@@ -49,7 +49,7 @@ export class Args {
   item: string | undefined;
   status: string | undefined;
   toxicCounter: number | undefined;
-  curHP: number | undefined;
+  // curHP: number | undefined;
   boosts: Stats | undefined;
   stats: Stats | undefined;
 
@@ -64,7 +64,7 @@ export class Args {
     item: string | undefined,
     status: string | undefined,
     toxicCounter: number | undefined,
-    curHP: number | undefined,
+    // curHP: number | undefined,
     boosts: Stats | undefined,
     stats: Stats | undefined,
   ){
@@ -78,7 +78,7 @@ export class Args {
     this.item = item;
     this.status = status;
     this.toxicCounter = toxicCounter;
-    this.curHP = curHP;
+    // this.curHP = curHP;
     this.boosts = boosts;
     this.stats = stats;
   }
@@ -98,9 +98,17 @@ export class Args {
         undefined,
         undefined,
         undefined,
-        undefined
+        // undefined
       )
     );
+  }
+
+  toString(): string {
+    return JSON.stringify(this)
+  }
+
+  toObj(): object {
+    return JSON.parse(this.toString())
   }
 }
 
@@ -177,13 +185,15 @@ export class DamageCalcModel {
     }
 
     const gen = Generations.get(8);
+    
     const result: any = calculate(
       gen,
-      new Pokemon(gen, attacker_name, attacker_args),
-      new Pokemon(gen, target_name, target_args),
+      new Pokemon(gen, attacker_name, attacker_args.toObj()),
+      new Pokemon(gen, target_name, target_args.toObj()),
       new Move(gen, move),
       field
     );
+
     // Add full description, if possible
     try{
       result['description'] = result.fullDesc();

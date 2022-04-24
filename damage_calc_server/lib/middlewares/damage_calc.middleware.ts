@@ -42,7 +42,7 @@ export class DamageCalcMiddleware extends CommonMiddleware {
     args.item && 
     args.status && 
     args.toxicCounter && 
-    args.curHP && 
+    // args.curHP && 
     DamageCalcMiddleware.validateString(args.species) &&
     DamageCalcMiddleware.validateStringArray(args.types) &&
     DamageCalcMiddleware.isNumber(args.weightkg) &&
@@ -52,8 +52,8 @@ export class DamageCalcMiddleware extends CommonMiddleware {
     DamageCalcMiddleware.validateBoolean(args.is_dynamaxed) &&
     DamageCalcMiddleware.stringOrUndefined(args.item) &&
     DamageCalcMiddleware.stringOrUndefined(args.status) &&
-    DamageCalcMiddleware.isNumber(args.toxicCounter) &&
-    DamageCalcMiddleware.isNumber(args.curHP)
+    DamageCalcMiddleware.isNumber(args.toxicCounter)
+    // DamageCalcMiddleware.isNumber(args.curHP)
   }
 
   /**
@@ -128,9 +128,9 @@ export class DamageCalcMiddleware extends CommonMiddleware {
             r[pos].attacker.stats &&
             r[pos].target.sats &&
             r[pos].target.boost &&
-            DamageCalcMiddleware.validateStats(r[pos].attacker.boost, true) &&
+            DamageCalcMiddleware.validateStats(r[pos].attacker.boosts, true) &&
             DamageCalcMiddleware.validateStats(r[pos].attacker.stats, false) &&
-            DamageCalcMiddleware.validateStats(r[pos].target.boost, true) &&
+            DamageCalcMiddleware.validateStats(r[pos].target.boosts, true) &&
             DamageCalcMiddleware.validateStats(r[pos].target.stats, false)
           ) {
             valid = false;

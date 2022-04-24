@@ -23,10 +23,12 @@ from pareto_rl.dql_agent.utils.move import Move
 from pareto_rl.damage_calculator.requester import damage_request
 from poke_env.environment.double_battle import DoubleBattle
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
-from pareto_rl.dql_agent.utils.utils import get_pokemon_showdown_name, compute_opponent_stats
+from pareto_rl.dql_agent.utils.utils import get_pokemon_showdown_name, compute_opponent_stats, prepare_pokemon_request
 from typing import List, Tuple, Dict
 import copy
 import json
+import requests
+import time
 
 # possible pokemon
 pkmn = ["gengar", "vulpix", "charmander", "venusaur"]
@@ -182,13 +184,16 @@ class NextTurn(benchmarks.Benchmark):
         fitness = []
         pm = args["problem"].pm
         last_turn = args["problem"].last_turn
-        requests = []
+        request = {"requests": []}
 
         for c in candidates:
-            requests.append(prepare_request(c, pm))
-
-        results = damage_request(json.dumps(requests))
-        results = json.loads(results)
+            request["requests"].append(prepare_request(c, pm))
+        a = time.time() 
+        result = requests.post("http://localhost:8080/api/v1/damagecalc", json=request)
+        b = time.time()
+        print(b-a)
+        #results = damage_request(json.dumps(requests))
+        result = json.loads(result.text)
 
         n_mon = 0
         n_opp = 0
@@ -199,10 +204,10 @@ class NextTurn(benchmarks.Benchmark):
                 starting_hp[pos] = mon.current_hp
                 n_mon += 1
             else:
-                starting_hp[pos] = compute_opponent_stats('hp', mon)
+                starting_hp[pos] = mon.current_hp*compute_opponent_stats('hp', mon)/100
                 n_opp += 1
 
-        for c, r in zip(candidates, results):
+        for c, r in zip(candidates, result):
             mon_dmg = 0
             mon_hp = 0
             opp_dmg = 0
@@ -347,7 +352,6 @@ def prepare_request(c, pm: PokemonMapper):
         # attacker
         attacker_pos = pm.get_field_pos_from_genotype(i)
         attacker = pm.pos_to_mon[attacker_pos]
-        attacker_name = get_pokemon_showdown_name(attacker)
 
         # for the moment skip everything which is not a default target
         if c[i+1] > 2:
@@ -356,15 +360,16 @@ def prepare_request(c, pm: PokemonMapper):
         # target
         target_pos = c[i+1]
         target = pm.pos_to_mon[target_pos]
-        target_name = get_pokemon_showdown_name(target)
 
         # move
         move = c[i]
         move_name = move.get_showdown_name()
 
+        attacker_args = prepare_pokemon_request(attacker)
+        target_args = prepare_pokemon_request(target)
         request[attacker_pos] = {
-            "attacker": {"name": attacker_name, "args": {}}, 
-            "target": {"name": target_name, "args": {}}, 
+            "attacker": attacker_args, 
+            "target": target_args, 
             "move": move_name,
             "field": {}
         }

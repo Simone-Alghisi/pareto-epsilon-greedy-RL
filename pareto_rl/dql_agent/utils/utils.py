@@ -88,12 +88,14 @@ def get_possible_showdown_targets(
 
 def prepare_pokemon_request(mon: Pokemon) -> Dict[str, Any]:
     request: Dict = {}
+    # insert name
+    request["name"] = get_pokemon_showdown_name(mon)
     # insert species
     request["species"] = mon.species
     # pokemon types
     request["types"] = []
     if mon.types:
-        request["types"] = [t.name for t in mon.types]
+        request["types"] = [t.name for t in mon.types if t is not None]
     # pokemon weight
     request["weightkg"] = mon.weight
     # pokemon level
@@ -110,42 +112,42 @@ def prepare_pokemon_request(mon: Pokemon) -> Dict[str, Any]:
     request["isDynamixed"] = mon.is_dynamaxed
     # item
     request["item"] = None
-    if mon.item:
+    if mon.item and mon.item != "unknown_item":
         request["item"] = mon.item
     # boots
     # Target format 'hp', 'at', 'df', 'sa', 'sd', 'sp'
     # Current format "atk": 0, "def": 0, "spa": 0, "spd": 0,"spe": 0,
     request["boosts"] = {}
-    request["boost"]["at"] = mon.boost["atk"]
-    request["boost"]["df"] = mon.boost["def"]
-    request["boost"]["sa"] = mon.boost["spa"]
-    request["boost"]["sd"] = mon.boost["spd"]
-    request["boost"]["sp"] = mon.boost["spe"]
+    request["boosts"]["at"] = mon.boosts["atk"]
+    request["boosts"]["df"] = mon.boosts["def"]
+    request["boosts"]["sa"] = mon.boosts["spa"]
+    request["boosts"]["sd"] = mon.boosts["spd"]
+    request["boosts"]["sp"] = mon.boosts["spe"]
     # stats
     request["stats"] = {}
     request["stats"]["at"] = (
-        mon.stats["atk"] if mon.stats["atk"] is not None else 0
-    )  # probably do some other things
+        mon.stats["atk"]
+    )
     request["stats"]["df"] = (
-        mon.stats["def"] if mon.stats["def"] is not None else 0
-    )  # probably do some other things
+        mon.stats["def"]
+    )
     request["stats"]["sa"] = (
-        mon.stats["spa"] if mon.stats["spa"] is not None else 0
-    )  # probably do some other things
+        mon.stats["spa"]
+    )
     request["stats"]["sd"] = (
-        mon.stats["spd"] if mon.stats["spd"] is not None else 0
-    )  # probably do some other things
+        mon.stats["spd"]
+    )
     request["stats"]["sp"] = (
-        mon.stats["spe"] if mon.stats["spe"] is not None else 0
-    )  # probably do some other things
+        mon.stats["spe"]
+    )
     # status
     request["status"] = None
     if mon.status:
         request["status"] = mon.status.name
     # toxicCounter
     request["toxicCounter"] = mon.status_counter
-    # current hp
-    request["curHP"] = mon.current_hp
+    # current hp, TODO handle approximations for opponents 
+    # request["curHP"] = mon.current_hp
     return request
 
 
