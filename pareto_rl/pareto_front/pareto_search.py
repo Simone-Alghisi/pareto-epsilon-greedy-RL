@@ -29,7 +29,7 @@ from pareto_rl.pareto_front.classes.next_turn import (
     next_turn_mutation,
     next_turn_crossover,
     NextTurnTest,
-    next_turn_test_mutation
+    next_turn_test_mutation,
 )
 import matplotlib.pyplot as plt
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
@@ -73,7 +73,7 @@ def pareto_search(
     args,
     battle: DoubleBattle = None,
     pm: PokemonMapper = None,
-    last_turn: List[Tuple[str, str]] = None 
+    player = None,
 ) -> List[DoubleBattleOrder]:
     r"""Main function which runs the pareto search returning the final population and final population fitness
     It can perform it either on a Showdown battle or on some static pokemon team
@@ -98,7 +98,7 @@ def pareto_search(
     -------------------------------------------------------------------------
     """
     if (battle is not None) and (pm is not None):
-        problem = NextTurn(battle, pm, last_turn)
+        problem = NextTurn(battle, pm, player)
         # crossover and mutation
         nsga2_args["variator"] = [next_turn_crossover, next_turn_mutation]
     else:
@@ -126,11 +126,11 @@ def pareto_search(
         print("Final Population Fitnesses\n", final_pop_fitnesses)
         plt.ioff()
         plt.show()
-
+   
     orders = []
 
-    # Build battle orders starting from the 
-    # final population by the means of the 
+    # Build battle orders starting from the
+    # final population by the means of the
     # Pokémon mapper
     for c in final_pop:
         first_order = None
@@ -138,12 +138,14 @@ def pareto_search(
         for i in range(0, len(c), 2):
             pos = pm.get_field_pos_from_genotype(i)
             move = c[i]
-            target = c[i+1] if c[i+1] < 3 else 0
+            target = c[i + 1] if c[i + 1] < 3 else 0
             if pos < 0:
                 if first_order is None:
                     first_order = BattleOrder(move, move_target=target)
                 else:
                     second_order = BattleOrder(move, move_target=target)
-        orders.append(DoubleBattleOrder(first_order=first_order, second_order=second_order))
+        orders.append(
+            DoubleBattleOrder(first_order=first_order, second_order=second_order)
+        )
 
     return orders

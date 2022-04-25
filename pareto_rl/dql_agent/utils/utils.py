@@ -125,28 +125,18 @@ def prepare_pokemon_request(mon: Pokemon) -> Dict[str, Any]:
     request["boosts"]["sp"] = mon.boosts["spe"]
     # stats
     request["stats"] = {}
-    request["stats"]["at"] = (
-        mon.stats["atk"]
-    )
-    request["stats"]["df"] = (
-        mon.stats["def"]
-    )
-    request["stats"]["sa"] = (
-        mon.stats["spa"]
-    )
-    request["stats"]["sd"] = (
-        mon.stats["spd"]
-    )
-    request["stats"]["sp"] = (
-        mon.stats["spe"]
-    )
+    request["stats"]["at"] = mon.stats["atk"]
+    request["stats"]["df"] = mon.stats["def"]
+    request["stats"]["sa"] = mon.stats["spa"]
+    request["stats"]["sd"] = mon.stats["spd"]
+    request["stats"]["sp"] = mon.stats["spe"]
     # status
     request["status"] = None
     if mon.status:
         request["status"] = mon.status.name
     # toxicCounter
     request["toxicCounter"] = mon.status_counter
-    # current hp, TODO handle approximations for opponents 
+    # current hp, TODO handle approximations for opponents
     # request["curHP"] = mon.current_hp
     return request
 
@@ -170,3 +160,11 @@ def compute_opponent_stats(stat: str, mon: Pokemon):
             (math.floor(((2 * mon.base_stats[stat] + 31) * mon.level) / 100) + 5) * 1
         )
     return opp_stat
+
+
+def compute_initial_stats(mon: Pokemon) -> Dict[str, int]:
+    stats_name = ["hp", "atk", "def", "spa", "spd", "spe"]
+    stats: Dict[str, int] = {}
+    for stat in stats_name:
+        stats[stat] = compute_opponent_stats(stat, mon)
+    return stats
