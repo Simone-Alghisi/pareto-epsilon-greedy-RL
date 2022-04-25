@@ -214,7 +214,6 @@ class NextTurn(benchmarks.Benchmark):
         n_mon = 0
         n_opp = 0
 
-        a = time.time()
         starting_hp: Dict[int, int] = {}
         for pos, mon in pm.pos_to_mon.items():
             if pos < 0:
