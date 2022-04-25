@@ -23,14 +23,7 @@ from pareto_rl.pareto_front.ga.utils import inspyred_utils, plot_utils
 import numpy as np
 
 
-def nsga2(
-    random,
-    problem,
-    display=False,
-    num_vars=0,
-    variator=None,
-    **kwargs
-):
+def nsga2(random, problem, display=False, num_vars=0, variator=None, **kwargs):
     r"""NSGA2 algorithm
 
     Args:

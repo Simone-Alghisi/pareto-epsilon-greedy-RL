@@ -73,7 +73,7 @@ def pareto_search(
     args,
     battle: DoubleBattle = None,
     pm: PokemonMapper = None,
-    player = None,
+    player=None,
 ) -> List[DoubleBattleOrder]:
     r"""Main function which runs the pareto search returning the final population and final population fitness
     It can perform it either on a Showdown battle or on some static pokemon team
@@ -126,7 +126,7 @@ def pareto_search(
         print("Final Population Fitnesses\n", final_pop_fitnesses)
         plt.ioff()
         plt.show()
-   
+
     orders = []
 
     # Build battle orders starting from the

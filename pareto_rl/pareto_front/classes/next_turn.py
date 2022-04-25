@@ -216,7 +216,7 @@ class NextTurn(benchmarks.Benchmark):
         fitness = []
         pm = self.pm
         player = self.player
-        request = {"requests": []}
+        data = {"requests": []}
 
         n_mon = 0
         n_opp = 0
@@ -228,55 +228,11 @@ class NextTurn(benchmarks.Benchmark):
                 n_mon += 1
             else:
                 starting_hp[pos] = (
-                    (mon.current_hp * compute_opponent_stats("hp", mon)) // 100
-                )
+                    mon.current_hp * compute_opponent_stats("hp", mon)
+                ) // 100
                 n_opp += 1
+
         for c in candidates:
-            # 1. qui inizializzare le variabili (mon_dmg, ...)
-            # 2. predirre l'ordine del turno
-            # 3. ciclare non sul candidate, ma sull'ordine del turno
-            #   a) (guarda il ciclo sotto per recuperare la posizione nel genotipo)
-            #   b) (alternativamente, modificare get_turn_order per ritornare altre info)
-            # 4. mandare la richiesta (oppure salta a 6. se è già nella cache)
-            # 5. estrarre la richiesta (o iterare su un element)
-            # 6. calcolare il danno sulla singola richiesta
-            # 
-            # perchè fare sta cosa? un solo ciclo, possiamo mandare più richieste (e.g. surf)
-            # non c'è bisogno di appendere ad un dizionario (i.e. result)
-            result = {}
-
-            # prepare a possible request for the candidate
-            possible_requests = prepare_request(c, pm)
-            for i in range(0, len(c), 2):
-                # insert the elements in the buffer
-                attacker_pos = pm.get_field_pos_from_genotype(i)
-                # target
-                target_pos = c[i + 1]
-                # move
-                move = c[i]
-                # key of the hash
-                key = hash(f"{attacker_pos}{target_pos}{move}")
-                # exploit the turn buffer
-                if key in self.turn_buffer:
-                    r = self.turn_buffer[key]
-                    result[attacker_pos] = r
-                # TODO... handle cases with 3/4/5 .... as targets
-                elif attacker_pos in possible_requests:
-                    # send the request
-                    request["requests"] = [
-                        {attacker_pos: possible_requests[attacker_pos]}
-                    ]
-                    r = damage_request_server(request)
-                    r = json.loads(r)
-                    r = r.pop()
-                    r = list(r.values()).pop()
-                    # save the result in the buffer
-                    self.turn_buffer[key] = r
-                    result[attacker_pos] = r
-                # TODO... handle cases with 3/4/5 .... as targets
-                else:
-                    continue
-
             mon_dmg = 0
             mon_hp = 0
             opp_dmg = 0
@@ -290,6 +246,8 @@ class NextTurn(benchmarks.Benchmark):
             remaining_hp = starting_hp.copy()
 
             dmg_taken = {}
+            # prepare a possible request for the candidate
+            possible_requests = prepare_request(c, pm)
 
             for attacker_pos in turn_order:
                 # that pokemon is already dead (like the neurons in ReLU)
@@ -297,28 +255,40 @@ class NextTurn(benchmarks.Benchmark):
                     continue
 
                 gene_idx = pm.mon_indexes.index(attacker_pos) * 2
-                target_pos = c[gene_idx + 1]
-                move = c[gene_idx]
 
-                # handle all the various cases with different numbers other than
-                # the default pokemon position for showdown
-                if attacker_pos not in result:
-                    continue
+                for target_pos, request in possible_requests[attacker_pos].items():
+                    # move
+                    move = c[gene_idx]
+                    # key of the hash
+                    key = hash(f"{attacker_pos}{target_pos}{move}")
 
-                damage = result[attacker_pos]["damage"]
-                if isinstance(damage, list):
-                    damage = damage[len(damage) // 2]
+                    # exploit the turn buffer
+                    if key in self.turn_buffer:
+                        r = self.turn_buffer[key]
+                    else:
+                        # send the request
+                        data["requests"] = [{attacker_pos: request}]
+                        r = damage_request_server(data)
+                        r = json.loads(r)
+                        r = r.pop()
+                        r = list(r.values()).pop()
+                        # save the result in the buffer
+                        self.turn_buffer[key] = r
 
-                damage = damage * move.accuracy
+                    damage = r["damage"]
+                    if isinstance(damage, list):
+                        damage = damage[len(damage) // 2]
 
-                if target_pos not in dmg_taken:
-                    dmg_taken[target_pos] = 0
+                    damage = damage * move.accuracy
 
-                # only if they are opponents the damage increases
-                if target_pos * attacker_pos < 0:
-                    dmg_taken[target_pos] += damage
+                    if target_pos not in dmg_taken:
+                        dmg_taken[target_pos] = 0
 
-                remaining_hp[target_pos] = max(0, remaining_hp[target_pos] - damage)
+                    # only if they are opponents the damage increases
+                    if target_pos * attacker_pos < 0:
+                        dmg_taken[target_pos] += damage
+
+                    remaining_hp[target_pos] = max(0, remaining_hp[target_pos] - damage)
 
             for pos, hp in remaining_hp.items():
                 if pos < 0:
@@ -432,7 +402,7 @@ def next_turn_crossover(random, mom, dad, args):
     return children
 
 
-def prepare_request(c, pm: PokemonMapper) -> Dict[int, Dict[str, Dict[str, any]]]:
+def prepare_request(c, pm: PokemonMapper) -> Dict[int, List[Dict[str, Dict[str, any]]]]:
     r"""
     Function which prepares the requests to send to the damage calculator
     server in order to evaluate the individual fitness
@@ -451,26 +421,27 @@ def prepare_request(c, pm: PokemonMapper) -> Dict[int, Dict[str, Dict[str, any]]
         attacker_pos = pm.get_field_pos_from_genotype(i)
         attacker = pm.pos_to_mon[attacker_pos]
 
-        # for the moment skip everything which is not a default target
-        if c[i + 1] > 2:
-            continue
-
         # target
         target_pos = c[i + 1]
-        target = pm.pos_to_mon[target_pos]
+        possible_targets = map_abstract_target(target_pos, attacker_pos, pm)
 
         # move
         move = c[i]
         move_name = move.get_showdown_name()
 
         attacker_args = prepare_pokemon_request(attacker)
-        target_args = prepare_pokemon_request(target)
-        request[attacker_pos] = {
-            "attacker": attacker_args,
-            "target": target_args,
-            "move": move_name,
-            "field": {},
-        }
+        request[attacker_pos] = {}
+
+        for target_pos in possible_targets:
+            target = pm.pos_to_mon[target_pos]
+            target_args = prepare_pokemon_request(target)
+            request[attacker_pos][target_pos] = {
+                "attacker": attacker_args,
+                "target": target_args,
+                "move": move_name,
+                # TODO map poke_env var for damage_calc
+                "field": {"gameType": "Doubles"},
+            }
     return request
 
 
@@ -504,3 +475,12 @@ def get_turn_order(c, pm: PokemonMapper, player) -> List[int]:
     # sort the moves based first on their priority and then the speed of the pokemons
     turn_order.sort(key=lambda x: (x[1], x[2]), reverse=True)
     return [x[0] for x in turn_order]
+
+
+def map_abstract_target(
+    abs_target: int, attacker_pos: int, pm: PokemonMapper
+) -> List[int]:
+    if abs_target <= 2:
+        return [abs_target]
+    elif abs_target == 3:
+        return [t for t in pm.moves_targets.keys() if (t != attacker_pos)]
