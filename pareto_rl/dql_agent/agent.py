@@ -1,4 +1,7 @@
+import asyncio
 from logging import info
+from poke_env.player import random_player
+from poke_env.player.openai_api import OpenAIGymEnv
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -7,10 +10,21 @@ import random
 import os
 from tqdm import tqdm
 from itertools import count
+from pareto_rl.dql_agent.classes import player
 from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
+from pareto_rl.dql_agent.classes.pareto_player import ParetoPlayer
 from pareto_rl.dql_agent.classes.player import SimpleRLPlayer
 from poke_env.player.random_player import RandomPlayer
 from poke_env.player_configuration import PlayerConfiguration
+
+from poke_env.teambuilder.teambuilder import Teambuilder
+from poke_env.player.player import Player
+from typing import List
+from poke_env.player.battle_order import (
+    BattleOrder,
+)
+import orjson
+from poke_env.environment.double_battle import DoubleBattle
 
 def configure_subparsers(subparsers):
   r"""Configure a new subparser for DQL agent.
@@ -81,26 +95,59 @@ def policy(state, policy_net, args):
   sample = random.random()
   eps_threshold = args['eps_end'] + (args['eps_start'] - args['eps_end']) * math.exp(-1. * args['steps'] / args['eps_decay'])
   args['steps'] += 1
+
   if sample > eps_threshold:
-    with torch.no_grad():
-      # t.max(1) will return largest column value of each row.
-      # second column on max result is index of where max element was
-      # found, so we pick action with the larger expected reward.
-      return policy_net(state).argmax().detach()
+
+     with torch.no_grad():
+       # t.max(1) will return largest column value of each row.
+       # second column on max result is index of where max element was
+       # found, so we pick action with the larger expected reward.
+       print("||||||||||||||||| Mossa policy ||||||||||||||||||")
+       #divide output in 2 halves, select the max in the first half and the max in the second half.
+       output = policy_net(state).detach()
+       halfIndex = len(output) // 2
+       first_utility,first_action = output[:halfIndex].topk(2)
+       second_utility,second_action = output[halfIndex:].topk(2)
+       selected_first_action = first_action[0]
+       selected_second_action = second_action[0]
+       if(first_action[0] > 8 and second_action[0] > 8):
+         #both switch actions
+         if(first_action[0] == second_action[0]):
+           if(first_utility[0] > second_utility[0]):
+             #get second for second utility
+             selected_second_action = second_action[1]
+           else:
+             selected_first_action = first_action[1]
+
+
+
+
+       print(selected_first_action,selected_second_action)
+       return torch.cat([selected_first_action.unsqueeze(0),selected_second_action.unsqueeze(0)],dim=0)
   else:
-    return torch.tensor([[random.randrange(args['n_actions'])]], device=args['device'], dtype=torch.long).squeeze()
+    actions = [i for i in range(args['n_actions']//2)]
+    action1 = random.choice(actions)
+    if(action1 >= 8):
+      actions.remove(action1)
+    action2 = random.choice(actions)
+    random_actions = torch.tensor([action1,action2],device=args['device'], dtype=torch.long)
+    return random_actions
 
+def encode_actions(actions):
+  return actions[0]*100 + actions[1]
 
-def train(player: SimpleRLPlayer, **args):
+def train(player:SimpleRLPlayer, args):
   hidden_layers = [32, 16]
-  n_actions = len(player.action_space)
+  print(args)
+  print(player.action_space)
+
+  n_actions = 24
   args['n_actions'] = n_actions
-  input_size = 10
+  input_size = 26
   policy_net = DarkrAI(input_size, hidden_layers, n_actions).to(args['device'])
   target_net = DarkrAI(input_size, hidden_layers, n_actions).to(args['device'])
   target_net.load_state_dict(policy_net.state_dict())
   target_net.eval()
-
   optimiser = optim.Adam(policy_net.parameters())
   memory = ReplayMemory(10000)
 
@@ -114,15 +161,24 @@ def train(player: SimpleRLPlayer, **args):
 
     observation = torch.from_numpy(player.reset()).double().to(args['device'])
     state = observation
-
     for t in count():
       # turns
       # Select and perform an action
-      action = policy(state, policy_net, args)
-      observation, reward, done, _ = player.step(action)
-      observation = torch.from_numpy(observation).double().to(args['device'])
-      # print(reward)
 
+      actions = policy(state, policy_net, args)
+
+      # for i in range(26):
+      #     print(i)
+      #     print(type(player.action_to_move(i,player.current_battle)))
+      #     print(f"|||||||||||| {player.current_battle.available_moves} |||||||||||||||")
+      #     print(f"|||||||||||| {player.current_battle.available_switches} ||||||||||||||")
+      #     print(f"|||||||||||| {player.action_to_move(i,player.current_battle)} ||||||||||||||||")
+      #
+      #
+      # import pdb; pdb.set_trace()
+
+      observation, reward, done, _ = player.step(encode_actions(actions))
+      observation = torch.from_numpy(observation).double().to(args['device'])
       reward = torch.tensor([reward], device=args['device'])
 
       # Observe new state
@@ -132,8 +188,7 @@ def train(player: SimpleRLPlayer, **args):
         next_state = None
 
       # Store the transition in memory
-      memory.push(state, action, next_state, reward)
-
+      memory.push(state, actions, next_state, reward)
       # Move to the next state
       state = next_state
 
@@ -146,17 +201,18 @@ def train(player: SimpleRLPlayer, **args):
     if i_episode % args['target_update'] == 0:
       target_net.load_state_dict(policy_net.state_dict())
   print(episode_durations)
-  player.complete_current_battle()
+  #player.complete_current_battle()
   model_path = os.path.abspath('./models/best.pth')
   torch.save(policy_net.state_dict(), model_path)
 
 
 def eval(player: SimpleRLPlayer, **args):
   hidden_layers = [32, 16]
-  n_actions = len(player.action_space)
+  n_actions = player.action_space_size()
   args['n_actions'] = n_actions
-  input_size = 10
+  input_size = 26
   policy_net = DarkrAI(input_size, hidden_layers, n_actions).to(args['device'])
+
 
   model_path = os.path.abspath('./models/best.pth')
   if os.path.exists(model_path):
@@ -191,9 +247,8 @@ def eval(player: SimpleRLPlayer, **args):
       state = next_state
 
   print(episode_durations)
-  player.complete_current_battle()
+  #player.complete_current_battle()
   print(f'DarkrAI has won {player.n_won_battles} out of {num_episodes} games')
-
 
 def main(args):
 
@@ -209,23 +264,7 @@ def main(args):
     'steps': 0,
   }
 
-  darkrai_player_config = PlayerConfiguration("DarkrAI", None)
-  random_player_config = PlayerConfiguration("RandomOpponent",None)
+  darkrai_player_config = PlayerConfiguration("DarkrAI",None)
 
-  env_player = SimpleRLPlayer(battle_format="gen8randombattle",player_configuration=darkrai_player_config)
-  opponent = RandomPlayer(battle_format="gen8randombattle",player_configuration=random_player_config)
-
-  # Train
-  env_player.play_against(
-    env_algorithm=train,
-    opponent=opponent,
-    env_algorithm_kwargs=args
-  )
-
-  # Evaluate
-  env_player.play_against(
-    env_algorithm=eval,
-    opponent=opponent,
-    env_algorithm_kwargs=args
-  )
-
+  agent=SimpleRLPlayer(battle_format="gen8randomdoublesbattle",player_configuration=darkrai_player_config)
+  train(agent,args)
