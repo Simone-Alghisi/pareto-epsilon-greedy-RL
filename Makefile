@@ -28,7 +28,7 @@ PARETO_FLAG :=
 
 # ======= PARETO BATTLE =========
 PARETO_BATTLE := pareto-battle
-PARETO_BATTLE_FLAG := calchera32
+PARETO_BATTLE_FLAG := 
 
 # ======= DOC   =========
 AUTHORS := --author "Simone Alghisi, Samuele Bortolotti, Massimo Rizzoli, Erich Robbi"
@@ -160,6 +160,7 @@ install-damage-calc-server:
 start-damage-calc-server:
 	@$(ECHO) '$(BLUE)Starting Damage Calc server..$(NONE)'
 	@$(CD) $(DAMAGE_CALC_FOLDER); \
+	$(NPM) run build; \
 	$(NPM) run start;
 	@$(ECHO) '$(BLUE)Done$(NONE)'
 

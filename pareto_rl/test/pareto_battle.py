@@ -13,11 +13,11 @@ def configure_subparsers(subparsers):
     """
     Subparser parameters:
     Args:
-    
+      player [str]: which opponent to duel
     """
     parser = subparsers.add_parser("pareto-battle", help="Test the Pareto agent")
     parser.add_argument(
-      "player", type=str, default="nextSeason", help="Player to challenge"
+      "--player", type=str, default="nextSeason", help="Player to challenge"
     )
     parser.set_defaults(func=main)
 
@@ -35,9 +35,13 @@ def main(args):
 
   asyncio.get_event_loop().run_until_complete(pareto_battle(args))
 
-# send_challenges only works if the function is async
 async def pareto_battle(args):
+  r"""Asynchronous function which allows the user passed as an argument to duel with
+  a Player which chooses Pareto-optimal moves
+  Args:
+    args: command line arguments
+  """
   p_player = ParetoPlayer(
     player_configuration=PlayerConfiguration("ParetoPlayer", None),
   )
-  await p_player.send_challenges(opponent='calchera32', n_challenges=1)
+  await p_player.send_challenges(opponent=args.player, n_challenges=1)

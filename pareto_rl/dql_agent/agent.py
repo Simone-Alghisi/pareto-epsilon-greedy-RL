@@ -44,6 +44,8 @@ def configure_subparsers(subparsers):
 def optimize_model(memory, policy_net, target_net, optimiser, args):
   if len(memory) < args['batch_size']:
     return
+  policy_net.zero_grad()
+  optimiser.zero_grad()
   transitions = memory.sample(args['batch_size'])
   # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
   # detailed explanation). This converts batch-array of Transitions
@@ -64,7 +66,7 @@ def optimize_model(memory, policy_net, target_net, optimiser, args):
   # Compute Q(s_t, a) - the model computes Q(s_t), then we select the
   # columns of actions taken. These are the actions which would've been taken
   # for each batch state according to policy_net
-  utility = policy_net(state_batch).detach()
+  utility = policy_net(state_batch)
   # For each selected action, select its corresponding utility value
   state_action_values = utility.gather(1,action_batch.unsqueeze(1)).squeeze()
 
@@ -83,13 +85,11 @@ def optimize_model(memory, policy_net, target_net, optimiser, args):
   # criterion = nn.HuberLoss()
   criterion = nn.HuberLoss()
   loss = criterion(state_action_values, expected_state_action_values)
+  print(loss)
 
   # Optimize the model
   loss.backward()
-  # for param in policy_net.parameters():
-  #   param.grad.data.clamp_(-1, 1)
   optimiser.step()
-  optimiser.zero_grad()
 
 def policy(state, policy_net, args):
   sample = random.random()
@@ -225,7 +225,7 @@ def eval(player: SimpleRLPlayer, **args):
   player.reset_battles()
 
   episode_durations = []
-  num_episodes = 100
+  num_episodes = 1000
   for _ in tqdm(range(num_episodes), desc='Evaluating', unit='episodes'):
     observation = torch.from_numpy(player.reset()).double().to(args['device'])
     state = observation
