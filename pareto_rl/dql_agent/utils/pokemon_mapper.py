@@ -20,17 +20,19 @@ class PokemonMapper:
     def __init__(self, battle: DoubleBattle) -> None:
         self.battle = battle
         self.moves_targets: Dict[int, Dict[Move, List[int]]] = {}
+        self.original_moves_targets: Dict[int, Dict[Move, List[int]]] = {}
         self.mon_to_pos: Dict[Pokemon, int] = {}
         self.pos_to_mon: Dict[int, Pokemon] = {}
         self.mon_indexes: List[int] = []
+        self.available_switches: Dict[int, list] = {}
 
         # your mons
         pos = -1
-        for mon, moves in zip(battle.active_pokemon, battle.available_moves):
+        for mon, moves, available_switches in zip(battle.active_pokemon, battle.available_moves, battle.available_switches):
             if mon:
                 casted_moves: Set[Move] = {Move(move._id) for move in moves}
                 # map pokemons with their position
-                self.mapper(casted_moves, mon, pos)
+                self.mapper(casted_moves, mon, pos, available_switches)
             pos -= 1
 
         # opponent mons
@@ -68,7 +70,7 @@ class PokemonMapper:
                         tmp_targets.remove(t)
                 self.moves_targets[pos][m] = tmp_targets
 
-    def mapper(self, moves: Set[Move], mon: Pokemon, pos: int) -> None:
+    def mapper(self, moves: Set[Move], mon: Pokemon, pos: int, available_switches: Union[List[Pokemon],None] = None) -> None:
         r"""
         Given a mon, its set of moves, and its position of the field, makes
         available additional information to the mapper, i.e.
@@ -87,11 +89,19 @@ class PokemonMapper:
             move: get_possible_showdown_targets(self.battle, mon, move, pos)
             for move in moves
         }
+        original_targets: Dict[Move, List[int]] = {
+            move: get_possible_showdown_targets(self.battle, mon, move, pos, pareto=False)
+            for move in moves
+        }
         # map the target with its position
         self.moves_targets[pos] = targets
+        self.original_moves_targets[pos] = original_targets
         self.mon_to_pos[mon] = pos
         self.pos_to_mon[pos] = mon
         self.mon_indexes.append(pos)
+
+        if available_switches is not None:
+          self.available_switches[pos] = available_switches
 
     def alive_pokemon_number(self) -> int:
         r"""

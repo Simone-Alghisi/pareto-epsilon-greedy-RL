@@ -15,6 +15,7 @@ def get_possible_showdown_targets(
     move: Move,
     self_position: int,
     dynamax: bool = False,
+    pareto: bool = True,
 ):
     r"""
     Custom implementation of the get_possible_showdown_targets method provided
@@ -41,25 +42,46 @@ def get_possible_showdown_targets(
     ):  # fixing target for Curse
         return [battle.EMPTY_TARGET_POSITION]
     else:
-        targets = {
-            "adjacentAlly": [ally_position],  # helping hand
-            "adjacentAllyOrSelf": [ally_position, self_position],
-            "adjacentFoe": opponent_positions,
-            "all": [3],  # hail
-            "allAdjacent": [3],  # earthquake
-            "allAdjacentFoes": [4],  # muddy water
-            "allies": [5],  # all but only allies - e.g. life dew
-            "allySide": [5],  # all allies, but even when switching - e.g. lightscreen
-            "allyTeam": [5],  # all teams (generally all status moves)
-            "any": [ally_position, *opponent_positions],
-            "foeSide": [6],
-            "normal": [ally_position, *opponent_positions],
-            "randomNormal": opponent_positions,
-            "scripted": [7],
-            "self": [self_position],
-            battle.EMPTY_TARGET_POSITION: [battle.EMPTY_TARGET_POSITION],
-            None: opponent_positions,
-        }[move.deduced_target]
+        if pareto:
+            targets = {
+                "adjacentAlly": [ally_position],  # helping hand
+                "adjacentAllyOrSelf": [ally_position, self_position],
+                "adjacentFoe": opponent_positions,
+                "all": [3],  # hail
+                "allAdjacent": [3],  # earthquake
+                "allAdjacentFoes": [4],  # muddy water
+                "allies": [5],  # all but only allies - e.g. life dew
+                "allySide": [5],  # all allies, but even when switching - e.g. lightscreen
+                "allyTeam": [5],  # all teams (generally all status moves)
+                "any": [ally_position, *opponent_positions],
+                "foeSide": [6],
+                "normal": [ally_position, *opponent_positions],
+                "randomNormal": opponent_positions, # convert back to 0
+                "scripted": [7],
+                "self": [self_position], # convert back to 0
+                battle.EMPTY_TARGET_POSITION: [battle.EMPTY_TARGET_POSITION],
+                None: opponent_positions,
+            }[move.deduced_target]
+        else:
+            targets = {
+                "adjacentAlly": [ally_position],
+                "adjacentAllyOrSelf": [ally_position, self_position],
+                "adjacentFoe": opponent_positions,
+                "all": [battle.EMPTY_TARGET_POSITION],
+                "allAdjacent": [battle.EMPTY_TARGET_POSITION],
+                "allAdjacentFoes": [battle.EMPTY_TARGET_POSITION],
+                "allies": [battle.EMPTY_TARGET_POSITION],
+                "allySide": [battle.EMPTY_TARGET_POSITION],
+                "allyTeam": [battle.EMPTY_TARGET_POSITION],
+                "any": [ally_position, *opponent_positions],
+                "foeSide": [battle.EMPTY_TARGET_POSITION],
+                "normal": [ally_position, *opponent_positions],
+                "randomNormal": [battle.EMPTY_TARGET_POSITION],
+                "scripted": [battle.EMPTY_TARGET_POSITION],
+                "self": [battle.EMPTY_TARGET_POSITION],
+                battle.EMPTY_TARGET_POSITION: [battle.EMPTY_TARGET_POSITION],
+                None: opponent_positions,
+            }[move.deduced_target]
 
     # use this in the pareto
 
