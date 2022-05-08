@@ -5,9 +5,9 @@ matplotlib==3.5.1
 PyQt5==5.15.6
 PyQt5-Qt5==5.15.2
 PyQt5-sip==12.9.1
+git+ssh://git@github.com/Simone-Alghisi/poke-env.git@612b5862df5a3549e8c93ecee686ba38dcb86f95
 pynpm==0.1.2
 torch==1.11.0
-poke-env==0.4.21
 tqdm==4.64.0
 typing==3.7.4.3
 typing_extensions==4.1.1
