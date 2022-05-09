@@ -208,8 +208,15 @@ def does_anybody_have_tabu_moves(battle: DoubleBattle, tabus: List[str]):
           return True
   return False
 
+def is_anyone_someone(battle: DoubleBattle, monsters: List[str]):
+  for mon in battle.team.values():
+    if mon:
+      if mon.species in monsters:
+        return True
+  return False
+
 def train(player:SimpleRLPlayer, args):
-  hidden_layers = [32, 16]
+  hidden_layers = [180, 120]
   # print(args)
   # print(player.action_space)
 
@@ -224,7 +231,7 @@ def train(player:SimpleRLPlayer, args):
   # n_actions = (n_moves*n_targets)**2 + n_moves*n_targets*n_switches*2 + (n_switches)**2
   args['n_actions'] = n_actions
   args['n_targets'] = n_targets
-  input_size = 26
+  input_size = 240
   policy_net = DarkrAI(input_size, hidden_layers, n_actions).to(args['device'])
   target_net = DarkrAI(input_size, hidden_layers, n_actions).to(args['device'])
   target_net.load_state_dict(policy_net.state_dict())
@@ -239,17 +246,23 @@ def train(player:SimpleRLPlayer, args):
   for i_episode in tqdm(range(num_episodes), desc='Training', unit='episodes'):
     # games
     # Initialize the environment and state
-    observation = torch.from_numpy(player.reset()).double().to(args['device'])
+    observation = torch.tensor(player.reset(), dtype=torch.double, device=args['device'])
     prev_state = state = observation
 
-    if does_anybody_have_tabu_moves(player.current_battle,['transform', 'allyswitch']):
-      print('Damn you, \nMew!\nAnd to all that can AllaySwitch\nDamn you, \ntoo!')
+    if does_anybody_have_tabu_moves(player.current_battle, ['transform', 'allyswitch']):
+      print('Damn you, \nMew!\nAnd to all that can AllySwitch\nDamn you, \ntoo!')
       # TODO force finish game?
       continue
+    if is_anyone_someone(player.current_battle, ['ditto', 'zoroark']):
+      print('Damn you three, \nDitto and Zoroark!')
+      continue
+
 
     for t in count():
       # turns
 
+      if state.shape[0] < 240:
+        import pdb; pdb.set_trace()
       # Select and perform an action
       actions = policy(state, policy_net, player.current_battle, args)
       # print(f'Move {t}: {player.action_to_move(encode_actions(actions.tolist()), player.current_battle)}')
@@ -257,7 +270,7 @@ def train(player:SimpleRLPlayer, args):
       #   import pdb; pdb.set_trace()
 
       observation, reward, done, _ = player.step(encode_actions(actions.tolist()))
-      observation = torch.from_numpy(observation).double().to(args['device'])
+      observation = torch.tensor(observation, dtype=torch.double, device=args['device'])
       reward = torch.tensor([reward], device=args['device'])
 
       # Observe new state
@@ -286,11 +299,15 @@ def train(player:SimpleRLPlayer, args):
   torch.save(policy_net.state_dict(), model_path)
 
 
-def eval(player: SimpleRLPlayer, **args):
-  hidden_layers = [32, 16]
-  n_actions = player.action_space_size()
+def eval(player: SimpleRLPlayer, args):
+  hidden_layers = [180, 120]
+  n_moves = 4
+  n_switches = 4
+  n_targets = 5
+  n_actions = (n_moves*n_targets + n_switches)*2
   args['n_actions'] = n_actions
-  input_size = 26
+  args['n_targets'] = n_targets
+  input_size = 240
   policy_net = DarkrAI(input_size, hidden_layers, n_actions).to(args['device'])
 
   model_path = os.path.abspath('./models/best.pth')
@@ -306,15 +323,24 @@ def eval(player: SimpleRLPlayer, **args):
   episode_durations = []
   num_episodes = 1000
   for _ in tqdm(range(num_episodes), desc='Evaluating', unit='episodes'):
-    observation = torch.from_numpy(player.reset()).double().to(args['device'])
+    observation = torch.tensor(player.reset(), dtype=torch.double, device=args['device'])
     state = observation
+
+    if does_anybody_have_tabu_moves(player.current_battle, ['transform', 'allyswitch']):
+      print('Damn you, \nMew!\nAnd to all that can AllySwitch\nDamn you, \ntoo!')
+      # TODO force finish game?
+      continue
+    if is_anyone_someone(player.current_battle, ['ditto', 'zoroark']):
+      print('Damn you three, \nDitto and Zoroark!')
+      continue
+
     for t in count():
       # action = policy(state, policy_net, args)
       # Follow learned policy (eps_greedy=False -> never choose random move)
       actions = policy(state, policy_net, player.current_battle, args, eps_greedy=False)
 
       observation, _, done, _ = player.step(encode_actions(actions))
-      observation = torch.from_numpy(observation).double().to(args['device'])
+      observation = torch.tensor(observation, dtype=torch.double, device=args['device'])
 
       # Observe new state
       if not done:
@@ -348,3 +374,4 @@ def main(args):
 
   agent=SimpleRLPlayer(battle_format="gen8randomdoublesbattle",player_configuration=darkrai_player_config)
   train(agent,args)
+  eval(agent,args)
