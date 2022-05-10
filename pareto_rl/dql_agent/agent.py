@@ -135,67 +135,72 @@ def is_valid(pos:int, encoded_move_idx: int, poke_mapper: PokemonMapper, battle:
   return valid
 
 
+def get_valid_actions(poke_mapper: PokemonMapper, battle: DoubleBattle, actions: torch.Tensor, utilities: torch.Tensor, args):
+  valid_moves = False
+  move = [0,0]
+  mon_actions = args['n_actions'] // 2
+  ally_pos = [pos for pos in poke_mapper.pos_to_mon.keys() if pos < 0]
+  pos_to_idx = {-1: 0, -2: 1}
+  # TODO consider dead pokemon
+  while not valid_moves:
+    # get first valid actions for both players
+    for pos in ally_pos:
+      # mon = -2 if mon == 0 else -1
+      idx = pos_to_idx[pos]
+      while (
+          move[idx] < mon_actions and
+          not is_valid(pos, actions[idx][move[idx]].item(), poke_mapper, battle, args)
+      ):
+        move[idx] += 1
+
+    if move[0] < mon_actions and move[1] < mon_actions:
+      # check if both moves are switches and if they are the same
+      if(actions[0][move[0]] >= (mon_actions-4) and actions[1][move[1]] >= (mon_actions-4)):
+        #both switch actions
+        if(actions[0][move[0]] == actions[1][move[1]]):
+          if(utilities[0][move[0]] > utilities[1][move[1]]):
+            #get next best action for second utility
+            move[1] += 1
+          else:
+            move[0] += 1
+        else:
+          valid_moves = True
+      else:
+        valid_moves = True
+    else:
+      # TODO seems that it happenes only with one pokemon available
+      break
+
+  if not valid_moves:
+    return torch.tensor([0,0])
+  else:
+    # print(torch.tensor([ actions[idx][move[idx]].item() for idx in [0,1] ]).tolist())
+    return torch.tensor([ actions[idx][move[idx]] for idx in [0,1] ])
+
 def policy(state, policy_net, battle: DoubleBattle, args, eps_greedy: bool = True):
   policy_net.eval()
   sample = random.random()
-  eps_threshold = args['eps_end'] + (args['eps_start'] - args['eps_end']) * math.exp(-1. * args['steps'] / args['eps_decay'])
-  args['steps'] += 1
+  eps_threshold = args['eps_end'] + (args['eps_start'] - args['eps_end']) * math.exp(-1. * args['episodes'] / args['eps_decay'])
+  # args['steps'] += 1
 
-  # if sample > eps_threshold or not eps_greedy:
-  if True:
-    poke_mapper = PokemonMapper(battle)
-
+  poke_mapper = PokemonMapper(battle)
+  if sample > eps_threshold or not eps_greedy:
+  # if True:
     with torch.no_grad():
       #divide output in 2 halves, select the max in the first half and the max in the second half.
       output = policy_net(state)
       split_index = len(output) // 2
       # order actions and utilities
       outputs = [output[:split_index].sort(descending=True), output[split_index:].sort(descending=True)]
-      utilities = [ tensor.values for tensor in outputs ]
-      actions = [ tensor.indices for tensor in outputs ]
-
-      valid_moves = False
-      move = [0,0]
-      mon_actions = args['n_actions'] // 2
-      ally_pos = [pos for pos in poke_mapper.pos_to_mon.keys() if pos < 0]
-      pos_to_idx = {-1: 0, -2: 1}
-      # TODO consider dead pokemon
-      while not valid_moves:
-        # get first valid actions for both players
-        for pos in ally_pos:
-          # mon = -2 if mon == 0 else -1
-          idx = pos_to_idx[pos]
-          while (
-              move[idx] < mon_actions and
-              not is_valid(pos, actions[idx][move[idx]].item(), poke_mapper, battle, args)
-          ):
-            move[idx] += 1
-
-        if move[0] < mon_actions and move[1] < mon_actions:
-          # check if both moves are switches and if they are the same
-          if(actions[0][move[0]] >= (mon_actions-4) and actions[1][move[1]] >= (mon_actions-4)):
-            #both switch actions
-            if(actions[0][move[0]] == actions[1][move[1]]):
-              if(utilities[0][move[0]] > utilities[1][move[1]]):
-                #get next best action for second utility
-                move[1] += 1
-              else:
-                move[0] += 1
-            else:
-              valid_moves = True
-          else:
-            valid_moves = True
-        else:
-          # TODO seems that it happenes only with one pokemon available
-          break
-
-      if not valid_moves:
-        return torch.tensor([0,0])
-      else:
-        # print(torch.tensor([ actions[idx][move[idx]].item() for idx in [0,1] ]).tolist())
-        return torch.tensor([ actions[idx][move[idx]] for idx in [0,1] ])
+      utilities = torch.stack([ tensor.values for tensor in outputs ])
+      actions = torch.stack([ tensor.indices for tensor in outputs ])
+      return get_valid_actions(poke_mapper,battle,actions,utilities,args)
   else:
-    pass
+    # TODO maybe more efficient getting random valid action then decoding
+    mon_actions = args['n_actions'] // 2
+    actions = torch.stack([torch.randperm(mon_actions) for _ in range(2)])
+    utilities = torch.rand(2,mon_actions)
+    return get_valid_actions(poke_mapper,battle,actions,utilities,args)
 
 def encode_actions(actions):
   return actions[0]*100 + actions[1]
@@ -215,36 +220,27 @@ def is_anyone_someone(battle: DoubleBattle, monsters: List[str]):
         return True
   return False
 
-def train(player:SimpleRLPlayer, args):
-  hidden_layers = [180, 120]
-  # print(args)
-  # print(player.action_space)
-
-  # Actions
-  # only moves: (4 moves * x targets) ^ 2 pokemons
-  # one move one switch: 4 moves * x targets * 4 switches * 2 pokemons
-  # only switches: 4 switches ^ 2 pokemons
-  n_moves = 4
-  n_switches = 4
-  n_targets = 5
-  n_actions = (n_moves*n_targets + n_switches)*2
-  # n_actions = (n_moves*n_targets)**2 + n_moves*n_targets*n_switches*2 + (n_switches)**2
-  args['n_actions'] = n_actions
-  args['n_targets'] = n_targets
-  input_size = 240
-  policy_net = DarkrAI(input_size, hidden_layers, n_actions).to(args['device'])
-  target_net = DarkrAI(input_size, hidden_layers, n_actions).to(args['device'])
+def train(player:SimpleRLPlayer, num_episodes: int, args):
+  policy_net = DarkrAI(args['input_size'], args['hidden_layers'], args['n_actions']).to(args['device'])
+  target_net = DarkrAI(args['input_size'], args['hidden_layers'], args['n_actions']).to(args['device'])
   target_net.load_state_dict(policy_net.state_dict())
   target_net.eval()
   optimiser = optim.Adam(policy_net.parameters())
   memory = ReplayMemory(10000)
+  eval_config = PlayerConfiguration("DarkrAI_eval",None)
+  eval_player = SimpleRLPlayer(battle_format="gen8randomdoublesbattle",player_configuration=eval_config)
 
   episode_durations = []
 
   # train loop
-  num_episodes = 5000
   for i_episode in tqdm(range(num_episodes), desc='Training', unit='episodes'):
     # games
+    args['episodes'] = i_episode
+
+    # Intermediate evaluation
+    if i_episode > 0 and i_episode % args['eval_interval'] == 0:
+      eval(eval_player,args['periodic_eval_games'],policy_net=policy_net,**args)
+
     # Initialize the environment and state
     observation = torch.tensor(player.reset(), dtype=torch.double, device=args['device'])
     prev_state = state = observation
@@ -291,37 +287,32 @@ def train(player:SimpleRLPlayer, args):
         episode_durations.append(t + 1)
         break
     # Update the target network, copying all weights and biases in DQN
-    if i_episode % args['target_update'] == 0:
+    if i_episode > 0 and i_episode % args['target_update'] == 0:
       target_net.load_state_dict(policy_net.state_dict())
-  print(episode_durations)
+  # print(episode_durations)
   #player.complete_current_battle()
+  player.reset_env()
   model_path = os.path.abspath('./models/best.pth')
   torch.save(policy_net.state_dict(), model_path)
 
 
-def eval(player: SimpleRLPlayer, args):
-  hidden_layers = [180, 120]
-  n_moves = 4
-  n_switches = 4
-  n_targets = 5
-  n_actions = (n_moves*n_targets + n_switches)*2
-  args['n_actions'] = n_actions
-  args['n_targets'] = n_targets
-  input_size = 240
-  policy_net = DarkrAI(input_size, hidden_layers, n_actions).to(args['device'])
-
-  model_path = os.path.abspath('./models/best.pth')
-  if os.path.exists(model_path):
-    policy_net.load_state_dict(torch.load(model_path))
-  else:
-    print(f'Error: No model found for evaluation')
-    return
+def eval(player: SimpleRLPlayer, num_episodes: int, policy_net=None, **args):
+  if policy_net == None:
+    policy_net = DarkrAI(args['input_size'], args['hidden_layers'], args['n_actions']).to(args['device'])
+    model_path = os.path.abspath('./models/best.pth')
+    if os.path.exists(model_path):
+      policy_net.load_state_dict(torch.load(model_path))
+    else:
+      print(f'Error: No model found for evaluation')
+      return
   policy_net.eval()
 
-  player.reset_battles()
+  if player.current_battle is not None:
+    player.reset_env(restart=False)
+    player.reset_battles()
+    player.start_challenging()
 
   episode_durations = []
-  num_episodes = 1000
   for _ in tqdm(range(num_episodes), desc='Evaluating', unit='episodes'):
     observation = torch.tensor(player.reset(), dtype=torch.double, device=args['device'])
     state = observation
@@ -352,26 +343,40 @@ def eval(player: SimpleRLPlayer, args):
       # Move to the next state
       state = next_state
 
-  print(episode_durations)
-  #player.complete_current_battle()
+  # print(episode_durations)
+  # player.complete_current_battle()
+  # player.reset_env()
   print(f'DarkrAI has won {player.n_won_battles} out of {num_episodes} games')
 
 def main(args):
 
   device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+  hidden_layers = [180, 120]
+  n_moves = 4
+  n_switches = 4
+  n_targets = 5
+  n_actions = (n_moves*n_targets + n_switches)*2
+  input_size = 240
   args = {
     'batch_size': 128,
     'gamma': 0.999,
     'target_update': 10,
+    'eval_interval': 500,
+    'periodic_eval_games': 100,
     'eps_start': 0.9,
     'eps_end': 0.05,
     'eps_decay': 200,
     'device': device,
-    'steps': 0,
+    'episodes': 0,
+    'n_moves': n_moves,
+    'n_targets': n_targets,
+    'n_actions': n_actions,
+    'input_size': input_size,
+    'hidden_layers': hidden_layers,
   }
 
   darkrai_player_config = PlayerConfiguration("DarkrAI",None)
 
   agent=SimpleRLPlayer(battle_format="gen8randomdoublesbattle",player_configuration=darkrai_player_config)
-  train(agent,args)
-  eval(agent,args)
+  train(agent,5000,args)
+  eval(agent,1000,**args)
