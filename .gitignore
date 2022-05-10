@@ -34,3 +34,6 @@ pokemon-showdown/
 
 # dist
 dist
+
+# wandb local logs
+wandb/

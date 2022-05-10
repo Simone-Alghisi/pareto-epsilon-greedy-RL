@@ -5,6 +5,7 @@ import torch.nn as nn
 import math
 import random
 import os
+import wandb
 from tqdm import tqdm
 from itertools import count
 from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
@@ -48,9 +49,7 @@ def optimize_model(memory, policy_net, target_net, optimiser, args):
   non_final_mask = torch.tensor(tuple(map(lambda s: s is not None, batch.next_state)), device=args['device'], dtype=torch.bool)
   non_final_next_states = torch.stack([s for s in batch.next_state if s is not None])
 
-  # state_batch = torch.cat(batch.state)
   state_batch = torch.stack(batch.state)
-  # action_batch = torch.cat(batch.action)
   action_batch = [[],[]]
   for action in batch.action:
     action_batch[0].append(action[0])
@@ -94,10 +93,15 @@ def optimize_model(memory, policy_net, target_net, optimiser, args):
   criterion = nn.HuberLoss()
   loss = criterion(state_action_values[0], expected_state_action_values[0]) \
        + criterion(state_action_values[1], expected_state_action_values[1])
+  # wandb.log({'loss': loss})
+  loss_cpy = loss.detach()
 
   # Optimize the model
   loss.backward()
+  for param in policy_net.parameters():
+    param.grad.data.clamp_(-1, 1)
   optimiser.step()
+  return loss_cpy
 
 
 def is_valid(pos:int, encoded_move_idx: int, poke_mapper: PokemonMapper, battle: DoubleBattle, args):
@@ -180,8 +184,10 @@ def get_valid_actions(poke_mapper: PokemonMapper, battle: DoubleBattle, actions:
 def policy(state, policy_net, battle: DoubleBattle, args, eps_greedy: bool = True):
   policy_net.eval()
   sample = random.random()
-  eps_threshold = args['eps_end'] + (args['eps_start'] - args['eps_end']) * math.exp(-1. * args['episodes'] / args['eps_decay'])
-  # args['steps'] += 1
+  eps_threshold = args['eps_end'] + (args['eps_start'] - args['eps_end']) * math.exp(-1. * args['step'] / args['eps_decay'])
+  args['eps_threshold'] = eps_threshold
+  # wandb.log({'eps_threshold': eps_threshold})
+  # args['step'] += 1
 
   poke_mapper = PokemonMapper(battle)
   if sample > eps_threshold or not eps_greedy:
@@ -235,11 +241,11 @@ def train(player:SimpleRLPlayer, num_episodes: int, args):
   # train loop
   for i_episode in tqdm(range(num_episodes), desc='Training', unit='episodes'):
     # games
-    args['episodes'] = i_episode
-
+    episode_info = {'episode': i_episode}
     # Intermediate evaluation
     if i_episode > 0 and i_episode % args['eval_interval'] == 0:
-      eval(eval_player,args['periodic_eval_games'],policy_net=policy_net,**args)
+      winrate = eval(eval_player,args['eval_interval_episodes'],policy_net=policy_net,**args)
+      episode_info['winrate'] = winrate
 
     # Initialize the environment and state
     observation = torch.tensor(player.reset(), dtype=torch.double, device=args['device'])
@@ -248,14 +254,16 @@ def train(player:SimpleRLPlayer, num_episodes: int, args):
     if does_anybody_have_tabu_moves(player.current_battle, ['transform', 'allyswitch']):
       print('Damn you, \nMew!\nAnd to all that can AllySwitch\nDamn you, \ntoo!')
       # TODO force finish game?
+      wandb.log(episode_info)
       continue
     if is_anyone_someone(player.current_battle, ['ditto', 'zoroark']):
       print('Damn you three, \nDitto and Zoroark!')
+      wandb.log(episode_info)
       continue
-
 
     for t in count():
       # turns
+      args['step'] += 1
 
       if state.shape[0] < 240:
         import pdb; pdb.set_trace()
@@ -282,7 +290,13 @@ def train(player:SimpleRLPlayer, num_episodes: int, args):
       state = next_state
 
       # Perform one step of the optimization (on the policy network)
-      optimize_model(memory, policy_net, target_net, optimiser, args)
+      loss = optimize_model(memory, policy_net, target_net, optimiser, args)
+      episode_info.update({
+        'step': args['step'],
+        'loss': loss,
+        'eps_threshold': args['eps_threshold']
+      })
+      wandb.log(episode_info)
       if done:
         episode_durations.append(t + 1)
         break
@@ -347,11 +361,11 @@ def eval(player: SimpleRLPlayer, num_episodes: int, policy_net=None, **args):
   # player.complete_current_battle()
   # player.reset_env()
   print(f'DarkrAI has won {player.n_won_battles} out of {num_episodes} games')
+  return player.n_won_battles/num_episodes
 
 def main(args):
-
-  device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-  hidden_layers = [180, 120]
+  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+  hidden_layers = [180]
   n_moves = 4
   n_switches = 4
   n_targets = 5
@@ -360,23 +374,30 @@ def main(args):
   args = {
     'batch_size': 128,
     'gamma': 0.999,
-    'target_update': 10,
-    'eval_interval': 500,
-    'periodic_eval_games': 100,
+    'target_update': 100,
+    'eval_interval': 100,
+    'eval_interval_episodes': 20,
     'eps_start': 0.9,
     'eps_end': 0.05,
-    'eps_decay': 200,
-    'device': device,
-    'episodes': 0,
+    'eps_decay': 2*10**4,
     'n_moves': n_moves,
     'n_targets': n_targets,
     'n_actions': n_actions,
     'input_size': input_size,
     'hidden_layers': hidden_layers,
+    'train_episodes': 5000,
+    'eval_episodes': 100,
   }
+  # parameters of the run
+  wandb.init(project='DarkrAI', entity='darkr-ai', config=args)
+  args.update({
+    'device': device,
+    'step': 0,
+  })
 
   darkrai_player_config = PlayerConfiguration("DarkrAI",None)
 
   agent=SimpleRLPlayer(battle_format="gen8randomdoublesbattle",player_configuration=darkrai_player_config)
-  train(agent,5000,args)
-  eval(agent,1000,**args)
+  train(agent,args['train_episodes'],args)
+  final_winrate = eval(agent,args['eval_episodes'],**args)
+  wandb.log({'winrate': final_winrate})

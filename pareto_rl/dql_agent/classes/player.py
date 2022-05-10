@@ -106,6 +106,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
 
   def calc_reward(self, last_battle, current_battle) -> float:
     return self.reward_computing_helper(last_battle,fainted_value=2,hp_value=1,victory_value=30)-self.reward_computing_helper(current_battle,fainted_value=2,hp_value=1,victory_value=30)
+    # return self.reward_computing_helper(current_battle,fainted_value=2,hp_value=1,victory_value=30)
 
   def get_pokemon_order(self, action, idx, battle: Battle) -> BattleOrder:
     poke_mapper = PokemonMapper(battle)
