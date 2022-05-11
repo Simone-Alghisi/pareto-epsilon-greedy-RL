@@ -1,5 +1,5 @@
 from poke_env.environment.double_battle import DoubleBattle
-from poke_env.player.battle_order import BattleOrder, DoubleBattleOrder
+from poke_env.player.battle_order import BattleOrder, DoubleBattleOrder, DefaultBattleOrder
 from pareto_rl.dql_agent.utils.move import Move
 from poke_env.environment.pokemon import Pokemon
 from pareto_rl.dql_agent.utils.utils import get_possible_showdown_targets
@@ -26,7 +26,8 @@ class PokemonMapper:
         self.pos_to_mon: Dict[int, Pokemon] = {}
         self.mon_indexes: List[int] = []
         self.available_switches: Dict[int, list] = {}
-        self.available_orders: list[DoubleBattleOrder]
+        self.available_orders: List[Union[DoubleBattleOrder, DefaultBattleOrder]] = None
+        self.available_moves: Dict[int, List[Move]] = {}
         active_orders: List[List[BattleOrder]] = [[], []]
 
         # your mons
@@ -41,7 +42,21 @@ class PokemonMapper:
                 casted_moves: Set[Move] = {Move(move._id) for move in moves}
                 # map pokemons with their position
                 self.mapper(casted_moves, mon, pos, switches, orders)
+            
+            # do not look at me like that, if it breaks it's their fault
+            if sum(battle.force_switch) == 1 and self.available_orders is None:
+                if orders:
+                    self.available_orders = DoubleBattleOrder.join_orders(orders, None)
+                self.available_orders = [self.choose_default_move()]
+
             pos -= 1
+        
+        # Again, if it breaks, not my fault
+        if self.available_orders is None:
+            self.available_orders = DoubleBattleOrder.join_orders(*active_orders)
+            if not self.available_orders:
+                self.available_orders = [DefaultBattleOrder()]
+
 
         # opponent mons
         pos = 1
@@ -78,7 +93,6 @@ class PokemonMapper:
                         tmp_targets.remove(t)
                 self.moves_targets[pos][m] = tmp_targets
 
-        self.available_orders = DoubleBattleOrder.join_orders(*active_orders)
 
     def mapper(
         self,
@@ -108,6 +122,7 @@ class PokemonMapper:
             ot, pt = get_possible_showdown_targets(self.battle, mon, move, pos)
             targets[move] = pt
             original_targets[move] = ot
+            self.available_moves[pos].append(move)
             if orders is not None:
                 orders.extend(
                     [

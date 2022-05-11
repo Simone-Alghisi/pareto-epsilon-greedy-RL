@@ -192,7 +192,7 @@ def decode_action(
     n_actions: int,
     n_switches: int,
     n_moves: int,
-    n_targets,
+    n_targets: int,
     pm: PokemonMapper,
 ) -> Union[DoubleBattleOrder, DefaultBattleOrder]:
     if neuron_pos < n_actions * (n_moves * n_targets):
@@ -267,32 +267,58 @@ def decode_action(
 
 
 def encode_action(
-    order: Union[BattleOrder, DoubleBattleOrder, DefaultBattleOrder],
+    order: Union[DoubleBattleOrder, DefaultBattleOrder],
     n_actions: int,
     n_switches: int,
     n_moves: int,
-    n_targets,
+    n_targets: int,
+	battle: DoubleBattle,
     pm: PokemonMapper,
 ) -> int:
-    if isinstance(order, DefaultBattleOrder):
-        return (
-            n_actions * (n_moves * n_targets)
-            + (n_actions - 1) * n_switches
-            + 2 * n_actions
-            + 1
-        )
-    elif isinstance(order, BattleOrder):
-        idx = 0
-        # TODO we should check if the pokemon is the first or the second
-    else:
-        first_order = order.first_order
-        second_order = order.second_order
-        # we need to handle the case in which we only have a single order
-        idx = 0
-        if isinstance(first_order, Move):
-            ...
-        elif isinstance(first_order, Pokemon):
-            ...
-        else:
-            print("i don't know what to do")
-            exit(1)
+	idx = 0
+	if isinstance(order, DefaultBattleOrder):
+		idx += (
+			n_actions * (n_moves * n_targets)
+			+ (n_actions - 1) * n_switches
+			+ 2 * n_actions
+		)
+	else:
+		first_order = order.first_order
+		second_order = order.second_order
+		if second_order is None:
+			idx += n_actions * (n_moves * n_targets) + (n_actions - 1) * n_switches
+			if battle.force_switch[0] or battle.active_pokemon[0]:
+				idx += encode_order(first_order, pm, -1, n_targets, n_moves)
+			elif battle.force_switch[1] or battle.active_pokemon[1]:
+				idx += n_actions
+				idx += encode_order(first_order, pm, -2, n_targets, n_moves)
+			else:
+				import pdb; pdb.set_trace()
+		else:
+			first_idx = encode_order(first_order, pm, -1, n_targets, n_moves)
+			second_idx = encode_order(second_order, pm, -2, n_targets, n_moves)
+
+			if first_idx < n_moves*n_targets:
+				idx = first_idx*(n_moves*n_targets)
+				idx += second_idx
+			else:
+				idx = n_actions*(n_moves*n_targets)
+				idx += ((n_actions-1)*(first_idx-(n_moves*n_targets)))
+				idx += second_idx 
+				# given that some switches are not possible, we collapse them into a single one
+				if second_idx > first_idx:
+					idx += second_idx-1
+	return idx
+			
+			
+def encode_order(order:BattleOrder, pm:PokemonMapper, pos:int, n_targets:int, n_moves:int) -> int:
+	if isinstance(order.order, Move):
+		target = order.move_target
+		target_idx = target + 2
+		move_idx = pm.available_moves[pos].index(order.order)
+		return move_idx*n_targets + target_idx
+	elif isinstance(order.order, Pokemon):
+		switches = pm.available_switches[pos]
+		for i, mon in enumerate(switches):
+			if mon.species == order.order.species:
+				return n_targets*n_moves + i
