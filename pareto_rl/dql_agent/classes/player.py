@@ -105,8 +105,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
     return super().describe_embedding()
 
   def calc_reward(self, last_battle, current_battle) -> float:
-    return self.reward_computing_helper(last_battle,fainted_value=2,hp_value=1,victory_value=30)-self.reward_computing_helper(current_battle,fainted_value=2,hp_value=1,victory_value=30)
-    # return self.reward_computing_helper(current_battle,fainted_value=2,hp_value=1,victory_value=30)
+    return self.reward_computing_helper(current_battle,fainted_value=2,hp_value=1,victory_value=30)
 
   def get_pokemon_order(self, action, idx, battle: Battle) -> BattleOrder:
     poke_mapper = PokemonMapper(battle)
@@ -128,6 +127,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
     elif(action >= (mon_actions - n_switches) and not battle.force_switch[idx]):
       switch = action - (mon_actions - n_switches)
       # print(idx, switch, battle.available_switches)
+      if switch >= len(battle.available_switches[idx]):
+        import pdb; pdb.set_trace()
       return self.agent.create_order(battle.available_switches[idx][switch])
     else:
       return self.agent.choose_random_move(battle)
@@ -151,15 +152,18 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
     if battle.force_switch[0] or battle.force_switch[1]:
       battle_order = DoubleBattleOrder(self.agent.choose_random_move(battle),None)
     else:
-      first_order = None
-      second_order = None
-      for i, mon in enumerate(battle.active_pokemon):
-        if mon:
-          if first_order is None:
-            first_order = self.get_pokemon_order(actions[i],i,battle)
-          else:
-            second_order = self.get_pokemon_order(actions[i],i,battle)
-      battle_order = DoubleBattleOrder(first_order, second_order)
+      try:
+        first_order = None
+        second_order = None
+        for i, mon in enumerate(battle.active_pokemon):
+          if mon:
+            if first_order is None:
+              first_order = self.get_pokemon_order(actions[i],i,battle)
+            else:
+              second_order = self.get_pokemon_order(actions[i],i,battle)
+        battle_order = DoubleBattleOrder(first_order, second_order)
+      except:
+        battle_order = ForfeitBattleOrder()
 
     # print(battle_order)
     return battle_order

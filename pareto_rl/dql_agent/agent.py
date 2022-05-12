@@ -232,7 +232,7 @@ def train(player:SimpleRLPlayer, num_episodes: int, args):
   target_net.load_state_dict(policy_net.state_dict())
   target_net.eval()
   optimiser = optim.Adam(policy_net.parameters())
-  memory = ReplayMemory(10000)
+  memory = ReplayMemory(args['memory'])
   eval_config = PlayerConfiguration("DarkrAI_eval",None)
   eval_player = SimpleRLPlayer(battle_format="gen8randomdoublesbattle",player_configuration=eval_config)
 
@@ -294,7 +294,8 @@ def train(player:SimpleRLPlayer, num_episodes: int, args):
       episode_info.update({
         'step': args['step'],
         'loss': loss,
-        'eps_threshold': args['eps_threshold']
+        'eps_threshold': args['eps_threshold'],
+        'reward': reward
       })
       wandb.log(episode_info)
       if done:
@@ -374,19 +375,20 @@ def main(args):
   args = {
     'batch_size': 128,
     'gamma': 0.999,
-    'target_update': 100,
+    'target_update': 2500,
     'eval_interval': 100,
-    'eval_interval_episodes': 20,
+    'eval_interval_episodes': 50,
     'eps_start': 0.9,
     'eps_end': 0.05,
-    'eps_decay': 2*10**4,
+    'eps_decay': 5*10**4,
     'n_moves': n_moves,
     'n_targets': n_targets,
     'n_actions': n_actions,
     'input_size': input_size,
     'hidden_layers': hidden_layers,
-    'train_episodes': 5000,
+    'train_episodes': 12000,
     'eval_episodes': 100,
+    'memory': 10**4
   }
   # parameters of the run
   wandb.init(project='DarkrAI', entity='darkr-ai', config=args)
