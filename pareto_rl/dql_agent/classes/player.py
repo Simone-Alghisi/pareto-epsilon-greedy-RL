@@ -15,6 +15,7 @@ from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from typing import Any, Dict, List, Union
 from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
 from abc import ABC, abstractmethod
+from poke_env.environment.move import Move as OriginalMove
 
 class SimpleRLPlayer(Gen8EnvSinglePlayer):
   def __init__(self, **kwargs):
@@ -141,13 +142,21 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
     self.batch_size = batch_size
     self.gamma = gamma
     self.n_actions = None
+    self.output_size = None
+    self.pm = None
 
   def _init_model(self, input_size, hidden_layers):
-    self.policy_net = DarkrAI(input_size, hidden_layers, self.n_actions).to(self.device)
-    self.target_net = DarkrAI(input_size, hidden_layers, self.n_actions).to(self.device)
+    self.policy_net = DarkrAI(input_size, hidden_layers, self.output_size).to(self.device)
+    self.target_net = DarkrAI(input_size, hidden_layers, self.output_size).to(self.device)
     self.target_net.load_state_dict(self.policy_net.state_dict())
     self.target_net.eval()
     self.optimiser = optim.Adam(self.policy_net.parameters())
+
+  def update_pm(self):
+    self.pm = PokemonMapper(self.current_battle)
+
+  def update_target(self):
+    self.target_net.load_state_dict(self.policy_net.state_dict())
 
   @abstractmethod
   def optimize_model(self, memory: ReplayMemory):
@@ -157,9 +166,6 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
   def policy(self, state, step: int = 0, eps_greedy: bool = True):
     pass
 
-  @abstractmethod
-  def update_target(self):
-    pass
 
 
 class DoubleActionRLPlayer(BaseRLPlayer):
@@ -178,28 +184,25 @@ class DoubleActionRLPlayer(BaseRLPlayer):
       **kwargs
       ):
     super(DoubleActionRLPlayer, self).__init__(n_switches,n_moves,n_targets,eps_start,eps_end,eps_decay,batch_size,gamma,**kwargs)
-    self.n_actions = (n_moves*n_targets + n_switches)*2
+    self.output_size = (n_moves*n_targets + n_switches)*2
+    self.n_actions = self.output_size // 2
     self._init_model(input_size,hidden_layers)
 
-  def get_pokemon_order(self, action, idx, battle: Battle) -> BattleOrder:
-    poke_mapper = PokemonMapper(battle)
+  def get_pokemon_order(self, action, idx, battle: DoubleBattle) -> BattleOrder:
     idx_to_pos = {0:-1, 1:-2}
     pos = idx_to_pos[idx]
-    n_targets = 5
-    n_switches = 4
-    mon_actions = 4*n_targets + n_switches
-    if pos in poke_mapper.moves_targets:
-      moves = [ move for move in poke_mapper.moves_targets[pos].keys() ]
-    if(action < (mon_actions - n_switches) and not battle.force_switch[idx]):
+    if pos in self.pm.moves_targets:
+      moves = [ move for move in self.pm.moves_targets[pos].keys() ]
+    if(action < (self.n_actions - self.n_switches) and not battle.force_switch[idx]):
       #moves
-      move = action // n_targets
+      move = action // self.n_targets
       # target = DoubleBattle.OPPONENT_1_POSITION if action % 2 == 0 else DoubleBattle.OPPONENT_2_POSITION
-      target = (action % n_targets) - 2
+      target = (action % self.n_targets) - 2
       if move >= len(moves):
         import pdb; pdb.set_trace()
       return self.agent.create_order(moves[move],move_target=target)
-    elif(action >= (mon_actions - n_switches) and not battle.force_switch[idx]):
-      switch = action - (mon_actions - n_switches)
+    elif(action >= (self.n_actions - self.n_switches) and not battle.force_switch[idx]):
+      switch = action - (self.n_actions - self.n_switches)
       # print(idx, switch, battle.available_switches)
       if switch >= len(battle.available_switches[idx]):
         import pdb; pdb.set_trace()
@@ -207,7 +210,7 @@ class DoubleActionRLPlayer(BaseRLPlayer):
     else:
       return self.agent.choose_random_move(battle)
 
-  def action_to_move(self, actions, battle: Battle) -> BattleOrder:  # pyre-ignore
+  def action_to_move(self, actions, battle: DoubleBattle) -> BattleOrder:  # pyre-ignore
     """Converts actions to move orders.
     :param action: The action to convert.
     :type action: int
@@ -310,23 +313,22 @@ class DoubleActionRLPlayer(BaseRLPlayer):
 
     return loss_cpy
 
-  def _is_valid(self, pos:int, encoded_move_idx: int, poke_mapper: PokemonMapper):
+  def _is_valid(self, pos:int, encoded_move_idx: int):
     valid = False
     n_targets = self.n_targets
-    mon_actions = self.n_actions // 2
-    if pos in poke_mapper.original_moves_targets:
+    if pos in self.pm.original_moves_targets:
       #TODO check if order is the same here and in rlplayer
-      moves = [targets for _, targets in poke_mapper.original_moves_targets[pos].items()]
+      moves = [targets for _, targets in self.pm.original_moves_targets[pos].items()]
 
-      if encoded_move_idx >= mon_actions-4:
+      if encoded_move_idx >= self.n_actions - self.n_switches:
         # check validity of switch
         # TODO check if benched pokemons' order/position matters
         n_alive = len([mon for mon in self.current_battle.team.values() if not mon.fainted])
         if n_alive > 2:
           max_switch = n_alive - 2
-          switch_target = encoded_move_idx - (mon_actions - 4)
+          switch_target = encoded_move_idx - (self.n_actions - self.n_switches)
           if switch_target < max_switch:
-            if pos in poke_mapper.available_switches and len(poke_mapper.available_switches[pos]) > 0:
+            if pos in self.pm.available_switches and len(self.pm.available_switches[pos]) > 0:
               valid = True
       else:
         # check validity of attack
@@ -338,11 +340,10 @@ class DoubleActionRLPlayer(BaseRLPlayer):
     return valid
 
 
-  def _get_valid_actions(self, poke_mapper: PokemonMapper, actions: torch.Tensor, utilities: torch.Tensor):
+  def _get_valid_actions(self, actions: torch.Tensor, utilities: torch.Tensor):
     valid_moves = False
     move = [0,0]
-    mon_actions = self.n_actions // 2
-    ally_pos = [pos for pos in poke_mapper.pos_to_mon.keys() if pos < 0]
+    ally_pos = [pos for pos in self.pm.pos_to_mon.keys() if pos < 0]
     pos_to_idx = {-1: 0, -2: 1}
     # TODO consider dead pokemon
     while not valid_moves:
@@ -351,14 +352,14 @@ class DoubleActionRLPlayer(BaseRLPlayer):
         # mon = -2 if mon == 0 else -1
         idx = pos_to_idx[pos]
         while (
-            move[idx] < mon_actions and
-            not self._is_valid(pos, actions[idx][move[idx]].item(), poke_mapper)
+            move[idx] < self.n_actions and
+            not self._is_valid(pos, actions[idx][move[idx]].item())
         ):
           move[idx] += 1
 
-      if move[0] < mon_actions and move[1] < mon_actions:
+      if move[0] < self.n_actions and move[1] < self.n_actions:
         # check if both moves are switches and if they are the same
-        if(actions[0][move[0]] >= (mon_actions-4) and actions[1][move[1]] >= (mon_actions-4)):
+        if(actions[0][move[0]] >= (self.n_actions - self.n_switches) and actions[1][move[1]] >= (self.n_actions - self.n_switches)):
           #both switch actions
           if(actions[0][move[0]] == actions[1][move[1]]):
             if(utilities[0][move[0]] > utilities[1][move[1]]):
@@ -387,7 +388,6 @@ class DoubleActionRLPlayer(BaseRLPlayer):
       eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(-1. * step / self.eps_decay)
       self.eps_threshold = eps_threshold
 
-    poke_mapper = PokemonMapper(self.current_battle)
     if not eps_greedy or sample > eps_threshold:
     # if True:
       with torch.no_grad():
@@ -398,13 +398,12 @@ class DoubleActionRLPlayer(BaseRLPlayer):
         outputs = [output[:split_index].sort(descending=True), output[split_index:].sort(descending=True)]
         utilities = torch.stack([ tensor.values for tensor in outputs ])
         actions = torch.stack([ tensor.indices for tensor in outputs ])
-        return self._get_valid_actions(poke_mapper,actions,utilities)
+        return self._get_valid_actions(actions,utilities)
     else:
       # TODO maybe more efficient getting random valid action then decoding
-      mon_actions = self.n_actions // 2
-      actions = torch.stack([torch.randperm(mon_actions) for _ in range(2)])
-      utilities = torch.rand(2,mon_actions)
-      return self._get_valid_actions(poke_mapper,actions,utilities)
+      actions = torch.stack([torch.randperm(self.n_actions) for _ in range(2)])
+      utilities = torch.rand(2,self.n_actions)
+      return self._get_valid_actions(actions,utilities)
 
   def _encode_actions(self, actions):
     return actions[0]*100 + actions[1]
@@ -414,8 +413,6 @@ class DoubleActionRLPlayer(BaseRLPlayer):
     action2 = coded_action % 100
     return [action1,action2]
 
-  def update_target(self):
-    self.target_net.load_state_dict(self.policy_net.state_dict())
 
 class CombineActionRLPlayer(BaseRLPlayer):
   def __init__(
@@ -433,12 +430,12 @@ class CombineActionRLPlayer(BaseRLPlayer):
       **kwargs
       ):
     super(CombineActionRLPlayer, self).__init__(n_switches,n_moves,n_targets,eps_start,eps_end,eps_decay,batch_size,gamma,**kwargs)
-    # TODO define proper n_actions
-    self.n_actions = 0
+    self.n_actions = n_moves * n_targets + n_switches
+    self.output_size = (n_moves * n_targets) * self.n_actions + n_switches * (self.n_actions -1) + self.n_actions * 2 + 1
     self._init_model(input_size,hidden_layers)
 
-  def action_to_move(self, actions, battle: Battle) -> BattleOrder:  # pyre-ignore
-    return ForfeitBattleOrder()
+  def action_to_move(self, action, battle: DoubleBattle) -> BattleOrder:  # pyre-ignore
+    return self.decode_action(action)
 
   def optimize_model(self, memory: ReplayMemory):
     if len(memory) < self.batch_size:
@@ -497,186 +494,170 @@ class CombineActionRLPlayer(BaseRLPlayer):
     self.policy_net.eval()
     sample = random.random()
     eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
-        -1.0 * step / self.eps_decay
+      -1.0 * step / self.eps_decay
     )
     self.eps_threshold = eps_threshold
     # wandb.log({'eps_threshold': eps_threshold})
     # args['step'] += 1
 
-    pm = PokemonMapper(battle)
     if sample > eps_threshold or not eps_greedy:
-        with torch.no_grad():
-            output = self.policy_net(state)
-            mask = self.mask_unavailable_moves(
-                pm,
-            )
-            mask = torch.from_numpy(mask).to(self.device)
-            output = torch.mul(output, mask)
-            best_action = int(output.max(1)[1].squeeze().item())
-            return best_action
+      with torch.no_grad():
+        output = self.policy_net(state)
+        mask = self.mask_unavailable_moves()
+        mask = torch.from_numpy(mask).to(self.device)
+        output = torch.mul(output, mask)
+        best_action = output.max(0)[1].item()
+        return best_action
     else:
-        random_order = pm.available_orders[int(random.random() * len(pm.available_orders))]
-        return self.encode_action(random_order,pm)
-
-
-  def update_target(self):
-    self.target_net.load_state_dict(self.policy_net.state_dict())
+      random_order = self.pm.available_orders[int(random.random() * len(self.pm.available_orders))]
+      return self.encode_action(random_order)
 
 
   def decode_action(
         self,
         neuron_pos:int,
-        pm: PokemonMapper,
     ) -> Union[DoubleBattleOrder, DefaultBattleOrder]:
-        if neuron_pos < self.n_actions * (self.n_moves * self.n_targets):
-            first_order = None
-            second_order = None
-            # the first one wants to make a move
-            act_1 = neuron_pos // self.n_actions  # [0, self.n_targets*self.n_moves)
-            first_order = self.decode_order(act_1, pm, -1)
-            act_2 = neuron_pos % self.n_actions  # [0, self.n_actions)
-            second_order = self.decode_order(act_2, pm, -2)
-            return DoubleBattleOrder(first_order, second_order)
-        elif neuron_pos < self.n_actions * (self.n_moves * self.n_targets) + (
-            (self.n_actions - 1) * self.n_switches
-        ):
-            switch = neuron_pos - (self.n_actions * (self.n_moves * self.n_targets))
-            switch_1_trg = switch // (self.n_actions - 1)  # [0, self.n_switches)
-            # search in available switches
-            mon_1 = pm.available_switches[-1][switch_1_trg]
-            first_order = BattleOrder(mon_1)
-            act_2 = switch % (self.n_actions - 1)  # [0, self.n_actions-1)
-            if act_2 < (self.n_moves * self.n_targets):  # i.e. a move
-                second_order = self.decode_order(act_2, pm, -2)
-            else:
-                possible_switches = [
-                    i for i in range(0, self.n_switches) if i != switch_1_trg
-                ]  # a list with only the possible target switches
-                switch_2_trg = possible_switches[
-                    act_2 - (self.n_moves * self.n_targets)
-                ]  # [0, self.n_switches-1), but removing the same
-                mon_2 = pm.available_switches[-2][switch_2_trg]
-                second_order = BattleOrder(mon_2)
-            return DoubleBattleOrder(first_order, second_order)
-        elif (
-            neuron_pos
-            < self.n_actions * (self.n_moves * self.n_targets)
-            + ((self.n_actions - 1) * self.n_switches)
-            + 2 * self.n_actions
-        ):
-            action = neuron_pos - (
-                self.n_actions * (self.n_moves * self.n_targets) + ((self.n_actions - 1) * self.n_switches)
-            )
-            act = action % self.n_actions
-            if action // self.n_actions == 0:
-                # first pokemon
-                first_order = self.decode_order(act, pm, -1)
-            else:
-                # second pokemon
-                first_order = self.decode_order(act, pm, -2)
-            return DoubleBattleOrder(first_order, None)
-        else:
-            return DefaultBattleOrder()
+    if neuron_pos < self.n_actions * (self.n_moves * self.n_targets):
+      first_order = None
+      second_order = None
+      # the first one wants to make a move
+      act_1 = neuron_pos // self.n_actions # [0, self.n_targets*self.n_moves)
+      first_order = self.decode_order(act_1, -1)
+      act_2 = neuron_pos % self.n_actions # [0, self.n_actions)
+      second_order = self.decode_order(act_2, -2)
+      return DoubleBattleOrder(first_order, second_order)
+    elif neuron_pos < self.n_actions * (self.n_moves * self.n_targets) + (
+      (self.n_actions - 1) * self.n_switches
+    ):
+      switch = neuron_pos - (self.n_actions * (self.n_moves * self.n_targets))
+      switch_1_trg = switch // (self.n_actions - 1) # [0, self.n_switches)
+      # search in available switches
+      mon_1 = self.pm.available_switches[-1][switch_1_trg]
+      first_order = BattleOrder(mon_1)
+      act_2 = switch % (self.n_actions - 1) # [0, self.n_actions-1)
+      if act_2 < (self.n_moves * self.n_targets): # i.e. a move
+        second_order = self.decode_order(act_2, -2)
+      else:
+        possible_switches = [
+          i for i in range(0, self.n_switches) if i != switch_1_trg
+        ] # a list with only the possible target switches
+        switch_2_trg = possible_switches[
+          act_2 - (self.n_moves * self.n_targets)
+        ] # [0, self.n_switches-1), but removing the same
+        mon_2 = self.pm.available_switches[-2][switch_2_trg]
+        second_order = BattleOrder(mon_2)
+      return DoubleBattleOrder(first_order, second_order)
+    elif (
+      neuron_pos
+      < self.n_actions * (self.n_moves * self.n_targets)
+      + ((self.n_actions - 1) * self.n_switches)
+      + 2 * self.n_actions
+    ):
+      action = neuron_pos - (
+        self.n_actions * (self.n_moves * self.n_targets) + ((self.n_actions - 1) * self.n_switches)
+      )
+      act = action % self.n_actions
+      if action // self.n_actions == 0:
+        # first pokemon
+        first_order = self.decode_order(act, -1)
+      else:
+        # second pokemon
+        first_order = self.decode_order(act, -2)
+      return DoubleBattleOrder(first_order, None)
+    else:
+      return DefaultBattleOrder()
 
 
   def decode_order(
-        self,
-        act: int, pm: PokemonMapper, pos: int
-    ) -> BattleOrder:
-        if act < (self.n_moves * self.n_targets):
-            # the pokemon wants to perform a move
-            move_idx = act // self.n_targets
-            move_trg = act % self.n_targets
-            move = pm.available_moves[pos][move_idx]
-            order = BattleOrder(move, move_target=move_trg - 2)
-        else:
-            # the pokemon wants to perform a switch
-            switch_trg = act - (self.n_moves * self.n_targets)
-            mon = pm.available_switches[pos][switch_trg]
-            order = BattleOrder(mon)
-        return order
+    self,
+    act: int, pos: int
+  ) -> BattleOrder:
+    if act < (self.n_moves * self.n_targets):
+      # the pokemon wants to perform a move
+      move_idx = act // self.n_targets
+      move_trg = act % self.n_targets
+      move = self.pm.available_moves[pos][move_idx]
+      order = BattleOrder(move, move_target=move_trg - 2)
+    else:
+      # the pokemon wants to perform a switch
+      switch_trg = act - (self.n_moves * self.n_targets)
+      mon = self.pm.available_switches[pos][switch_trg]
+      order = BattleOrder(mon)
+    return order
 
 
   def encode_action(
-        self,
-        order: Union[DoubleBattleOrder, DefaultBattleOrder],
-        pm: PokemonMapper,
-    ) -> int:
-        idx = 0
-        if isinstance(order, DefaultBattleOrder):
-            idx += (
-                self.n_actions * (self.n_moves * self.n_targets)
-                + (self.n_actions - 1) * self.n_switches
-                + 2 * self.n_actions
-            )
+    self,
+    order: Union[DoubleBattleOrder, DefaultBattleOrder],
+  ) -> int:
+    idx = 0
+    if isinstance(order, DefaultBattleOrder):
+      idx += (
+        self.n_actions * (self.n_moves * self.n_targets)
+        + (self.n_actions - 1) * self.n_switches
+        + 2 * self.n_actions
+      )
+    else:
+      first_order = order.first_order
+      second_order = order.second_order
+      if second_order is None:
+        idx += self.n_actions * (self.n_moves * self.n_targets) + (self.n_actions - 1) * self.n_switches
+        if self.current_battle.force_switch[0] or self.current_battle.active_pokemon[0]:
+          idx += self.encode_order(first_order, -1)
+        elif self.current_battle.force_switch[1] or self.current_battle.active_pokemon[1]:
+          idx += self.n_actions
+          idx += self.encode_order(first_order, -2)
         else:
-            first_order = order.first_order
-            second_order = order.second_order
-            if second_order is None:
-                idx += self.n_actions * (self.n_moves * self.n_targets) + (self.n_actions - 1) * self.n_switches
-                if self.current_battle.force_switch[0] or self.current_battle.active_pokemon[0]:
-                    idx += self.encode_order(first_order, pm, -1)
-                elif self.current_battle.force_switch[1] or self.current_battle.active_pokemon[1]:
-                    idx += self.n_actions
-                    idx += self.encode_order(first_order, pm, -2)
-                else:
-                    import pdb
+          import pdb
 
-                    pdb.set_trace()
-            else:
-                first_idx = self.encode_order(first_order, pm, -1)
-                second_idx = self.encode_order(second_order, pm, -2)
+          pdb.set_trace()
+      else:
+        first_idx = self.encode_order(first_order, -1)
+        second_idx = self.encode_order(second_order, -2)
 
-                if first_idx < self.n_moves * self.n_targets:
-                    idx = first_idx * (self.n_actions)
-                    idx += second_idx
-                else:
-                    idx = self.n_actions * (self.n_moves * self.n_targets)
-                    idx += (self.n_actions - 1) * (first_idx - (self.n_moves * self.n_targets))
-                    idx += second_idx
-                    # given that some switches are not possible, we collapse them into a single one
-                    if second_idx > first_idx:
-                        idx += second_idx - 1
-        return idx
+        if first_idx < self.n_moves * self.n_targets:
+          idx = first_idx * (self.n_actions)
+          idx += second_idx
+        else:
+          idx = self.n_actions * (self.n_moves * self.n_targets)
+          idx += (self.n_actions - 1) * (first_idx - (self.n_moves * self.n_targets))
+          idx += second_idx
+          # given that some switches are not possible, we collapse them into a single one
+          if second_idx > first_idx:
+            idx += second_idx - 1
+    return idx
 
 
   def encode_order(
-        self,
-        order: BattleOrder, pm: PokemonMapper, pos: int
-    ) -> int:
-        if isinstance(order.order, Move):
-            target = order.move_target
-            target_idx = target + 2
-            move_idx = pm.available_moves[pos].index(order.order)
-            return move_idx * self.n_targets + target_idx
-        elif isinstance(order.order, Pokemon):
-            switches = pm.available_switches[pos]
-            for i, mon in enumerate(switches):
-                if mon.species == order.order.species:
-                    return self.n_targets * self.n_moves + i
+    self,
+    order: BattleOrder, pos: int
+  ) -> int:
+    if isinstance(order.order, OriginalMove):
+      target = order.move_target
+      target_idx = target + 2
+      move_idx = self.pm.available_moves[pos].index(Move(order.order._id))
+      return move_idx * self.n_targets + target_idx
+    elif isinstance(order.order, Pokemon):
+      switches = self.pm.available_switches[pos]
+      for i, mon in enumerate(switches):
+        if mon.species == order.order.species:
+          return self.n_targets * self.n_moves + i
 
 
-  def mask_unavailable_moves(
-        self,
-        pm: PokemonMapper,
-    ) -> np.ndarray[Any, np.dtype[np.uint8]]:
-        mask = np.zeros(self.output_size)
-        if pm.available_orders:
-            for order in pm.available_orders:
-                idx = self.encode_action(
-                    order, pm
-                )
-                if mask[idx] == 0:
-                    mask[idx] = 1
-                else:
-                    import pdb
-
-                    print("error in the mapping or same battle order")
-
-                    pdb.set_trace()
+  def mask_unavailable_moves(self) -> np.ndarray[Any, np.dtype[np.uint8]]:
+    mask = np.zeros(self.output_size)
+    if self.pm.available_orders:
+      for order in self.pm.available_orders:
+        idx = self.encode_action(order)
+        if mask[idx] == 0:
+          mask[idx] = 1
         else:
-            idx = self.encode_action(
-                DefaultBattleOrder(), pm
-            )
-            mask[idx] = 1
-        return mask
+          import pdb
+
+          print("error in the mapping or same battle order")
+
+          # pdb.set_trace()
+    else:
+      idx = self.encode_action(DefaultBattleOrder())
+      mask[idx] = 1
+    return mask

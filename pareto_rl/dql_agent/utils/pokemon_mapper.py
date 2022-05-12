@@ -5,6 +5,7 @@ from poke_env.player.battle_order import (
     DefaultBattleOrder,
 )
 from pareto_rl.dql_agent.utils.move import Move
+from poke_env.environment.move import Move as OriginalMove
 from poke_env.environment.pokemon import Pokemon
 from pareto_rl.dql_agent.utils.utils import get_possible_showdown_targets
 from typing import Dict, List, Set, Union
@@ -45,9 +46,8 @@ class PokemonMapper:
             active_orders,
         ):
             if mon:
-                casted_moves: Set[Move] = {Move(move._id) for move in moves}
                 # map pokemons with their position
-                self.mapper(casted_moves, mon, pos, switches, orders)
+                self.mapper(moves, mon, pos, switches, orders)
 
             # do not look at me like that, if it breaks it's their fault
             if sum(battle.force_switch) == 1 and self.available_orders is None:
@@ -100,7 +100,7 @@ class PokemonMapper:
 
     def mapper(
         self,
-        moves: Set[Move],
+        moves: List[OriginalMove],
         mon: Pokemon,
         pos: int,
         available_switches: Union[List[Pokemon], None] = None,
@@ -123,15 +123,18 @@ class PokemonMapper:
         targets: Dict[Move, List[int]] = {}
         original_targets: Dict[Move, List[int]] = {}
         for move in moves:
-            ot, pt = get_possible_showdown_targets(self.battle, mon, move, pos)
-            targets[move] = pt
-            original_targets[move] = ot
-            self.available_moves[pos].append(move)
+            casted_move: Move = Move(move._id)
+            ot, pt = get_possible_showdown_targets(self.battle, mon, casted_move, pos)
+            targets[casted_move] = pt
+            original_targets[casted_move] = ot
+            if pos not in self.available_moves:
+              self.available_moves[pos] = []
+            self.available_moves[pos].append(casted_move)
             if orders is not None:
                 orders.extend(
                     [
                         BattleOrder(move, move_target=target)
-                        for target in original_targets[move]
+                        for target in original_targets[casted_move]
                     ]
                 )
 

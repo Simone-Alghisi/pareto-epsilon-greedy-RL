@@ -80,6 +80,7 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
       # turns
       args['step'] += 1
 
+      player.update_pm()
       # Select and perform an action
       action = player.policy(state,args['step'])
 
@@ -150,7 +151,7 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
       continue
 
     for t in count():
-      # action = policy(state, policy_net, args)
+      player.update_pm()
       # Follow learned policy (eps_greedy=False -> never choose random move)
       actions = player.policy(state, eps_greedy=False)
 
@@ -193,7 +194,7 @@ def main(args):
     'train_episodes': 12000,
     'eval_episodes': 100,
     'memory': 10**4,
-    'combined_actions': False
+    'combined_actions': True
   }
 
   darkrai_player_config = PlayerConfiguration("DarkrAI",None)
@@ -229,6 +230,7 @@ def main(args):
 
   # parameters of the run
   args['n_actions'] = agent.n_actions
+  args['output_size'] = agent.output_size
   wandb.init(project='DarkrAI', entity='darkr-ai', config=args)
 
   args.update({
@@ -236,6 +238,7 @@ def main(args):
     'step': 0,
   })
 
+  test(agent,args['train_episodes'],**args)
   train(agent,args['train_episodes'],args)
   final_winrate = eval(agent,args['eval_episodes'],**args)
   wandb.log({'winrate': final_winrate})
