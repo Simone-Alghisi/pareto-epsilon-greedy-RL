@@ -238,7 +238,6 @@ def main(args):
     'step': 0,
   })
 
-  test(agent,args['train_episodes'],**args)
   train(agent,args['train_episodes'],args)
   final_winrate = eval(agent,args['eval_episodes'],**args)
   wandb.log({'winrate': final_winrate})

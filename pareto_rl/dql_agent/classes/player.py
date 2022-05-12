@@ -503,10 +503,12 @@ class CombineActionRLPlayer(BaseRLPlayer):
     if sample > eps_threshold or not eps_greedy:
       with torch.no_grad():
         output = self.policy_net(state)
-        mask = self.mask_unavailable_moves()
-        mask = torch.from_numpy(mask).to(self.device)
-        output = torch.mul(output, mask)
-        best_action = output.max(0)[1].item()
+        mask = self.mask_unavailable_moves().to(self.device)
+        indexes = torch.arange(start=0, end=self.output_size)
+        output = output[mask]
+        indexes = indexes[mask]
+        max_utility = output.max(0)[1].item()
+        best_action = indexes[max_utility].item()
         return best_action
     else:
       random_order = self.pm.available_orders[int(random.random() * len(self.pm.available_orders))]
@@ -624,7 +626,7 @@ class CombineActionRLPlayer(BaseRLPlayer):
           idx += second_idx
           # given that some switches are not possible, we collapse them into a single one
           if second_idx > first_idx:
-            idx += second_idx - 1
+            idx -= 1
     return idx
 
 
@@ -644,20 +646,20 @@ class CombineActionRLPlayer(BaseRLPlayer):
           return self.n_targets * self.n_moves + i
 
 
-  def mask_unavailable_moves(self) -> np.ndarray[Any, np.dtype[np.uint8]]:
-    mask = np.zeros(self.output_size)
+  def mask_unavailable_moves(self) -> torch.Tensor:
+    mask = torch.zeros(self.output_size, dtype=torch.bool)
     if self.pm.available_orders:
       for order in self.pm.available_orders:
         idx = self.encode_action(order)
-        if mask[idx] == 0:
-          mask[idx] = 1
+        if mask[idx] == False:
+          mask[idx] = True
         else:
           import pdb
 
           print("error in the mapping or same battle order")
 
-          # pdb.set_trace()
+          pdb.set_trace()
     else:
       idx = self.encode_action(DefaultBattleOrder())
-      mask[idx] = 1
+      mask[idx] = True
     return mask
