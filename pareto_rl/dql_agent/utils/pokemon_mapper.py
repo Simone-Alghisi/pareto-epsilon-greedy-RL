@@ -49,11 +49,11 @@ class PokemonMapper:
                 # map pokemons with their position
                 self.mapper(moves, mon, pos, switches, orders)
 
-            # do not look at me like that, if it breaks it's their fault
-            if sum(battle.force_switch) == 1 and self.available_orders is None:
-                if orders:
-                    self.available_orders = DoubleBattleOrder.join_orders(orders, None)
-                self.available_orders = [DefaultBattleOrder()]
+                # do not look at me like that, if it breaks it's their fault
+                if sum(battle.force_switch) == 1 and self.available_orders is None:
+                    if orders:
+                        self.available_orders = DoubleBattleOrder.join_orders(orders, None)
+                    self.available_orders = [DefaultBattleOrder()]
 
             pos -= 1
 
