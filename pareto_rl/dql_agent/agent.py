@@ -76,7 +76,11 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
       wandb.log(episode_info)
       continue
 
+    episode_cumul_loss = 0
+    episode_cumul_reward = 0
+
     for t in count():
+      step_info = episode_info
       # turns
       args['step'] += 1
 
@@ -91,6 +95,7 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
         observation, reward, done, _ = player.step(action)
       observation = torch.tensor(observation, dtype=torch.double, device=args['device'])
       reward = torch.tensor([reward], device=args['device'])
+      episode_cumul_reward += reward.item()
 
       # Observe new state
       if not done:
@@ -106,20 +111,28 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
 
       # Perform one step of the optimization (on the policy network)
       loss = player.optimize_model(memory)
+      if loss is not None:
+        episode_cumul_loss += loss.item()
 
       # log current step
-      episode_info.update({
+      step_info.update({
         'step': args['step'],
         'loss': loss,
         'eps_threshold': player.eps_threshold,
         'reward': reward
       })
-      wandb.log(episode_info)
+      wandb.log(step_info)
 
       if done:
         episode_durations.append(t + 1)
         break
 
+    episode_info.update({
+      'step': args['step'],
+      'ep_loss': episode_cumul_loss/t,
+      'ep_reward': episode_cumul_reward/t,
+    })
+    wandb.log(episode_info)
     # Update the target network, copying all weights and biases in DQN
     if i_episode > 0 and i_episode % args['target_update'] == 0:
       player.update_target()
@@ -194,7 +207,7 @@ def main(args):
     'train_episodes': 12000,
     'eval_episodes': 100,
     'memory': 10**4,
-    'combined_actions': True
+    'combined_actions': False
   }
 
   darkrai_player_config = PlayerConfiguration("DarkrAI",None)

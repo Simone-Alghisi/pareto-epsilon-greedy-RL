@@ -199,13 +199,15 @@ class DoubleActionRLPlayer(BaseRLPlayer):
       # target = DoubleBattle.OPPONENT_1_POSITION if action % 2 == 0 else DoubleBattle.OPPONENT_2_POSITION
       target = (action % self.n_targets) - 2
       if move >= len(moves):
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
+        pass
       return self.agent.create_order(moves[move],move_target=target)
     elif(action >= (self.n_actions - self.n_switches) and not battle.force_switch[idx]):
       switch = action - (self.n_actions - self.n_switches)
       # print(idx, switch, battle.available_switches)
       if switch >= len(battle.available_switches[idx]):
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
+        pass
       return self.agent.create_order(battle.available_switches[idx][switch])
     else:
       return self.agent.choose_random_move(battle)
