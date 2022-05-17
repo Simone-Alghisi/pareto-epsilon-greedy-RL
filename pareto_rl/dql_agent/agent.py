@@ -6,6 +6,8 @@ import math
 import random
 import os
 import wandb
+import pickle
+import pandas as pd
 from tqdm import tqdm
 from itertools import count
 from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
@@ -16,6 +18,8 @@ from poke_env.player_configuration import PlayerConfiguration
 from poke_env.environment.double_battle import DoubleBattle
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from typing import Dict, List
+from pareto_rl.dql_agent.classes.random_player import DoubleRandomPlayer
+from sklearn.decomposition import PCA
 
 def configure_subparsers(subparsers):
   r"""Configure a new subparser for DQL agent.
@@ -58,7 +62,7 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
     # games
     episode_info = {'episode': i_episode}
     # Intermediate evaluation
-    if i_episode > 0 and i_episode % args['eval_interval'] == 0:
+    if i_episode % args['eval_interval'] == 0:
       winrate = eval(player,args['eval_interval_episodes'],**args)
       episode_info['winrate'] = winrate
 
@@ -129,8 +133,8 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
 
     episode_info.update({
       'step': args['step'],
-      'ep_loss': episode_cumul_loss/t,
-      'ep_reward': episode_cumul_reward/t,
+      'ep_loss': episode_cumul_loss/(t+1),
+      'ep_reward': episode_cumul_reward/(t+1),
     })
     wandb.log(episode_info)
     # Update the target network, copying all weights and biases in DQN
@@ -187,30 +191,112 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
   print(f'DarkrAI has won {player.n_won_battles} out of {num_episodes} games')
   return player.n_won_battles/num_episodes
 
+def sample_transitions(player: BaseRLPlayer, num_episodes: int, file_name: str, **args):
+  player.policy_net.eval()
+  observations = []
+  for i_episode in tqdm(range(num_episodes), desc='Evaluating', unit='episodes'):
+    observation, labels = player.reset()
+    observations.append(observation)
+    if i_episode == 0:
+      obs_labels = labels
+    # for obs, label in zip(observation, labels):
+    #   print(f'{label}: {obs}')
+    #   print(type(obs))
+    observation = torch.tensor(observation, dtype=torch.double, device=args['device'])
+    state = observation
+
+    if does_anybody_have_tabu_moves(player.current_battle, ['transform', 'allyswitch']):
+      print('Damn you, \nMew!\nAnd to all that can AllySwitch\nDamn you, \ntoo!')
+      # TODO force finish game?
+      continue
+    if is_anyone_someone(player.current_battle, ['ditto', 'zoroark']):
+      print('Damn you three, \nDitto and Zoroark!')
+      continue
+
+    for t in count():
+      player.update_pm()
+      # Follow learned policy (eps_greedy=False -> never choose random move)
+      actions = player.policy(state, eps_greedy=False)
+
+      if isinstance(player, DoubleActionRLPlayer):
+        observation, _, done, _ = player.step(player._encode_actions(actions.tolist()))
+      else:
+        observation, _, done, _ = player.step(actions)
+      observation, _ = observation
+      observations.append(observation)
+      observation = torch.tensor(observation, dtype=torch.double, device=args['device'])
+
+      # Observe new state
+      if not done:
+        next_state = observation
+      else:
+        break
+
+      # Move to the next state
+      state = next_state
+
+  data = {
+    'labels': labels,
+    'observations': observations
+  }
+  with open('.'.join([file_name,'pickle']), 'wb') as handle:
+    pickle.dump(data, handle)
+
+def pca(file_name: str):
+  with open('.'.join([file_name,'pickle']), 'rb') as handle:
+    data = pickle.load(handle)
+
+  df = pd.DataFrame(data['observations'], columns=data['labels'])
+  pca = PCA()
+  pca.fit(df)
+
+  pca_df = pd.DataFrame(pca.components_, columns=data['labels'])
+  pca_df.to_csv('.'.join([file_name,'csv']))
+
+  # most important features of each new principal component
+  components = {
+    'max_corr': [],
+    'max_feat': []
+  }
+  for comp in pca.components_:
+    max_corr = max(comp)
+    idx = comp.tolist().index(max_corr)
+    components['max_corr'].append(max_corr)
+    components['max_feat'].append(data['labels'][idx])
+
+  most_important_by_pc = pd.DataFrame(components)
+  most_important_by_pc.to_csv(''.join([file_name,'most_important','.csv']))
+
 def main(args):
   hidden_layers = [180]
   n_moves = 4
   n_switches = 4
   n_targets = 5
-  input_size = 240
+  # input_size = 240
+  input_size = 80
   args = {
     'batch_size': 128,
     'gamma': 0.999,
-    'target_update': 2500,
-    'eval_interval': 100,
+    'target_update': 1500,
+    'eval_interval': 500,
     'eval_interval_episodes': 50,
     'eps_start': 0.9,
     'eps_end': 0.05,
-    'eps_decay': 5*10**4,
+    'eps_decay': 2*10**4,
     'input_size': input_size,
     'hidden_layers': hidden_layers,
-    'train_episodes': 12000,
+    'train_episodes': 6000,
     'eval_episodes': 100,
     'memory': 10**4,
-    'combined_actions': False
+    'combined_actions': True,
+    'fixed_team': True
   }
 
-  darkrai_player_config = PlayerConfiguration("DarkrAI",None)
+  battle_format = 'gen8doublesubers' if args['fixed_team'] else 'gen8randomdoublesbattle'
+
+  darkrai_player_config = PlayerConfiguration('DarkrAI',None)
+  random_player_config = PlayerConfiguration('RandomMeansRandom',None)
+  random_player = DoubleRandomPlayer(battle_format=battle_format, player_configuration=random_player_config)
 
   if args['combined_actions']:
     agent = CombineActionRLPlayer(
@@ -224,8 +310,10 @@ def main(args):
         args['eps_decay'],
         args['batch_size'],
         args['gamma'],
-        battle_format="gen8randomdoublesbattle",
-        player_configuration=darkrai_player_config)
+        battle_format=battle_format,
+        player_configuration=darkrai_player_config,
+        opponent=random_player,
+        start_timer_on_battle_start=True)
   else:
     agent = DoubleActionRLPlayer(
         args['input_size'],
@@ -238,8 +326,10 @@ def main(args):
         args['eps_decay'],
         args['batch_size'],
         args['gamma'],
-        battle_format="gen8randomdoublesbattle",
-        player_configuration=darkrai_player_config)
+        battle_format=battle_format,
+        player_configuration=darkrai_player_config,
+        opponent=random_player,
+        start_timer_on_battle_start=True)
 
   # parameters of the run
   args['n_actions'] = agent.n_actions
@@ -250,6 +340,10 @@ def main(args):
     'device': agent.device,
     'step': 0,
   })
+
+  # remember to change policy so that is always random
+  # sample_transitions(agent,1000,'2v2_1k',**args)
+  # pca('2v2_1k')
 
   train(agent,args['train_episodes'],args)
   final_winrate = eval(agent,args['eval_episodes'],**args)

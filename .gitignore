@@ -37,3 +37,7 @@ dist
 
 # wandb local logs
 wandb/
+
+# analysis files
+*.pickle
+*.csv

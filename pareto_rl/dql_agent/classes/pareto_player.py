@@ -23,7 +23,7 @@ class ParetoPlayer(Player):
 
     def __init__(self, **kwargs):
         super(ParetoPlayer, self).__init__(
-            battle_format="gen82v2doubles", team=StaticTeambuilder(), **kwargs
+            battle_format="gen82v2doubles", team=StaticTeambuilder(TEAM), **kwargs
         )
         self.last_turn: List[Tuple[str, str]] = []
         self.estimates: Dict[str, Dict[str, Dict[str, int]]] = {"mon": {}, "opp": {}}
@@ -264,8 +264,12 @@ EVs: 252 HP / 136 Atk / 120 SpA
 
 
 class StaticTeambuilder(Teambuilder):
+    def __init__(self, team, **kwargs):
+        super(StaticTeambuilder, self).__init__(**kwargs)
+        self.team = team
+
     def yield_team(self):
-        team = self.join_team(self.parse_showdown_team(TEAM))
+        team = self.join_team(self.parse_showdown_team(self.team))
         print(team)
         return team
 
