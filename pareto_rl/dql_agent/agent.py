@@ -20,6 +20,9 @@ from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from typing import Dict, List
 from pareto_rl.dql_agent.classes.random_player import DoubleRandomPlayer
 from sklearn.decomposition import PCA
+from sklearn.feature_selection import SequentialFeatureSelector, VarianceThreshold
+from sklearn.svm import SVC
+from sklearn.cluster import KMeans
 
 def configure_subparsers(subparsers):
   r"""Configure a new subparser for DQL agent.
@@ -199,9 +202,6 @@ def sample_transitions(player: BaseRLPlayer, num_episodes: int, file_name: str, 
     observations.append(observation)
     if i_episode == 0:
       obs_labels = labels
-    # for obs, label in zip(observation, labels):
-    #   print(f'{label}: {obs}')
-    #   print(type(obs))
     observation = torch.tensor(observation, dtype=torch.double, device=args['device'])
     state = observation
 
@@ -226,46 +226,70 @@ def sample_transitions(player: BaseRLPlayer, num_episodes: int, file_name: str, 
       observations.append(observation)
       observation = torch.tensor(observation, dtype=torch.double, device=args['device'])
 
-      # Observe new state
-      if not done:
-        next_state = observation
-      else:
-        break
-
-      # Move to the next state
-      state = next_state
-
   data = {
     'labels': labels,
     'observations': observations
   }
-  with open('.'.join([file_name,'pickle']), 'wb') as handle:
+  with open(''.join(['./feature_selection/',file_name,'.pickle']), 'wb') as handle:
     pickle.dump(data, handle)
 
 def pca(file_name: str):
-  with open('.'.join([file_name,'pickle']), 'rb') as handle:
+  with open(''.join(['./feature_selection/',file_name,'.pickle']), 'rb') as handle:
     data = pickle.load(handle)
 
-  df = pd.DataFrame(data['observations'], columns=data['labels'])
-  pca = PCA()
-  pca.fit(df)
+    df = pd.DataFrame(data['observations'], columns=data['labels'])
+    pca = PCA()
+    pca.fit(df)
 
-  pca_df = pd.DataFrame(pca.components_, columns=data['labels'])
-  pca_df.to_csv('.'.join([file_name,'csv']))
+    pca_df = pd.DataFrame(pca.components_, columns=data['labels'])
+    pca_df.to_csv(''.join(['./feature_selection/',file_name,'_pca','.csv']))
 
-  # most important features of each new principal component
-  components = {
-    'max_corr': [],
-    'max_feat': []
-  }
-  for comp in pca.components_:
-    max_corr = max(comp)
-    idx = comp.tolist().index(max_corr)
-    components['max_corr'].append(max_corr)
-    components['max_feat'].append(data['labels'][idx])
+    # most important features of each new principal component
+    components = {
+      'max_corr': [],
+      'max_feat': []
+    }
+    for comp in pca.components_:
+      max_corr = max(comp)
+      idx = comp.tolist().index(max_corr)
+      components['max_corr'].append(max_corr)
+      components['max_feat'].append(data['labels'][idx])
 
-  most_important_by_pc = pd.DataFrame(components)
-  most_important_by_pc.to_csv(''.join([file_name,'most_important','.csv']))
+    most_important_by_pc = pd.DataFrame(components)
+    most_important_by_pc.to_csv(''.join(['./feature_selection/',file_name,'_pca','_most_important','.csv']))
+
+def sfs(file_name: str):
+  with open(''.join(['./feature_selection/',file_name,'.pickle']), 'rb') as handle:
+    data = pickle.load(handle)
+
+    df = pd.DataFrame(data['observations'], columns=data['labels'])
+    kmeans = KMeans(verbose=False)
+    sfs = SequentialFeatureSelector(kmeans, n_features_to_select=20, tol=None, n_jobs=8)
+    sfs.fit(df)
+
+    sfs_df = pd.DataFrame(sfs.get_feature_names_out())
+    sfs_df.to_csv(''.join(['./feature_selection/',file_name,'_sfs','.csv']))
+
+def variance_threshold(file_name):
+  with open(''.join(['./feature_selection/',file_name,'.pickle']), 'rb') as handle:
+    data = pickle.load(handle)
+
+    df = pd.DataFrame(data['observations'], columns=data['labels'])
+    thresh = 0.8*(1-0.8)
+    vt = VarianceThreshold(thresh)
+    vt.fit(df)
+
+    thresholded = {
+      'variance': [],
+      'feature': []
+    }
+    for var, feat in zip(vt.variances_, data['labels']):
+      if var > thresh:
+        thresholded['variance'].append(var)
+        thresholded['feature'].append(feat)
+
+    vt_df = pd.DataFrame(thresholded)
+    vt_df.to_csv(''.join(['./feature_selection/',file_name,'_vt','.csv']))
 
 def main(args):
   hidden_layers = [180]
@@ -344,6 +368,8 @@ def main(args):
   # remember to change policy so that is always random
   # sample_transitions(agent,1000,'2v2_1k',**args)
   # pca('2v2_1k')
+  # sfs('2v2_1k')
+  # variance_threshold('2v2_1k')
 
   train(agent,args['train_episodes'],args)
   final_winrate = eval(agent,args['eval_episodes'],**args)

@@ -39,5 +39,4 @@ dist
 wandb/
 
 # analysis files
-*.pickle
-*.csv
+feature_selection/
