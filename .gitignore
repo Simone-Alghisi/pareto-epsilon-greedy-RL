@@ -37,6 +37,3 @@ dist
 
 # wandb local logs
 wandb/
-
-# analysis files
-feature_selection/

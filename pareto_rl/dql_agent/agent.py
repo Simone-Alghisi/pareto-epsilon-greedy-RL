@@ -233,30 +233,45 @@ def sample_transitions(player: BaseRLPlayer, num_episodes: int, file_name: str, 
   with open(''.join(['./feature_selection/',file_name,'.pickle']), 'wb') as handle:
     pickle.dump(data, handle)
 
-def pca(file_name: str):
+def pca(file_name: str, n_components: int, n_most_corr: int):
   with open(''.join(['./feature_selection/',file_name,'.pickle']), 'rb') as handle:
     data = pickle.load(handle)
 
     df = pd.DataFrame(data['observations'], columns=data['labels'])
-    pca = PCA()
+    pca = PCA(n_components=n_components)
     pca.fit(df)
 
     pca_df = pd.DataFrame(pca.components_, columns=data['labels'])
     pca_df.to_csv(''.join(['./feature_selection/',file_name,'_pca','.csv']))
 
-    # most important features of each new principal component
-    components = {
-      'max_corr': [],
-      'max_feat': []
+    components = [ {'var_ratio': var_ratio, 'top_k_names': [], 'top_k_corr': []} for var_ratio in pca.explained_variance_ratio_ ]
+    feature_scores = {}
+    total_score = 0
+    for i, correlations in enumerate(pca.components_):
+      abs_corr = [ abs(corr) for corr in correlations]
+      sorted_corr, labels = zip(*sorted(zip(abs_corr,data['labels']), reverse=True))
+      components[i]['top_k_corr'] = sorted_corr[:n_most_corr]
+      components[i]['top_k_names'] = labels[:n_most_corr]
+      for label, corr in zip(components[i]['top_k_names'], components[i]['top_k_corr']):
+        if label not in feature_scores.keys():
+          feature_scores[label] = 0
+        score = components[i]['var_ratio'] * corr
+        total_score += score
+        feature_scores[label] += score
+    names = [ feat for feat in feature_scores.keys() ]
+    scores = [ score/total_score for score in feature_scores.values() ]
+    scores, names = zip(*sorted(zip(scores,names),reverse=True))
+    feature_scores = {
+      'names': names,
+      'scores': scores
     }
-    for comp in pca.components_:
-      max_corr = max(comp)
-      idx = comp.tolist().index(max_corr)
-      components['max_corr'].append(max_corr)
-      components['max_feat'].append(data['labels'][idx])
 
-    most_important_by_pc = pd.DataFrame(components)
-    most_important_by_pc.to_csv(''.join(['./feature_selection/',file_name,'_pca','_most_important','.csv']))
+    df = pd.DataFrame(components)
+    df.to_csv(''.join(['./feature_selection/',file_name,'_pca',f'_{n_components}pc_{n_most_corr}corr','.csv']))
+
+    df = pd.DataFrame(feature_scores)
+    df.to_csv(''.join(['./feature_selection/',file_name,'_pca','_feature_scores','.csv']))
+
 
 def sfs(file_name: str):
   with open(''.join(['./feature_selection/',file_name,'.pickle']), 'rb') as handle:
@@ -367,7 +382,7 @@ def main(args):
 
   # remember to change policy so that is always random
   # sample_transitions(agent,1000,'2v2_1k',**args)
-  # pca('2v2_1k')
+  # pca('2v2_1k',30,10)
   # sfs('2v2_1k')
   # variance_threshold('2v2_1k')
 
