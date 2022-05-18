@@ -1,28 +1,17 @@
-from logging import info
 import torch
-import torch.optim as optim
-import torch.nn as nn
-import math
-import random
 import os
 import wandb
-import pickle
-import pandas as pd
+from logging import info
 from tqdm import tqdm
 from itertools import count
-from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
+from pareto_rl.dql_agent.classes.darkr_ai import ReplayMemory
 from pareto_rl.dql_agent.classes.pareto_player import ParetoPlayer
-from pareto_rl.dql_agent.classes.player import SimpleRLPlayer, BaseRLPlayer, DoubleActionRLPlayer, CombineActionRLPlayer
-from poke_env.player.random_player import RandomPlayer
+from pareto_rl.dql_agent.classes.player import BaseRLPlayer, DoubleActionRLPlayer, CombineActionRLPlayer
 from poke_env.player_configuration import PlayerConfiguration
 from poke_env.environment.double_battle import DoubleBattle
-from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from typing import Dict, List
 from pareto_rl.dql_agent.classes.random_player import DoubleRandomPlayer
-from sklearn.decomposition import PCA
-from sklearn.feature_selection import SequentialFeatureSelector, VarianceThreshold
-from sklearn.svm import SVC
-from sklearn.cluster import KMeans
+from pareto_rl.dql_agent.classes.max_damage_player import DoubleMaxDamagePlayer
 
 def configure_subparsers(subparsers):
   r"""Configure a new subparser for DQL agent.
@@ -194,125 +183,14 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
   print(f'DarkrAI has won {player.n_won_battles} out of {num_episodes} games')
   return player.n_won_battles/num_episodes
 
-def sample_transitions(player: BaseRLPlayer, num_episodes: int, file_name: str, **args):
-  player.policy_net.eval()
-  observations = []
-  for i_episode in tqdm(range(num_episodes), desc='Evaluating', unit='episodes'):
-    observation, labels = player.reset()
-    observations.append(observation)
-    if i_episode == 0:
-      obs_labels = labels
-    observation = torch.tensor(observation, dtype=torch.double, device=args['device'])
-    state = observation
-
-    if does_anybody_have_tabu_moves(player.current_battle, ['transform', 'allyswitch']):
-      print('Damn you, \nMew!\nAnd to all that can AllySwitch\nDamn you, \ntoo!')
-      # TODO force finish game?
-      continue
-    if is_anyone_someone(player.current_battle, ['ditto', 'zoroark']):
-      print('Damn you three, \nDitto and Zoroark!')
-      continue
-
-    for t in count():
-      player.update_pm()
-      # Follow learned policy (eps_greedy=False -> never choose random move)
-      actions = player.policy(state, eps_greedy=False)
-
-      if isinstance(player, DoubleActionRLPlayer):
-        observation, _, done, _ = player.step(player._encode_actions(actions.tolist()))
-      else:
-        observation, _, done, _ = player.step(actions)
-      observation, _ = observation
-      observations.append(observation)
-      observation = torch.tensor(observation, dtype=torch.double, device=args['device'])
-
-  data = {
-    'labels': labels,
-    'observations': observations
-  }
-  with open(''.join(['./feature_selection/',file_name,'.pickle']), 'wb') as handle:
-    pickle.dump(data, handle)
-
-def pca(file_name: str, n_components: int, n_most_corr: int):
-  with open(''.join(['./feature_selection/',file_name,'.pickle']), 'rb') as handle:
-    data = pickle.load(handle)
-
-    df = pd.DataFrame(data['observations'], columns=data['labels'])
-    pca = PCA(n_components=n_components)
-    pca.fit(df)
-
-    pca_df = pd.DataFrame(pca.components_, columns=data['labels'])
-    pca_df.to_csv(''.join(['./feature_selection/',file_name,'_pca','.csv']))
-
-    components = [ {'var_ratio': var_ratio, 'top_k_names': [], 'top_k_corr': []} for var_ratio in pca.explained_variance_ratio_ ]
-    feature_scores = {}
-    total_score = 0
-    for i, correlations in enumerate(pca.components_):
-      abs_corr = [ abs(corr) for corr in correlations]
-      sorted_corr, labels = zip(*sorted(zip(abs_corr,data['labels']), reverse=True))
-      components[i]['top_k_corr'] = sorted_corr[:n_most_corr]
-      components[i]['top_k_names'] = labels[:n_most_corr]
-      for label, corr in zip(components[i]['top_k_names'], components[i]['top_k_corr']):
-        if label not in feature_scores.keys():
-          feature_scores[label] = 0
-        score = components[i]['var_ratio'] * corr
-        total_score += score
-        feature_scores[label] += score
-    names = [ feat for feat in feature_scores.keys() ]
-    scores = [ score/total_score for score in feature_scores.values() ]
-    scores, names = zip(*sorted(zip(scores,names),reverse=True))
-    feature_scores = {
-      'names': names,
-      'scores': scores
-    }
-
-    df = pd.DataFrame(components)
-    df.to_csv(''.join(['./feature_selection/',file_name,'_pca',f'_{n_components}pc_{n_most_corr}corr','.csv']))
-
-    df = pd.DataFrame(feature_scores)
-    df.to_csv(''.join(['./feature_selection/',file_name,'_pca','_feature_scores','.csv']))
-
-
-def sfs(file_name: str):
-  with open(''.join(['./feature_selection/',file_name,'.pickle']), 'rb') as handle:
-    data = pickle.load(handle)
-
-    df = pd.DataFrame(data['observations'], columns=data['labels'])
-    kmeans = KMeans(verbose=False)
-    sfs = SequentialFeatureSelector(kmeans, n_features_to_select=20, tol=None, n_jobs=8)
-    sfs.fit(df)
-
-    sfs_df = pd.DataFrame(sfs.get_feature_names_out())
-    sfs_df.to_csv(''.join(['./feature_selection/',file_name,'_sfs','.csv']))
-
-def variance_threshold(file_name):
-  with open(''.join(['./feature_selection/',file_name,'.pickle']), 'rb') as handle:
-    data = pickle.load(handle)
-
-    df = pd.DataFrame(data['observations'], columns=data['labels'])
-    thresh = 0.8*(1-0.8)
-    vt = VarianceThreshold(thresh)
-    vt.fit(df)
-
-    thresholded = {
-      'variance': [],
-      'feature': []
-    }
-    for var, feat in zip(vt.variances_, data['labels']):
-      if var > thresh:
-        thresholded['variance'].append(var)
-        thresholded['feature'].append(feat)
-
-    vt_df = pd.DataFrame(thresholded)
-    vt_df.to_csv(''.join(['./feature_selection/',file_name,'_vt','.csv']))
-
 def main(args):
-  hidden_layers = [180]
+  hidden_layers = [64]
   n_moves = 4
   n_switches = 4
   n_targets = 5
   # input_size = 240
-  input_size = 80
+  # input_size = 80
+  input_size = 36
   args = {
     'batch_size': 128,
     'gamma': 0.999,
@@ -321,21 +199,23 @@ def main(args):
     'eval_interval_episodes': 50,
     'eps_start': 0.9,
     'eps_end': 0.05,
-    'eps_decay': 2*10**4,
+    'eps_decay': 10**4/4,
     'input_size': input_size,
     'hidden_layers': hidden_layers,
     'train_episodes': 6000,
     'eval_episodes': 100,
-    'memory': 10**4,
-    'combined_actions': True,
+    'memory': 10**3,
+    'combined_actions': False,
     'fixed_team': True
   }
 
   battle_format = 'gen8doublesubers' if args['fixed_team'] else 'gen8randomdoublesbattle'
 
   darkrai_player_config = PlayerConfiguration('DarkrAI',None)
-  random_player_config = PlayerConfiguration('RandomMeansRandom',None)
-  random_player = DoubleRandomPlayer(battle_format=battle_format, player_configuration=random_player_config)
+  # opponent_config = PlayerConfiguration('RandomMeansRandom',None)
+  # opponent = DoubleRandomPlayer(battle_format=battle_format, player_configuration=opponent_config)
+  opponent_config = PlayerConfiguration('ThatsALottaDamage',None)
+  opponent = DoubleMaxDamagePlayer(battle_format=battle_format, player_configuration=opponent_config)
 
   if args['combined_actions']:
     agent = CombineActionRLPlayer(
@@ -351,7 +231,7 @@ def main(args):
         args['gamma'],
         battle_format=battle_format,
         player_configuration=darkrai_player_config,
-        opponent=random_player,
+        opponent=opponent,
         start_timer_on_battle_start=True)
   else:
     agent = DoubleActionRLPlayer(
@@ -367,7 +247,7 @@ def main(args):
         args['gamma'],
         battle_format=battle_format,
         player_configuration=darkrai_player_config,
-        opponent=random_player,
+        opponent=opponent,
         start_timer_on_battle_start=True)
 
   # parameters of the run

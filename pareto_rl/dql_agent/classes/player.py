@@ -116,58 +116,58 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
     obs = []
     active = []
     bench = []
-    labels = []
+    # labels = []
 
-    obs.append(len([mon for mon in battle.team.values() if not mon.fainted])/len(battle.team))
-    labels.append("remaning_mon")
-    obs.append(len([mon for mon in battle.opponent_team.values() if not mon.fainted])/len(battle.opponent_team))
-    labels.append("remaning_opp")
+    # obs.append(len([mon for mon in battle.team.values() if not mon.fainted])/len(battle.team))
+    # labels.append("remaning_mon")
+    # obs.append(len([mon for mon in battle.opponent_team.values() if not mon.fainted])/len(battle.opponent_team))
+    # labels.append("remaning_opp")
 
     for i,mon in enumerate(battle.team.values()):
       # lots of info are available, the problem is time,
       # hughes effect, and also mapping
       mon_data = []
-      bl = f"mon_{i}"
+      # bl = f"mon_{i}"
 
       # types (2)
-      types = [t.value / 18 if t is not None else 0 for t in mon.types]
-      mon_data.extend(types)
-      labels.extend([f"{bl}_type_1", f"{bl}_type_2"])
+      # types = [t.value / 18 if t is not None else 0 for t in mon.types]
+      # mon_data.extend(types)
+      # labels.extend([f"{bl}_type_1", f"{bl}_type_2"])
 
       # hp normalised (good idea?)
       mon_data.append(mon.current_hp_fraction)
-      labels.append(f"{bl}_hp_frac")
+      # labels.append(f"{bl}_hp_frac")
 
       # stats (5)
-      mon_data.extend([stat / 614 for stat in mon.stats.values()])
-      labels.extend([f"{bl}_{stat}" for stat in mon.stats.keys()])
+      # mon_data.extend([stat / 614 for stat in mon.stats.values()])
+      # labels.extend([f"{bl}_{stat}" for stat in mon.stats.keys()])
 
       # boosts and debuffs (7)
       # TODO it may be possible to compute it together with
       # the stats above to reduce the parameters
-      mon_data.extend([(boost+6)/12 for boost in mon.boosts.values()])
-      labels.extend([f"{bl}_{boost}" for boost in mon.boosts.keys()])
+      # mon_data.extend([(boost+6)/12 for boost in mon.boosts.values()])
+      # labels.extend([f"{bl}_{boost}" for boost in mon.boosts.keys()])
 
-      for stat_name, stat in mon.stats.items():
-        boost = mon.boosts[stat_name]
-
-        labels.append(f"{bl}_{stat_name}_w_boost_mult")
-        if boost >= 0:
-          mon_data.append(stat/614*((2+boost)/2))
-        else:
-          mon_data.append(stat/614*(2/(2+(-boost))))
+      # for stat_name, stat in mon.stats.items():
+      #   boost = mon.boosts[stat_name]
+      #
+      #   # labels.append(f"{bl}_{stat_name}_w_boost_mult")
+      #   if boost >= 0:
+      #     mon_data.append(stat/614*((2+boost)/2))
+      #   else:
+      #     mon_data.append(stat/614*(2/(2+(-boost))))
 
       # status
       # TODO one-hot-encoding?
-      mon_data.append(mon.status.value / 7 if mon.status is not None else 0)
-      labels.append(f"{bl}_status")
+      # mon_data.append(mon.status.value / 7 if mon.status is not None else 0)
+      # labels.append(f"{bl}_status")
 
       # moves
       # TODO... is it possible to have less than 4?
       j = 0
-      mbl = f"move_{j}"
+      # mbl = f"move_{j}"
       for j, move in enumerate(mon.moves.values()):
-        mbl = f"move_{j}"
+        # mbl = f"move_{j}"
         move_data = []
 
         # TODO... should we consider insering the move id?
@@ -183,53 +183,54 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         # consider STAB (same type attack bonus)
         if move.type in mon.types:
           move_damage *= 1.5
-        move_data.append(move_damage / 100) # normalisation
-        labels.append(f"{bl}_{mbl}_damage")
+        # move_data.append(move_damage / 100) # normalisation
+        # labels.append(f"{bl}_{mbl}_damage")
 
         # priority
-        move_data.append((move.priority + 7)/12)
-        labels.append(f"{bl}_{mbl}_priority")
+        # move_data.append((move.priority + 7)/12)
+        # labels.append(f"{bl}_{mbl}_priority")
 
         # accuracy
         # TODO... should we encode together w/ damage?
-        move_data.append(move.accuracy)
-        labels.append(f"{bl}_{mbl}_accuracy")
+        # move_data.append(move.accuracy)
+        # labels.append(f"{bl}_{mbl}_accuracy")
 
         # category (?)
-        move_data.append((move.category.value - 1) / 2)
-        labels.append(f"{bl}_{mbl}_category")
+        # move_data.append((move.category.value - 1) / 2)
+        # labels.append(f"{bl}_{mbl}_category")
 
         # pp (?)
-        move_data.append(move.current_pp / move.max_pp)
-        labels.append(f"{bl}_{mbl}_remaining_pp_percentage")
+        # move_data.append(move.current_pp / move.max_pp)
+        # labels.append(f"{bl}_{mbl}_remaining_pp_percentage")
 
         # recoil (?)
-        move_data.append(move.recoil)
-        labels.append(f"{bl}_{mbl}_recoil")
+        # move_data.append(move.recoil)
+        # labels.append(f"{bl}_{mbl}_recoil")
 
         # damage for each active opponent (2)
         for k, opp in enumerate(battle.opponent_active_pokemon):
-          labels.append(f"{bl}_{mbl}_opp_{k}_dmg")
+          # labels.append(f"{bl}_{mbl}_opp_{k}_dmg")
           if opp is not None:
             mlt = move.type.damage_multiplier(opp.type_1, opp.type_2)
-            move_data.append(move_damage*mlt/100) # normalisation
+            move_data.append(move_damage*mlt*move.accuracy/100) # normalisation
           else:
             # if one is dead, append -1
             move_data.append(-1)
 
         mon_data.extend(move_data)
 
-      mon_data.extend([-1 for _ in range(8)]*(4-len(mon.moves)))
+      # mon_data.extend([-1 for _ in range(8)]*(4-len(mon.moves)))
+      mon_data.extend([-1 for _ in range(2)]*(4-len(mon.moves)))
 
-      for l in range(4-len(mon.moves)):
-        labels.extend([f"{bl}_move_{l}_damage",
-          f"{bl}_move_{l}_priority",
-          f"{bl}_move_{l}_accuracy",
-          f"{bl}_move_{l}_category",
-          f"{bl}_move_{l}_remaining_pp_percentage",
-          f"{bl}_move_{l}_recoil",
-          f"{bl}_move_{l}_act_1_dmg",
-          f"{bl}_move_{l}_act_2_dmg"])
+      # for l in range(4-len(mon.moves)):
+      #   # labels.extend([f"{bl}_move_{l}_damage",
+      #     f"{bl}_move_{l}_priority",
+      #     f"{bl}_move_{l}_accuracy",
+      #     f"{bl}_move_{l}_category",
+      #     f"{bl}_move_{l}_remaining_pp_percentage",
+      #     f"{bl}_move_{l}_recoil",
+      #     f"{bl}_move_{l}_act_1_dmg",
+      #     f"{bl}_move_{l}_act_2_dmg"])
 
       if mon.active == True:
         active.extend(mon_data)
@@ -246,49 +247,49 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
       # lots of info are available, the problem is time,
       # hughes effect, and also mapping
       mon_data = []
-      bl = f"opp_{i}"
+      # bl = f"opp_{i}"
 
       # types (2)
-      types = [t.value / 18 if t is not None else 0 for t in mon.types]
-      mon_data.extend(types)
-      labels.extend([f"{bl}_type_1", f"{bl}_type_2"])
+      # types = [t.value / 18 if t is not None else 0 for t in mon.types]
+      # mon_data.extend(types)
+      # labels.extend([f"{bl}_type_1", f"{bl}_type_2"])
 
       # hp normalised (good idea?)
       mon_data.append(mon.current_hp_fraction)
-      labels.append(f"{bl}_hp_frac")
+      # labels.append(f"{bl}_hp_frac")
 
       # stats (5)
-      mon_data.extend([stat / 230 for stat in mon.base_stats.values()])
-      labels.extend([f"{bl}_{stat}" for stat in mon.base_stats.keys()])
+      # mon_data.extend([stat / 230 for stat in mon.base_stats.values()])
+      # labels.extend([f"{bl}_{stat}" for stat in mon.base_stats.keys()])
 
       # boosts and debuffs (7)
       # TODO it may be possible to compute it together with
       # the stats above to reduce the parameters
-      mon_data.extend([(boost+6)/12 for boost in mon.boosts.values()])
-      labels.extend([f"{bl}_{boost}" for boost in mon.boosts.keys()])
+      # mon_data.extend([(boost+6)/12 for boost in mon.boosts.values()])
+      # labels.extend([f"{bl}_{boost}" for boost in mon.boosts.keys()])
 
-      for stat_name, stat in mon.base_stats.items():
-        if stat_name == "hp":
-          continue
-        boost = mon.boosts[stat_name]
-
-        labels.append(f"{bl}_{stat_name}_w_boost_mult")
-        if boost >= 0:
-          mon_data.append(stat/230*((2+boost)/2))
-        else:
-          mon_data.append(stat/230*(2/(2+(-boost))))
+      # for stat_name, stat in mon.base_stats.items():
+      #   if stat_name == "hp":
+      #     continue
+      #   boost = mon.boosts[stat_name]
+      #
+      #   # labels.append(f"{bl}_{stat_name}_w_boost_mult")
+      #   if boost >= 0:
+      #     mon_data.append(stat/230*((2+boost)/2))
+      #   else:
+      #     mon_data.append(stat/230*(2/(2+(-boost))))
 
       # status
       # TODO one-hot-encoding?
-      mon_data.append(mon.status.value / 7 if mon.status is not None else 0)
-      labels.append(f"{bl}_status")
+      # mon_data.append(mon.status.value / 7 if mon.status is not None else 0)
+      # labels.append(f"{bl}_status")
 
       # moves
       # TODO... is it possible to have less than 4?
       j = 0
-      mbl = f"move_{j}"
+      # mbl = f"move_{j}"
       for j, move in enumerate(mon.moves.values()):
-        mbl = f"move_{j}"
+        # mbl = f"move_{j}"
         move_data = []
 
         # TODO... should we consider insering the move id?
@@ -304,52 +305,52 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         # consider STAB (same type attack bonus)
         if move.type in mon.types:
           move_damage *= 1.5
-        move_data.append(move_damage / 100) # normalisation
-        labels.append(f"{bl}_{mbl}_damage")
+        # move_data.append(move_damage / 100) # normalisation
+        # labels.append(f"{bl}_{mbl}_damage")
 
         # priority
-        move_data.append((move.priority + 7)/12)
-        labels.append(f"{bl}_{mbl}_priority")
+        # move_data.append((move.priority + 7)/12)
+        # labels.append(f"{bl}_{mbl}_priority")
 
         # accuracy
         # TODO... should we encode together w/ damage?
-        move_data.append(move.accuracy)
-        labels.append(f"{bl}_{mbl}_accuracy")
+        # move_data.append(move.accuracy)
+        # labels.append(f"{bl}_{mbl}_accuracy")
 
         # category (?)
-        move_data.append((move.category.value - 1) / 2)
-        labels.append(f"{bl}_{mbl}_category")
+        # move_data.append((move.category.value - 1) / 2)
+        # labels.append(f"{bl}_{mbl}_category")
 
         # pp (?)
-        move_data.append(move.current_pp / move.max_pp)
-        labels.append(f"{bl}_{mbl}_remaining_pp_percentage")
+        # move_data.append(move.current_pp / move.max_pp)
+        # labels.append(f"{bl}_{mbl}_remaining_pp_percentage")
 
         # recoil (?)
-        move_data.append(move.recoil)
-        labels.append(f"{bl}_{mbl}_recoil")
+        # move_data.append(move.recoil)
+        # labels.append(f"{bl}_{mbl}_recoil")
 
         # damage for each active opponent (2)
         for k, opp in enumerate(battle.active_pokemon):
-          labels.append(f"{bl}_{mbl}_act_{k}_dmg")
+          # labels.append(f"{bl}_{mbl}_act_{k}_dmg")
           if opp is not None:
             mlt = move.type.damage_multiplier(opp.type_1, opp.type_2)
-            move_data.append(move_damage*mlt/100) # normalisation
+            move_data.append(move_damage*mlt*move.accuracy/100) # normalisation
           else:
             # if one is dead, append -1
             move_data.append(-1)
 
         mon_data.extend(move_data)
 
-      mon_data.extend([-1 for _ in range(8)]*(4-len(mon.moves)))
-      for l in range(4-len(mon.moves)):
-        labels.extend([f"{bl}_move_{l}_damage",
-          f"{bl}_move_{l}_priority",
-          f"{bl}_move_{l}_accuracy",
-          f"{bl}_move_{l}_category",
-          f"{bl}_move_{l}_remaining_pp_percentage",
-          f"{bl}_move_{l}_recoil",
-          f"{bl}_move_{l}_act_1_dmg",
-          f"{bl}_move_{l}_act_2_dmg"])
+      mon_data.extend([-1 for _ in range(2)]*(4-len(mon.moves)))
+      # for l in range(4-len(mon.moves)):
+      #   # labels.extend([f"{bl}_move_{l}_damage",
+      #     f"{bl}_move_{l}_priority",
+      #     f"{bl}_move_{l}_accuracy",
+      #     f"{bl}_move_{l}_category",
+      #     f"{bl}_move_{l}_remaining_pp_percentage",
+      #     f"{bl}_move_{l}_recoil",
+      #     f"{bl}_move_{l}_act_1_dmg",
+      #     f"{bl}_move_{l}_act_2_dmg"])
 
       if mon.active == True:
         active.extend(mon_data)
@@ -362,7 +363,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
     # we could also take into account the opponents
     # (which I would say is mandatory)
     # and the field conditions (at least some of them)
-    return (obs, labels)
+    # return (obs, labels)
+    return obs
 
   def describe_embedding(self) -> Space:
     return super().describe_embedding()
