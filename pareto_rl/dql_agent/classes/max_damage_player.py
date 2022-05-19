@@ -1,10 +1,14 @@
 import random
+import json
 from poke_env.player.battle_order import BattleOrder, DoubleBattleOrder, DefaultBattleOrder
 from poke_env.player.baselines import MaxBasePowerPlayer
 from poke_env.environment.double_battle import DoubleBattle
 from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder
 from poke_env.environment.move import Move as OriginalMove
 from poke_env.environment.pokemon import Pokemon
+from pareto_rl.damage_calculator.requester import damage_request_server
+from pareto_rl.dql_agent.utils.utils import prepare_pokemon_request
+from poke_env.data import MOVES
 
 class DoubleMaxDamagePlayer(MaxBasePowerPlayer):
 
@@ -51,22 +55,45 @@ class DoubleMaxDamagePlayer(MaxBasePowerPlayer):
 
     orders = DoubleBattleOrder.join_orders(*active_orders)
 
+    data = {}
+    data['requests'] = []
+    valid_orders = []
     if orders:
-      best_dmg = -1
-      best_order = None
       for order in orders:
-        first_order_dmg = 0
-        second_order_dmg = 0
+        first_order_request = second_order_request = None
+        request = {}
         if order.first_order is not None:
           attacker = battle.active_pokemon[0] if battle.active_pokemon[0] is not None else battle.active_pokemon[1]
-          first_order_dmg = self.calc_dmg(order.first_order, attacker, battle)
+          first_order_request = self.get_request(1,order.first_order, attacker, battle)
         if order.second_order is not None:
           attacker = battle.active_pokemon[1]
-          second_order_dmg = self.calc_dmg(order.first_order, attacker, battle)
-        dmg = first_order_dmg + second_order_dmg
+          second_order_request = self.get_request(2,order.second_order, attacker, battle)
+        if first_order_request is not None:
+          request.update(first_order_request)
+        if second_order_request is not None:
+          request.update(second_order_request)
+        if request:
+          data['requests'].append(request)
+          valid_orders.append(order)
+
+      r = damage_request_server(data)
+      r = json.loads(r)
+      best_dmg = -1
+      best_order = None
+      for i, request in enumerate(r):
+        dmg = 0
+        for pos, response in request.items():
+          damage = response['damage']
+          if isinstance(damage, list):
+            damage = damage[len(damage) // 2]
+          if pos == '1':
+            damage = damage * valid_orders[i].first_order.order.accuracy
+          else:
+            damage = damage * valid_orders[i].second_order.order.accuracy
+          dmg += damage
         if dmg > best_dmg:
           best_dmg = dmg
-          best_order = order
+          best_order = valid_orders[i]
       return best_order
     else:
       return DefaultBattleOrder()
@@ -74,19 +101,25 @@ class DoubleMaxDamagePlayer(MaxBasePowerPlayer):
   def choose_move(self, battle) -> BattleOrder:
     return self.choose_max_doubles_move(battle)
 
-  def calc_dmg(self, order: BattleOrder, attacker: Pokemon, battle: DoubleBattle):
-    damage = 0
+  def get_request(self, pos: int, order: BattleOrder, attacker: Pokemon, battle: DoubleBattle):
+    request = None
     if isinstance(order.order, OriginalMove):
       target_idx = order.move_target - 1
-      if target_idx > 0:
-        damage = order.order.base_power
-        if order.order.type in attacker.types:
-          damage *= 1.5
+      if target_idx >= 0:
         target = battle.opponent_active_pokemon[target_idx]
         if target is None:
           target = battle.opponent_active_pokemon[(target_idx+1) % 2]
-        damage *= order.order.type.damage_multiplier(target.type_1, target.type_2)
-    return damage
+        attacker_args = prepare_pokemon_request(attacker)
+        target_args = prepare_pokemon_request(target)
+        move_name = MOVES[order.order._id]["name"]
+        request = {pos: {
+          "attacker": attacker_args,
+          "target": target_args,
+          "move": move_name,
+          "field": {"gameType": "Doubles"},
+        }}
+
+    return request
 
 TEAM = """
 Calyrex-Shadow @ Focus Sash

@@ -54,7 +54,7 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
     # games
     episode_info = {'episode': i_episode}
     # Intermediate evaluation
-    if i_episode % args['eval_interval'] == 0:
+    if i_episode % args['eval_interval'] == 0 or i_episode == num_episodes-1:
       winrate = eval(player,args['eval_interval_episodes'],**args)
       episode_info['winrate'] = winrate
 
