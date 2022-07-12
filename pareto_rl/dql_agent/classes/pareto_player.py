@@ -258,7 +258,7 @@ Ability: Blaze
 EVs: 252 HP / 136 Atk / 120 SpA
 - Fire Blast
 - Fire Fang
-- Fling
+- Heat Wave 
 - Seismic Toss
 """
 

@@ -54,10 +54,10 @@ def get_possible_showdown_targets(
             "allySide": [5],  # all allies, but even when switching - e.g. lightscreen
             "allyTeam": [5],  # all teams (generally all status moves)
             "any": [ally_position, *opponent_positions],
-            "foeSide": [6],
+            "foeSide": [4],
             "normal": [ally_position, *opponent_positions],
             "randomNormal": opponent_positions,  # convert back to 0
-            "scripted": [7],
+            "scripted": [6], # depends on the last pokemon that hit
             "self": [self_position],  # convert back to 0
             battle.EMPTY_TARGET_POSITION: [battle.EMPTY_TARGET_POSITION],
             None: opponent_positions,
@@ -131,7 +131,7 @@ def prepare_pokemon_request(mon: Pokemon) -> Dict[str, Any]:
     if mon.ability:
         request["ability"] = mon.ability
     # dynamax
-    request["isDynamixed"] = mon.is_dynamaxed
+    request["isDynamaxed"] = mon.is_dynamaxed
     # item
     request["item"] = None
     if mon.item and mon.item != "unknown_item":
@@ -147,6 +147,7 @@ def prepare_pokemon_request(mon: Pokemon) -> Dict[str, Any]:
     request["boosts"]["sp"] = mon.boosts["spe"]
     # stats
     request["stats"] = {}
+    # TODO current hp value is missing
     request["stats"]["at"] = mon.stats["atk"]
     request["stats"]["df"] = mon.stats["def"]
     request["stats"]["sa"] = mon.stats["spa"]
