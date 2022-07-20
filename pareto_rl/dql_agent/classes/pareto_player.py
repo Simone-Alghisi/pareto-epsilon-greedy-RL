@@ -5,6 +5,9 @@ from poke_env.player.battle_order import (
     BattleOrder,
 )
 from poke_env.teambuilder.teambuilder import Teambuilder
+from poke_env.player.openai_api import _AsyncPlayer
+from poke_env.player_configuration import PlayerConfiguration
+from poke_env.server_configuration import ServerConfiguration, LocalhostServerConfiguration
 from pareto_rl.pareto_front.pareto_search import pareto_search
 from argparse import Namespace
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
@@ -13,7 +16,7 @@ from pareto_rl.dql_agent.utils.utils import (
     compute_initial_stats,
 )
 from pareto_rl.dql_agent.utils.move import Move
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Optional, Union
 import orjson
 import random
 
@@ -242,6 +245,156 @@ class ParetoPlayer(Player):
                 battle._parse_message(split_message)
 
 
+class AsyncParetoPlayer(_AsyncPlayer, ParetoPlayer):
+    def __init__(
+        self,
+        user_funcs,
+        username,
+        player_configuration: Optional[PlayerConfiguration] = None,
+        avatar: Optional[int] = None,
+        battle_format: str = "gen8randombattle",
+        log_level: Optional[int] = None,
+        max_concurrent_battles=1,
+        save_replays: Union[bool, str] = False,
+        server_configuration: Optional[
+            ServerConfiguration
+        ] = LocalhostServerConfiguration,
+        start_timer_on_battle_start: bool = False,
+        start_listening: bool = True,
+        team: Optional[Union[str, Teambuilder]] = None,
+        **kwargs, # dump everything else here
+    ):
+      super(AsyncParetoPlayer, self).__init__(
+          user_funcs,
+          username,
+          player_configuration=player_configuration,
+          avatar=avatar,
+          battle_format=battle_format,
+          log_level=log_level,
+          max_concurrent_battles=max_concurrent_battles,
+          save_replays=save_replays,
+          server_configuration=server_configuration,
+          start_timer_on_battle_start=start_timer_on_battle_start,
+          start_listening=start_listening,
+          team=team,
+      )
+    async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
+        """Handles a battle message.
+        :param split_message: The received battle message.
+        :type split_message: str
+        """
+
+        # Battle messages can be multiline
+        if (
+            len(split_messages) > 1
+            and len(split_messages[1]) > 1
+            and split_messages[1][1] == "init"
+        ):
+            battle_info = split_messages[0][0].split("-")
+            battle = await self._create_battle(battle_info)
+        else:
+            battle = await self._get_battle(split_messages[0][0])
+
+        # clear the previous turn
+        self.last_turn = []
+
+        for split_message in split_messages[1:]:
+            if len(split_message) <= 1:
+                continue
+            elif split_message[1] in self.MESSAGES_TO_IGNORE:
+                pass
+            elif split_message[1] == "request":
+                if split_message[2]:
+                    request = orjson.loads(split_message[2])
+                    battle._parse_request(request)
+                    if battle.move_on_next_request:
+                        await self._handle_battle_request(battle)
+                        battle.move_on_next_request = False
+            # TODO extract all relevant information to exploit the last turn knowledge
+            elif split_message[1] == "move":
+                # append the actual order of the pokemon to last turn and their move
+                mon = split_message[2]
+                move = split_message[3]
+                self.last_turn.append((mon, move))
+            elif split_message[1] == "win" or split_message[1] == "tie":
+                if split_message[1] == "win":
+                    battle._won_by(split_message[2])
+                else:
+                    battle._tied()
+                await self._battle_count_queue.get()
+                self._battle_count_queue.task_done()
+                self._battle_finished_callback(battle)
+                async with self._battle_end_condition:
+                    self._battle_end_condition.notify_all()
+            elif split_message[1] == "error":
+                self.logger.log(
+                    25, "Error message received: %s", "|".join(split_message)
+                )
+                if split_message[2].startswith(
+                    "[Invalid choice] Sorry, too late to make a different move"
+                ):
+                    if battle.trapped:
+                        await self._handle_battle_request(battle)
+                elif split_message[2].startswith(
+                    "[Unavailable choice] Can't switch: The active Pokémon is "
+                    "trapped"
+                ) or split_message[2].startswith(
+                    "[Invalid choice] Can't switch: The active Pokémon is trapped"
+                ):
+                    battle.trapped = True
+                    await self._handle_battle_request(battle)
+                elif split_message[2].startswith(
+                    "[Invalid choice] Can't switch: You can't switch to an active "
+                    "Pokémon"
+                ):
+                    await self._handle_battle_request(battle, maybe_default_order=True)
+                elif split_message[2].startswith(
+                    "[Invalid choice] Can't switch: You can't switch to a fainted "
+                    "Pokémon"
+                ):
+                    await self._handle_battle_request(battle, maybe_default_order=True)
+                elif split_message[2].startswith(
+                    "[Invalid choice] Can't move: Invalid target for"
+                ):
+                    await self._handle_battle_request(battle, maybe_default_order=True)
+                elif split_message[2].startswith(
+                    "[Invalid choice] Can't move: You can't choose a target for"
+                ):
+                    await self._handle_battle_request(battle, maybe_default_order=True)
+                elif split_message[2].startswith(
+                    "[Invalid choice] Can't move: "
+                ) and split_message[2].endswith("needs a target"):
+                    await self._handle_battle_request(battle, maybe_default_order=True)
+                elif (
+                    split_message[2].startswith("[Invalid choice] Can't move: Your")
+                    and " doesn't have a move matching " in split_message[2]
+                ):
+                    await self._handle_battle_request(battle, maybe_default_order=True)
+                elif split_message[2].startswith(
+                    "[Invalid choice] Incomplete choice: "
+                ):
+                    await self._handle_battle_request(battle, maybe_default_order=True)
+                elif split_message[2].startswith(
+                    "[Unavailable choice]"
+                ) and split_message[2].endswith("is disabled"):
+                    battle.move_on_next_request = True
+                elif split_message[2].startswith(
+                    "[Invalid choice] Can't move: You sent more choices than unfainted"
+                    " Pokémon."
+                ):
+                    await self._handle_battle_request(battle, maybe_default_order=True)
+                else:
+                    self.logger.critical("Unexpected error message: %s", split_message)
+            elif split_message[1] == "turn":
+                battle._parse_message(split_message)
+                await self._handle_battle_request(battle)
+            elif split_message[1] == "teampreview":
+                battle._parse_message(split_message)
+                await self._handle_battle_request(battle, from_teampreview_request=True)
+            elif split_message[1] == "bigerror":
+                self.logger.warning("Received 'bigerror' message: %s", split_message)
+            else:
+                battle._parse_message(split_message)
 # qui
 
 TEAM = """
@@ -258,7 +411,7 @@ Ability: Blaze
 EVs: 252 HP / 136 Atk / 120 SpA
 - Fire Blast
 - Fire Fang
-- Heat Wave 
+- Heat Wave
 - Seismic Toss
 """
 

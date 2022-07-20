@@ -17,6 +17,7 @@ from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemo
 from abc import ABC, abstractmethod
 from poke_env.environment.move import Move as OriginalMove
 from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder
+from pareto_rl.dql_agent.classes.pareto_player import AsyncParetoPlayer
 
 class SimpleRLPlayer(Gen8EnvSinglePlayer):
   def __init__(self, **kwargs):
@@ -839,6 +840,58 @@ class CombineActionRLPlayer(BaseRLPlayer):
       idx = self.encode_action(DefaultBattleOrder())
       mask[idx] = True
     return mask
+
+
+
+class ParetoRLPLayer(CombineActionRLPlayer):
+  def __init__(
+      self,
+      input_size: int,
+      hidden_layers: List[int],
+      n_switches: int,
+      n_moves: int,
+      n_targets: int,
+      eps_start: float,
+      eps_end: float,
+      eps_decay: float,
+      batch_size: int,
+      gamma: float,
+      **kwargs
+      ):
+    super(ParetoRLPLayer, self).__init__(input_size,hidden_layers,n_switches,n_moves,n_targets,eps_start,eps_end,eps_decay,batch_size,gamma,**kwargs)
+    self.agent = AsyncParetoPlayer(
+      user_funcs=self,
+      username=self.__class__.__name__,
+      **kwargs
+    )
+    # self.actions = self.agent.actions
+    # self.observations = self.agent.observations
+
+  def policy(self, state, step: int = 0, eps_greedy: bool = True):
+    self.policy_net.eval()
+    sample = random.random()
+    eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
+      -1.0 * step / self.eps_decay
+    )
+    self.eps_threshold = eps_threshold
+    # wandb.log({'eps_threshold': eps_threshold})
+    # args['step'] += 1
+
+    if sample > eps_threshold or not eps_greedy:
+    # if False:
+      with torch.no_grad():
+        output = self.policy_net(state)
+        mask = self.mask_unavailable_moves().to(self.device)
+        indexes = torch.arange(start=0, end=self.output_size)
+        output = output[mask]
+        indexes = indexes[mask]
+        max_utility = output.max(0)[1].item()
+        best_action = indexes[max_utility].item()
+        return best_action
+    else:
+      random_order = self.pm.available_orders[int(random.random() * len(self.pm.available_orders))]
+      return self.encode_action(random_order)
+
 
 TEAM = """
 Zacian-Crowned @ Rusted Sword

@@ -6,7 +6,7 @@ from tqdm import tqdm
 from itertools import count
 from pareto_rl.dql_agent.classes.darkr_ai import ReplayMemory
 from pareto_rl.dql_agent.classes.pareto_player import ParetoPlayer
-from pareto_rl.dql_agent.classes.player import BaseRLPlayer, DoubleActionRLPlayer, CombineActionRLPlayer
+from pareto_rl.dql_agent.classes.player import BaseRLPlayer, DoubleActionRLPlayer, CombineActionRLPlayer, ParetoRLPLayer
 from poke_env.player_configuration import PlayerConfiguration
 from poke_env.environment.double_battle import DoubleBattle
 from typing import Dict, List
@@ -246,6 +246,7 @@ def main(args):
     'combined_actions': True,
     'fixed_team': True,
     'fill_memory': True,
+    'pareto': True,
   }
 
   battle_format = 'gen8doublesubers' if args['fixed_team'] else 'gen8randomdoublesbattle'
@@ -257,21 +258,40 @@ def main(args):
   opponent = DoubleMaxDamagePlayer(battle_format=battle_format, player_configuration=opponent_config)
 
   if args['combined_actions']:
-    agent = CombineActionRLPlayer(
-        args['input_size'],
-        args['hidden_layers'],
-        n_switches,
-        n_moves,
-        n_targets,
-        args['eps_start'],
-        args['eps_end'],
-        args['eps_decay'],
-        args['batch_size'],
-        args['gamma'],
-        battle_format=battle_format,
-        player_configuration=darkrai_player_config,
-        opponent=opponent,
-        start_timer_on_battle_start=True)
+    if not args['pareto']:
+      agent = CombineActionRLPlayer(
+          args['input_size'],
+          args['hidden_layers'],
+          n_switches,
+          n_moves,
+          n_targets,
+          args['eps_start'],
+          args['eps_end'],
+          args['eps_decay'],
+          args['batch_size'],
+          args['gamma'],
+          battle_format=battle_format,
+          player_configuration=darkrai_player_config,
+          opponent=opponent,
+          start_timer_on_battle_start=True)
+    else:
+      print('Pareto')
+      agent = ParetoRLPLayer(
+          args['input_size'],
+          args['hidden_layers'],
+          n_switches,
+          n_moves,
+          n_targets,
+          args['eps_start'],
+          args['eps_end'],
+          args['eps_decay'],
+          args['batch_size'],
+          args['gamma'],
+          battle_format=battle_format,
+          player_configuration=darkrai_player_config,
+          opponent=opponent,
+          start_timer_on_battle_start=True)
+
   else:
     agent = DoubleActionRLPlayer(
         args['input_size'],
@@ -292,7 +312,7 @@ def main(args):
   # parameters of the run
   args['n_actions'] = agent.n_actions
   args['output_size'] = agent.output_size
-  wandb.init(project='DarkrAI', entity='darkr-ai', config=args)
+  # wandb.init(project='DarkrAI', entity='darkr-ai', config=args)
 
   args.update({
     'device': agent.device,
