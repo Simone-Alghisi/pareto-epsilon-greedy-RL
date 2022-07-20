@@ -4,6 +4,8 @@ import math
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
+import asyncio
+import types
 from poke_env.environment.double_battle import DoubleBattle
 from poke_env.player.env_player import Gen8EnvSinglePlayer
 from gym.spaces import Space
@@ -12,12 +14,12 @@ from poke_env.environment.battle import Battle
 from pareto_rl.dql_agent.utils.move import Move
 from poke_env.environment.pokemon import Pokemon
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Union, Tuple
 from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
 from abc import ABC, abstractmethod
 from poke_env.environment.move import Move as OriginalMove
-from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder
-from pareto_rl.dql_agent.classes.pareto_player import AsyncParetoPlayer
+from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder, bind_pareto
+from poke_env.player.internals import POKE_LOOP
 
 class SimpleRLPlayer(Gen8EnvSinglePlayer):
   def __init__(self, **kwargs):
@@ -859,15 +861,15 @@ class ParetoRLPLayer(CombineActionRLPlayer):
       **kwargs
       ):
     super(ParetoRLPLayer, self).__init__(input_size,hidden_layers,n_switches,n_moves,n_targets,eps_start,eps_end,eps_decay,batch_size,gamma,**kwargs)
-    self.agent = AsyncParetoPlayer(
-      user_funcs=self,
-      username=self.__class__.__name__,
-      **kwargs
-    )
-    # self.actions = self.agent.actions
-    # self.observations = self.agent.observations
+    bind_pareto(self.agent)
 
   def policy(self, state, step: int = 0, eps_greedy: bool = True):
+    # pm = PokemonMapper(battle)
+    # # TODO idk if this can or cannot handle switch properly
+    # self.analyse_previous_turn(pm, battle)
+    # args = Namespace(dry=True)
+    # orders = pareto_search(args, battle, pm, self)
+
     self.policy_net.eval()
     sample = random.random()
     eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(

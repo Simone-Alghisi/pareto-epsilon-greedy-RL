@@ -245,7 +245,7 @@ def main(args):
     'memory': 20000,
     'combined_actions': True,
     'fixed_team': True,
-    'fill_memory': True,
+    'fill_memory': False,
     'pareto': True,
   }
 
@@ -275,7 +275,6 @@ def main(args):
           opponent=opponent,
           start_timer_on_battle_start=True)
     else:
-      print('Pareto')
       agent = ParetoRLPLayer(
           args['input_size'],
           args['hidden_layers'],
@@ -312,7 +311,7 @@ def main(args):
   # parameters of the run
   args['n_actions'] = agent.n_actions
   args['output_size'] = agent.output_size
-  # wandb.init(project='DarkrAI', entity='darkr-ai', config=args)
+  wandb.init(project='DarkrAI', entity='darkr-ai', config=args)
 
   args.update({
     'device': agent.device,
