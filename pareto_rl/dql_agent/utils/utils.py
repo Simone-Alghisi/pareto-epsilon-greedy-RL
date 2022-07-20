@@ -190,3 +190,19 @@ def compute_initial_stats(mon: Pokemon) -> Dict[str, int]:
     for stat in stats_name:
         stats[stat] = compute_opponent_stats(stat, mon)
     return stats
+
+
+def does_anybody_have_tabu_moves(battle: DoubleBattle, tabus: List[str]):
+  for mon in battle.team.values():
+    if mon:
+      for move in mon.moves.values():
+        if move._id in tabus:
+          return True
+  return False
+
+def is_anyone_someone(battle: DoubleBattle, monsters: List[str]):
+  for mon in battle.team.values():
+    if mon:
+      if mon.species in monsters:
+        return True
+  return False

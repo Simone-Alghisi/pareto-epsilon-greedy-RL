@@ -60,6 +60,8 @@ class DoubleMaxDamagePlayer(MaxBasePowerPlayer):
     valid_orders = []
     if orders:
       for order in orders:
+        if isinstance(order, DefaultBattleOrder):
+          return DefaultBattleOrder()
         first_order_request = second_order_request = None
         request = {}
         if order.first_order is not None:
@@ -94,6 +96,8 @@ class DoubleMaxDamagePlayer(MaxBasePowerPlayer):
         if dmg > best_dmg:
           best_dmg = dmg
           best_order = valid_orders[i]
+      if best_order is None:
+        return DefaultBattleOrder()
       return best_order
     else:
       return DefaultBattleOrder()
@@ -160,6 +164,36 @@ Adamant Nature
 - Flare Blitz
 - Parting Shot
 - Throat Chop
+
+Thundurus (M) @ Assault Vest
+Ability: Prankster
+EVs: 112 HP / 140 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Wild Charge
+- Brick Break
+- Iron Tail
+- Superpower
+
+Urshifu @ Choice Band
+Ability: Unseen Fist
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Close Combat
+- Sucker Punch
+- Wicked Blow
+- Poison Jab
+"""
+
+TEAM = """
+Kyogre @ Mystic Water
+Ability: Drizzle
+EVs: 188 HP / 252 SpA / 4 SpD / 64 Spe
+Timid Nature
+IVs: 0 Atk
+- Protect
+- Water Spout
+- Origin Pulse
+- Ice Beam
 
 Thundurus (M) @ Assault Vest
 Ability: Prankster

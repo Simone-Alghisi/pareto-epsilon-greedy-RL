@@ -22,96 +22,6 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
   def __init__(self, **kwargs):
     super(SimpleRLPlayer, self).__init__(**kwargs)
 
-  # def embed_battle(self, battle: DoubleBattle) -> list:
-  #   obs = []
-  #   active = []
-  #   bench = []
-  #
-  #   for mon in battle.team.values():
-  #     # lots of info are available, the problem is time,
-  #     # hughes effect, and also mapping
-  #     mon_data = []
-  #
-  #     # types (2)
-  #     types = [t.value if t is not None else -1 for t in mon.types]
-  #     mon_data.extend(types)
-  #
-  #     # hp normalised (good idea?)
-  #     mon_data.append(mon.current_hp_fraction)
-  #
-  #     # stats (5)
-  #     mon_data.extend(list(mon.stats.values()))
-  #
-  #     # boosts and debuffs (7)
-  #     # TODO it may be possible to compute it together with
-  #     # the stats above to reduce the parameters
-  #     mon_data.extend(list(mon.boosts.values()))
-  #
-  #     # status
-  #     # TODO one-hot-encoding?
-  #     mon_data.append(mon.status.value if mon.status is not None else -1)
-  #
-  #     # moves
-  #     # TODO... is it possible to have less than 4?
-  #     for move in mon.moves.values():
-  #       move_data = []
-  #
-  #       # TODO... should we consider insering the move id?
-  #       # while it may be difficult to learn...
-  #       # it may be particularly useful to discriminate
-  #       # the final effect of the move if similar
-  #       # N.B this is a string, need to convert it using
-  #       # the MOVES dictionary from the json
-  #       # move_data.append(move._id)
-  #
-  #       # base power
-  #       move_damage = move.base_power
-  #       # consider STAB (same type attack bonus)
-  #       if move.type in mon.types:
-  #         move_damage *= 1.5
-  #       move_data.append(move_damage)
-  #
-  #       # priority
-  #       move_data.append(move.priority)
-  #
-  #       # accuracy
-  #       # TODO... should we encode together w/ damage?
-  #       move_data.append(move.accuracy)
-  #
-  #       # category (?)
-  #       move_data.append(move.category.value)
-  #
-  #       # pp (?)
-  #       # move_data.append(move.current_pp / move.max_pp)
-  #
-  #       # recoil (?)
-  #       # move_data.append(move.recoil)
-  #
-  #       # damage for each active opponent (2)
-  #       for opp in battle.opponent_active_pokemon:
-  #         if opp is not None:
-  #           mlt = move.type.damage_multiplier(opp.type_1, opp.type_2)
-  #           move_data.append(move_damage*mlt)
-  #         else:
-  #           # if one is dead, append -1
-  #           move_data.append(-1)
-  #
-  #       mon_data.extend(move_data)
-  #
-  #     mon_data.extend([-1 for _ in range(6)]*(4-len(mon.moves)))
-  #
-  #     if mon.active == True:
-  #       active.extend(mon_data)
-  #     else:
-  #       bench.extend(mon_data)
-  #
-  #   obs.extend(active)
-  #   obs.extend(bench)
-  #
-  #   # we could also take into account the opponents
-  #   # (which I would say is mandatory)
-  #   # and the field conditions (at least some of them)
-  #   return obs
   def embed_battle(self, battle: DoubleBattle) -> list:
     obs = []
     active = []
@@ -357,6 +267,8 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
       else:
         bench.extend(mon_data)
 
+    # 3v3
+    # bench.extend([-1 for _ in range(9)]*(1-len(bench)))
     obs.extend(active)
     obs.extend(bench)
 
@@ -983,6 +895,35 @@ Jolly Nature
 - Aqua Jet
 - Close Combat
 - Surging Strikes
+"""
+
+TEAM = """
+Zacian-Crowned @ Rusted Sword
+Ability: Intrepid Sword
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Substitute
+- Behemoth Blade
+- Sacred Sword
+- Protect
+
+Venusaur @ Coba Berry
+Ability: Chlorophyll
+EVs: 180 HP / 76 SpA / 252 Spe
+IVs: 0 Atk
+- Protect
+- Sleep Powder
+- Leaf Storm
+- Earth Power
+
+Groudon @ Assault Vest
+Ability: Drought
+EVs: 252 HP / 252 Atk / 4 SpD
+Adamant Nature
+- Rock Slide
+- Fire Punch
+- Precipice Blades
+- Dragon Claw
 """
 
 TEAM = """

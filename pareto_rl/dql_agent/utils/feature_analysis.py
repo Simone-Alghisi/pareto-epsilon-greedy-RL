@@ -9,15 +9,17 @@ from typing import Dict, List
 from sklearn.decomposition import PCA
 from sklearn.feature_selection import SequentialFeatureSelector, VarianceThreshold
 from sklearn.cluster import KMeans
-from pareto_rl.dql_agent.agent import does_anybody_have_tabu_moves, is_anyone_someone
+from pareto_rl.dql_agent.utils.utils import is_anyone_someone, does_anybody_have_tabu_moves
 
 def sample_transitions(player: BaseRLPlayer, num_episodes: int, file_name: str, **args):
   player.policy_net.eval()
   observations = []
+  rewards = []
+  obs_labels = []
   for i_episode in tqdm(range(num_episodes), desc='Evaluating', unit='episodes'):
     observation, labels = player.reset()
-    observations.append(observation)
-    if i_episode == 0:
+    # if i_episode == 0:
+    if len(labels) > len(obs_labels):
       obs_labels = labels
     observation = torch.tensor(observation, dtype=torch.double, device=args['device'])
     state = observation
@@ -36,19 +38,37 @@ def sample_transitions(player: BaseRLPlayer, num_episodes: int, file_name: str, 
       actions = player.policy(state, eps_greedy=False)
 
       if isinstance(player, DoubleActionRLPlayer):
-        obs, _, done, _ = player.step(player._encode_actions(actions.tolist()))
+        obs, reward, done, _ = player.step(player._encode_actions(actions.tolist()))
       else:
-        obs, _, done, _ = player.step(actions)
-      observation, _ = obs
+        obs, reward, done, _ = player.step(actions)
+      observation, labels = obs
       observations.append(observation)
+      rewards.append(reward)
+      if len(labels) > len(obs_labels):
+        obs_labels = labels
       observation = torch.tensor(observation, dtype=torch.double, device=args['device'])
 
+      # Observe new state
+      if not done:
+        next_state = observation
+      else:
+        break
+
+      # Move to the next state
+      state = next_state
+
   data = {
-    'labels': labels,
-    'observations': observations
+    'labels': obs_labels,
+    'observations': observations,
+    'rewards': rewards
   }
   with open(''.join(['./feature_selection/',file_name,'.pickle']), 'wb') as handle:
     pickle.dump(data, handle)
+
+  obs_labels.append('rewards')
+  observations = [ obs + [reward] for obs, reward in zip(data['observations'], data['rewards']) ]
+  df = pd.DataFrame(observations, columns=obs_labels)
+  df.to_csv(''.join(['./feature_selection/',file_name,'.csv']))
 
 
 def pca(file_name: str, n_components: int, n_most_corr: int):

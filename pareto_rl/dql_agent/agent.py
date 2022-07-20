@@ -12,6 +12,8 @@ from poke_env.environment.double_battle import DoubleBattle
 from typing import Dict, List
 from pareto_rl.dql_agent.classes.random_player import DoubleRandomPlayer
 from pareto_rl.dql_agent.classes.max_damage_player import DoubleMaxDamagePlayer
+from pareto_rl.dql_agent.utils.feature_analysis import sample_transitions
+from pareto_rl.dql_agent.utils.utils import is_anyone_someone, does_anybody_have_tabu_moves
 
 def configure_subparsers(subparsers):
   r"""Configure a new subparser for DQL agent.
@@ -28,24 +30,61 @@ def configure_subparsers(subparsers):
   parser = subparsers.add_parser("rlagent", help="Train/test reinforcement learning")
   parser.set_defaults(func=main)
 
+def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
+  player.policy_net.eval()
 
-def does_anybody_have_tabu_moves(battle: DoubleBattle, tabus: List[str]):
-  for mon in battle.team.values():
-    if mon:
-      for move in mon.moves.values():
-        if move._id in tabus:
-          return True
-  return False
+  if player.current_battle is not None:
+    player.reset_env(restart=False)
+    player.reset_battles()
+    player.start_challenging()
 
-def is_anyone_someone(battle: DoubleBattle, monsters: List[str]):
-  for mon in battle.team.values():
-    if mon:
-      if mon.species in monsters:
-        return True
-  return False
+  with tqdm(total=args['memory'], desc='Filling memory', unit='transitions') as prog_bar:
+    while len(memory) < args['memory']:
+      observation = torch.tensor(player.reset(), dtype=torch.double, device=args['device'])
+      state = observation
+
+      if does_anybody_have_tabu_moves(player.current_battle, ['transform', 'allyswitch']):
+        print('Damn you, \nMew!\nAnd to all that can AllySwitch\nDamn you, \ntoo!')
+        # TODO force finish game?
+        continue
+      if is_anyone_someone(player.current_battle, ['ditto', 'zoroark']):
+        print('Damn you three, \nDitto and Zoroark!')
+        continue
+
+      for t in count():
+        player.update_pm()
+        # Select and perform an action
+        action = player.policy(state,args['step'])
+
+        # if not args['combined_actions']:
+        if isinstance(player, DoubleActionRLPlayer):
+          observation, reward, done, _ = player.step(player._encode_actions(action.tolist()))
+        else:
+          observation, reward, done, _ = player.step(action)
+        observation = torch.tensor(observation, dtype=torch.double, device=args['device'])
+        reward = torch.tensor([reward], device=args['device'])
+
+        # Observe new state
+        if not done:
+          next_state = observation
+        else:
+          next_state = None
+
+        # Store the transition in memory
+        memory.push(state, action, next_state, reward)
+        prog_bar.update()
+
+        # Move to the next state
+        state = next_state
+
+        if done:
+          break
 
 def train(player: BaseRLPlayer, num_episodes: int, args):
   memory = ReplayMemory(args['memory'])
+
+  if args['fill_memory']:
+    fill_memory(player, memory, args)
 
   episode_durations = []
 
@@ -127,6 +166,7 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
       'step': args['step'],
       'ep_loss': episode_cumul_loss/(t+1),
       'ep_reward': episode_cumul_reward/(t+1),
+      'mem_size': len(memory),
     })
     wandb.log(episode_info)
     # Update the target network, copying all weights and biases in DQN
@@ -184,29 +224,28 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
   return player.n_won_battles/num_episodes
 
 def main(args):
-  hidden_layers = [64]
+  hidden_layers = [256,128]
   n_moves = 4
   n_switches = 4
   n_targets = 5
-  # input_size = 240
-  # input_size = 80
   input_size = 36
   args = {
     'batch_size': 128,
     'gamma': 0.999,
-    'target_update': 1500,
+    'target_update': 5000,
     'eval_interval': 500,
     'eval_interval_episodes': 50,
     'eps_start': 0.9,
     'eps_end': 0.05,
-    'eps_decay': 10**4/4,
+    'eps_decay': 10**4,
     'input_size': input_size,
     'hidden_layers': hidden_layers,
-    'train_episodes': 6000,
+    'train_episodes': 20000,
     'eval_episodes': 100,
-    'memory': 10**3,
-    'combined_actions': False,
-    'fixed_team': True
+    'memory': 20000,
+    'combined_actions': True,
+    'fixed_team': True,
+    'fill_memory': True,
   }
 
   battle_format = 'gen8doublesubers' if args['fixed_team'] else 'gen8randomdoublesbattle'
