@@ -31,6 +31,7 @@ from pareto_rl.dql_agent.utils.utils import (
     prepare_pokemon_request,
 )
 from typing import List, Tuple, Dict, Union
+from random import sample
 import copy
 import json
 
@@ -165,7 +166,7 @@ class NextTurn(benchmarks.Benchmark):
     r"""NextTurn, which inherit from the benchmarks.Benchmark
 
     It is the problem class which deals with a Pokémon battle
-    attatched to one Showdown pokémon battle
+    attached to one Showdown pokémon battle
     """
 
     def __init__(self, battle: DoubleBattle, pm: PokemonMapper, player):
@@ -280,6 +281,15 @@ class NextTurn(benchmarks.Benchmark):
                         damage = damage[len(damage) // 2]
 
                     damage = damage * move.accuracy
+                    if move.deduced_target == "randomNormal":
+                        # if the target is random, compute the expected value (i.e. div n_opp)
+                        damage = damage / len(
+                            [
+                                t
+                                for t in pm.moves_targets.keys()
+                                if (t * attacker_pos < 0)
+                            ]
+                        )
 
                     if target_pos not in dmg_taken:
                         dmg_taken[target_pos] = 0
@@ -318,7 +328,7 @@ def next_turn_mutation(random, candidate, args):
     NextTurn mutation function.
     The mutation consists in choosing for the individual a new random move, which
     must be performed on a valid target.
-    If the newly defined move cannot be perfomed on the target of the old one, then a
+    If the newly defined move cannot be performed on the target of the old one, then a
     new target is defined.
     If that is not possible, then the move is not changed. In such way, we are able to
     perform a mutation operator without affecting the validity of the individual.
@@ -484,3 +494,17 @@ def map_abstract_target(
         return [abs_target]
     elif abs_target == 3:
         return [t for t in pm.moves_targets.keys() if (t != attacker_pos)]
+    elif abs_target == 4:
+        return [t for t in pm.moves_targets.keys() if (t * attacker_pos < 0)]
+    elif abs_target == 5:
+        return [t for t in pm.moves_targets.keys() if (t * attacker_pos > 0)]
+    elif abs_target == 6:
+        # actually, we should consider the last pokemon that hit the attacker, but
+        # I would say it's an overkill ATM
+        candidates = [t for t in pm.moves_targets.keys() if (t * attacker_pos < 0)]
+        return sample(candidates, 1)
+    else:
+        print(
+            f"Case {abs_target} not covered, choosing a random target for the computation"
+        )
+        return sample(pm.moves_targets.keys(), 1)
