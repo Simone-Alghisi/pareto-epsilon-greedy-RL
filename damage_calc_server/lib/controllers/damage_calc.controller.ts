@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { DamageCalcModel, CalcPokemon, Args, Stats } from '../models/damageCalcModel.model';
+import { DamageCalcModel, CalcPokemon, Args, Stats, CalcField } from '../models/damageCalcModel.model';
 
 /**
  * DamageController class
@@ -91,7 +91,12 @@ export class DamageCalcController{
             ),
           )),
           r[pos].move,
-          field
+          new CalcField(
+            field.gameType,
+            field.weather,
+            field.terrain,
+            field.isGravity
+          )
         )
         // Add the calculation to the answer
         answer[pos] = damage_calc_model.calculate();

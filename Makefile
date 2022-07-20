@@ -22,6 +22,10 @@ FORMAT_FLAG := pareto_rl
 TEST :=
 TEST_FLAGS :=
 
+# ======= UNIT TEST  ====
+UNITTEST := unittest
+UNITTEST_FLAGS := discover -s test
+
 # ======= PARETO  =========
 PARETO := pareto
 PARETO_FLAG :=
@@ -95,7 +99,7 @@ NPM := npm
 CP := cp
 
 # RULES
-.PHONY: help env install install-dev install-showdown train test pareto doc doc-layout format start-showdown pareto-battle start-damage-calc-server install-damage-calc-server
+.PHONY: help env install install-dev install-showdown train test pareto doc doc-layout format start-showdown pareto-battle start-damage-calc-server install-damage-calc-server unittest
 
 help:
 	@$(ECHO) '$(YELLOW)Makefile help$(NONE)'
@@ -191,6 +195,11 @@ train:
 test:
 	@$(ECHO) '$(BLUE)Testing the network..$(NONE)'
 	@$(PYTHON) $(PYFLAGS) $(MAIN) $(MAIN_FLAGS) $(TEST) $(TEST_FLAGS)
+	@$(ECHO) '$(BLUE)Done$(NONE)'
+
+unittest:
+	@$(ECHO) '$(BLUE)Running the unittests..$(NONE)'
+	@$(PYTHON) $(PYFLAGS) $(UNITTEST) $(UNITTEST_FLAGS)
 	@$(ECHO) '$(BLUE)Done$(NONE)'
 
 pareto-battle:

@@ -132,12 +132,40 @@ export class CalcPokemon {
 }
 
 export class CalcField {
-  constructor(){}
+  gameType: string | undefined;
+  weather: string | undefined;
+  terrain: string | undefined;
+  isGravity: boolean | undefined;
+  
+  constructor(
+    gameType: string | undefined,
+    weather: string | undefined,
+    terrain: string | undefined,
+    isGravity: boolean | undefined
+  ){
+    this.gameType = gameType;
+    this.weather = weather;
+    this.terrain = terrain;
+    this.isGravity = isGravity;
+  }
 
   static describe(): string[] {
     return Object.getOwnPropertyNames(
-      new CalcField()
+      new CalcField(
+        undefined, 
+        undefined,
+        undefined, 
+        undefined
+      )
     );
+  }
+
+  toString(): string {
+    return JSON.stringify(this)
+  }
+
+  toObj(): object {
+    return JSON.parse(this.toString())
   }
 }
 
@@ -173,7 +201,6 @@ export class DamageCalcModel {
     let attacker_args: any = {};
     let target_args: any = {};
     const move: string = this.move || '';
-    const field: Field | undefined = undefined;
 
     if (this.attacker){
       attacker_name = this.attacker.name || '';
@@ -191,7 +218,7 @@ export class DamageCalcModel {
       new Pokemon(gen, attacker_name, attacker_args.toObj()),
       new Pokemon(gen, target_name, target_args.toObj()),
       new Move(gen, move),
-      field
+      new Field(this.field!.toObj())
     );
 
     // Add full description, if possible
