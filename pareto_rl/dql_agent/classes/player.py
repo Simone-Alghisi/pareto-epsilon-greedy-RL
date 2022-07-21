@@ -4,22 +4,22 @@ import math
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-import asyncio
-import types
-from poke_env.environment.double_battle import DoubleBattle
-from poke_env.player.env_player import Gen8EnvSinglePlayer
+from argparse import Namespace
 from gym.spaces import Space
-from poke_env.player.battle_order import BattleOrder, DefaultBattleOrder, DoubleBattleOrder, ForfeitBattleOrder
-from poke_env.environment.battle import Battle
-from pareto_rl.dql_agent.utils.move import Move
-from poke_env.environment.pokemon import Pokemon
-from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
-from typing import Any, Dict, List, Union, Tuple
-from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
 from abc import ABC, abstractmethod
+from typing import Any, Dict, List, Union, Tuple
+from poke_env.environment.double_battle import DoubleBattle
+from poke_env.environment.battle import Battle
+from poke_env.environment.pokemon import Pokemon
 from poke_env.environment.move import Move as OriginalMove
+from poke_env.player.env_player import Gen8EnvSinglePlayer
+from poke_env.player.battle_order import BattleOrder, DefaultBattleOrder, DoubleBattleOrder, ForfeitBattleOrder
+from pareto_rl.dql_agent.utils.move import Move
+from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
+from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
 from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder, bind_pareto
-from poke_env.player.internals import POKE_LOOP
+from pareto_rl.pareto_front.pareto_search import pareto_search
+from pareto_rl.dql_agent.classes.max_damage_player import TEAM as OPP_TEAM
 
 class SimpleRLPlayer(Gen8EnvSinglePlayer):
   def __init__(self, **kwargs):
@@ -50,6 +50,10 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
       # hp normalised (good idea?)
       mon_data.append(mon.current_hp_fraction)
       # labels.append(f"{bl}_hp_frac")
+
+      # protect counter
+      mon_data.append(mon.protect_counter/10)
+      # labels.append(f"{bl}_protect_counter")
 
       # stats (5)
       # mon_data.extend([stat / 614 for stat in mon.stats.values()])
@@ -170,6 +174,10 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
       # hp normalised (good idea?)
       mon_data.append(mon.current_hp_fraction)
       # labels.append(f"{bl}_hp_frac")
+
+      # protect counter
+      mon_data.append(mon.protect_counter/10)
+      # labels.append(f"{bl}_protect_counter")
 
       # stats (5)
       # mon_data.extend([stat / 230 for stat in mon.base_stats.values()])
@@ -326,17 +334,23 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
     self.optimiser = optim.Adam(self.policy_net.parameters())
 
   def update_pm(self):
-    self.pm = PokemonMapper(self.current_battle)
+    self.pm = PokemonMapper(self.current_battle, OPP_TEAM)
 
   def update_target(self):
     self.target_net.load_state_dict(self.policy_net.state_dict())
+
+  def step_reset(self):
+    pass
+
+  def episode_reset(self):
+    pass
 
   @abstractmethod
   def optimize_model(self, memory: ReplayMemory):
     pass
 
   @abstractmethod
-  def policy(self, state, step: int = 0, eps_greedy: bool = True):
+  def policy(self, state, step: int = 0, eps_greedy: bool = True, pareto: bool = True):
     pass
 
 
@@ -555,7 +569,7 @@ class DoubleActionRLPlayer(BaseRLPlayer):
     else:
       return torch.tensor([ actions[idx][move[idx]] for idx in [0,1] ])
 
-  def policy(self, state, step: int = 0, eps_greedy: bool = True):
+  def policy(self, state, step: int = 0, eps_greedy: bool = True, pareto: bool = True):
     self.policy_net.eval()
 
     if eps_greedy:
@@ -665,7 +679,7 @@ class CombineActionRLPlayer(BaseRLPlayer):
 
     return loss_cpy
 
-  def policy(self, state, step: int = 0, eps_greedy: bool = True):
+  def policy(self, state, step: int = 0, eps_greedy: bool = True, pareto: bool = True):
     self.policy_net.eval()
     sample = random.random()
     eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
@@ -679,7 +693,7 @@ class CombineActionRLPlayer(BaseRLPlayer):
     # if False:
       with torch.no_grad():
         output = self.policy_net(state)
-        mask = self.mask_unavailable_moves().to(self.device)
+        mask = self.mask_unavailable_moves(self.pm.available_orders).to(self.device)
         indexes = torch.arange(start=0, end=self.output_size)
         output = output[mask]
         indexes = indexes[mask]
@@ -825,10 +839,10 @@ class CombineActionRLPlayer(BaseRLPlayer):
           return self.n_targets * self.n_moves + i
 
 
-  def mask_unavailable_moves(self) -> torch.Tensor:
+  def mask_unavailable_moves(self, orders: List[DoubleBattleOrder]) -> torch.Tensor:
     mask = torch.zeros(self.output_size, dtype=torch.bool)
-    if self.pm.available_orders:
-      for order in self.pm.available_orders:
+    if orders:
+      for order in orders:
         idx = self.encode_action(order)
         if mask[idx] == False:
           mask[idx] = True
@@ -842,7 +856,6 @@ class CombineActionRLPlayer(BaseRLPlayer):
       idx = self.encode_action(DefaultBattleOrder())
       mask[idx] = True
     return mask
-
 
 
 class ParetoRLPLayer(CombineActionRLPlayer):
@@ -863,36 +876,50 @@ class ParetoRLPLayer(CombineActionRLPlayer):
     super(ParetoRLPLayer, self).__init__(input_size,hidden_layers,n_switches,n_moves,n_targets,eps_start,eps_end,eps_decay,batch_size,gamma,**kwargs)
     bind_pareto(self.agent)
 
-  def policy(self, state, step: int = 0, eps_greedy: bool = True):
-    # pm = PokemonMapper(battle)
-    # # TODO idk if this can or cannot handle switch properly
-    # self.analyse_previous_turn(pm, battle)
-    # args = Namespace(dry=True)
-    # orders = pareto_search(args, battle, pm, self)
-
+  def policy(self, state, step: int = 0, eps_greedy: bool = True, pareto: bool = True):
     self.policy_net.eval()
     sample = random.random()
     eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
       -1.0 * step / self.eps_decay
     )
     self.eps_threshold = eps_threshold
-    # wandb.log({'eps_threshold': eps_threshold})
-    # args['step'] += 1
 
+    self.agent.analyse_previous_turn(self.pm, self.current_battle)
+    action = None
     if sample > eps_threshold or not eps_greedy:
-    # if False:
       with torch.no_grad():
         output = self.policy_net(state)
-        mask = self.mask_unavailable_moves().to(self.device)
+        if pareto:
+          # TODO idk if this can or cannot handle switch properly
+          args = Namespace(dry=True)
+          pareto_orders = pareto_search(args, self.current_battle, self.pm, self.agent)
+          pareto_orders = self.get_unique_orders(pareto_orders)
+          mask = self.mask_unavailable_moves(pareto_orders).to(self.device)
+        else:
+          mask = self.mask_unavailable_moves(self.pm.available_orders).to(self.device)
+
         indexes = torch.arange(start=0, end=self.output_size)
         output = output[mask]
         indexes = indexes[mask]
         max_utility = output.max(0)[1].item()
         best_action = indexes[max_utility].item()
-        return best_action
+        action = best_action
     else:
       random_order = self.pm.available_orders[int(random.random() * len(self.pm.available_orders))]
-      return self.encode_action(random_order)
+      action = self.encode_action(random_order)
+
+    self.step_reset()
+    return action
+
+  def get_unique_orders(self, orders: List[DoubleBattleOrder]):
+    actions = {self.encode_action(order) for order in orders}
+    return [self.decode_action(action) for action in actions]
+
+  def step_reset(self):
+    self.agent.last_turn = []
+
+  def episode_reset(self):
+    self.agent.estimates = {"mon": {}, "opp": {}}
 
 
 TEAM = """

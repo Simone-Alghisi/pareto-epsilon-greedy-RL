@@ -27,14 +27,14 @@ class ParetoPlayer(Player):
 
     def __init__(self, battle_format="gen82v2doubles", team=None, **kwargs):
         if team is None:
-          team = StaticTeambuilder(TEAM)
+            team = StaticTeambuilder(TEAM)
         super(ParetoPlayer, self).__init__(
             battle_format=battle_format, team=team, **kwargs
         )
         bind_pareto(self)
 
     def choose_move(self, battle: DoubleBattle) -> BattleOrder:
-        pm = PokemonMapper(battle)
+        pm = PokemonMapper(battle, OPP_TEAM)
         # TODO idk if this can or cannot handle switch properly
         self.analyse_previous_turn(pm, battle)
         args = Namespace(dry=True)
@@ -121,21 +121,14 @@ def analyse_previous_turn(self, pm: PokemonMapper, battle: DoubleBattle) -> None
                 if pos > 0:
                     # consider case where mon it's faster
                     self.update_mon_estimates(mon, pos, "spe", pr_mon_speed + 1)
-                    print(
-                        f"{mon} should be faster, increasing speed up to {self.get_mon_estimates(mon, pos)['spe']}"
-                    )
                 elif pos < 0 and pr_pos > 0:
                     self.update_mon_estimates(pr_mon, pr_pos, "spe", mon_speed)
-                    print(
-                        f"{pr_mon} should be slower, so I probably got it wrong previously"
-                    )
             already_examined.add(pos)
             i += 1
         else:
             # we predicted correctly
             i += 1
             j += 1
-    self.last_turn = []
 
 async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
     """Handles a battle message.
@@ -256,158 +249,6 @@ async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
             battle._parse_message(split_message)
 
 
-class AsyncParetoPlayer(_AsyncPlayer, ParetoPlayer):
-    def __init__(
-        self,
-        user_funcs,
-        username,
-        player_configuration: Optional[PlayerConfiguration] = None,
-        avatar: Optional[int] = None,
-        battle_format: str = "gen8randombattle",
-        log_level: Optional[int] = None,
-        max_concurrent_battles=1,
-        save_replays: Union[bool, str] = False,
-        server_configuration: Optional[
-            ServerConfiguration
-        ] = LocalhostServerConfiguration,
-        start_timer_on_battle_start: bool = False,
-        start_listening: bool = True,
-        team: Optional[Union[str, Teambuilder]] = None,
-        **kwargs, # dump everything else here
-    ):
-      super(AsyncParetoPlayer, self).__init__(
-          user_funcs,
-          username,
-          player_configuration=PlayerConfiguration('DarkrAIAsync',None),
-          avatar=avatar,
-          battle_format=battle_format,
-          log_level=log_level,
-          max_concurrent_battles=max_concurrent_battles,
-          save_replays=save_replays,
-          server_configuration=server_configuration,
-          start_timer_on_battle_start=start_timer_on_battle_start,
-          start_listening=start_listening,
-          team=team,
-      )
-    # async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
-    #     """Handles a battle message.
-    #     :param split_message: The received battle message.
-    #     :type split_message: str
-    #     """
-    #
-    #     # Battle messages can be multiline
-    #     if (
-    #         len(split_messages) > 1
-    #         and len(split_messages[1]) > 1
-    #         and split_messages[1][1] == "init"
-    #     ):
-    #         battle_info = split_messages[0][0].split("-")
-    #         battle = await self._create_battle(battle_info)
-    #     else:
-    #         battle = await self._get_battle(split_messages[0][0])
-    #
-    #     # clear the previous turn
-    #     self.last_turn = []
-    #
-    #     for split_message in split_messages[1:]:
-    #         if len(split_message) <= 1:
-    #             continue
-    #         elif split_message[1] in self.MESSAGES_TO_IGNORE:
-    #             pass
-    #         elif split_message[1] == "request":
-    #             if split_message[2]:
-    #                 request = orjson.loads(split_message[2])
-    #                 battle._parse_request(request)
-    #                 if battle.move_on_next_request:
-    #                     await self._handle_battle_request(battle)
-    #                     battle.move_on_next_request = False
-    #         # TODO extract all relevant information to exploit the last turn knowledge
-    #         elif split_message[1] == "move":
-    #             # append the actual order of the pokemon to last turn and their move
-    #             mon = split_message[2]
-    #             move = split_message[3]
-    #             self.last_turn.append((mon, move))
-    #         elif split_message[1] == "win" or split_message[1] == "tie":
-    #             if split_message[1] == "win":
-    #                 battle._won_by(split_message[2])
-    #             else:
-    #                 battle._tied()
-    #             await self._battle_count_queue.get()
-    #             self._battle_count_queue.task_done()
-    #             self._battle_finished_callback(battle)
-    #             async with self._battle_end_condition:
-    #                 self._battle_end_condition.notify_all()
-    #         elif split_message[1] == "error":
-    #             self.logger.log(
-    #                 25, "Error message received: %s", "|".join(split_message)
-    #             )
-    #             if split_message[2].startswith(
-    #                 "[Invalid choice] Sorry, too late to make a different move"
-    #             ):
-    #                 if battle.trapped:
-    #                     await self._handle_battle_request(battle)
-    #             elif split_message[2].startswith(
-    #                 "[Unavailable choice] Can't switch: The active Pokémon is "
-    #                 "trapped"
-    #             ) or split_message[2].startswith(
-    #                 "[Invalid choice] Can't switch: The active Pokémon is trapped"
-    #             ):
-    #                 battle.trapped = True
-    #                 await self._handle_battle_request(battle)
-    #             elif split_message[2].startswith(
-    #                 "[Invalid choice] Can't switch: You can't switch to an active "
-    #                 "Pokémon"
-    #             ):
-    #                 await self._handle_battle_request(battle, maybe_default_order=True)
-    #             elif split_message[2].startswith(
-    #                 "[Invalid choice] Can't switch: You can't switch to a fainted "
-    #                 "Pokémon"
-    #             ):
-    #                 await self._handle_battle_request(battle, maybe_default_order=True)
-    #             elif split_message[2].startswith(
-    #                 "[Invalid choice] Can't move: Invalid target for"
-    #             ):
-    #                 await self._handle_battle_request(battle, maybe_default_order=True)
-    #             elif split_message[2].startswith(
-    #                 "[Invalid choice] Can't move: You can't choose a target for"
-    #             ):
-    #                 await self._handle_battle_request(battle, maybe_default_order=True)
-    #             elif split_message[2].startswith(
-    #                 "[Invalid choice] Can't move: "
-    #             ) and split_message[2].endswith("needs a target"):
-    #                 await self._handle_battle_request(battle, maybe_default_order=True)
-    #             elif (
-    #                 split_message[2].startswith("[Invalid choice] Can't move: Your")
-    #                 and " doesn't have a move matching " in split_message[2]
-    #             ):
-    #                 await self._handle_battle_request(battle, maybe_default_order=True)
-    #             elif split_message[2].startswith(
-    #                 "[Invalid choice] Incomplete choice: "
-    #             ):
-    #                 await self._handle_battle_request(battle, maybe_default_order=True)
-    #             elif split_message[2].startswith(
-    #                 "[Unavailable choice]"
-    #             ) and split_message[2].endswith("is disabled"):
-    #                 battle.move_on_next_request = True
-    #             elif split_message[2].startswith(
-    #                 "[Invalid choice] Can't move: You sent more choices than unfainted"
-    #                 " Pokémon."
-    #             ):
-    #                 await self._handle_battle_request(battle, maybe_default_order=True)
-    #             else:
-    #                 self.logger.critical("Unexpected error message: %s", split_message)
-    #         elif split_message[1] == "turn":
-    #             battle._parse_message(split_message)
-    #             await self._handle_battle_request(battle)
-    #         elif split_message[1] == "teampreview":
-    #             battle._parse_message(split_message)
-    #             await self._handle_battle_request(battle, from_teampreview_request=True)
-    #         elif split_message[1] == "bigerror":
-    #             self.logger.warning("Received 'bigerror' message: %s", split_message)
-    #         else:
-    #             battle._parse_message(split_message)
-# qui
-
 TEAM = """
 Zigzagoon-Galar @ Aguav Berry
 Ability: Quick Feet
@@ -426,6 +267,24 @@ EVs: 252 HP / 136 Atk / 120 SpA
 - Seismic Toss
 """
 
+OPP_TEAM = """
+Zigzagoon @ Aguav Berry
+Ability: Quick Feet
+EVs: 252 HP / 136 Atk / 120 SpA
+- Double-Edge
+- Surf
+- Body Slam
+- Thunderbolt
+
+Bulbasaur @ Aguav Berry
+Ability: Overgrow
+EVs: 4 HP / 252 SpA / 160 Spe
+- Energy Ball
+- Giga Drain
+- Knock Off
+- Leaf Storm
+"""
+
 
 class StaticTeambuilder(Teambuilder):
     def __init__(self, team, **kwargs):
@@ -434,7 +293,6 @@ class StaticTeambuilder(Teambuilder):
 
     def yield_team(self):
         team = self.join_team(self.parse_showdown_team(self.team))
-        print(team)
         return team
 
 

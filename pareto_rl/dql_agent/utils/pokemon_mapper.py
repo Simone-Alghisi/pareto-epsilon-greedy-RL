@@ -1,3 +1,4 @@
+import re
 from poke_env.environment.double_battle import DoubleBattle
 from poke_env.player.battle_order import (
     BattleOrder,
@@ -7,7 +8,7 @@ from poke_env.player.battle_order import (
 from pareto_rl.dql_agent.utils.move import Move
 from poke_env.environment.move import Move as OriginalMove
 from poke_env.environment.pokemon import Pokemon
-from pareto_rl.dql_agent.utils.utils import get_possible_showdown_targets
+from pareto_rl.dql_agent.utils.utils import get_possible_showdown_targets, get_pokemon_showdown_name
 from typing import Dict, List, Set, Union
 
 
@@ -23,7 +24,7 @@ class PokemonMapper:
     - mon_indexes: a list used to link mon to genotype
     """
 
-    def __init__(self, battle: DoubleBattle) -> None:
+    def __init__(self, battle: DoubleBattle, opponent_team: str) -> None:
         self.battle = battle
         self.moves_targets: Dict[int, Dict[Move, List[int]]] = {}
         self.original_moves_targets: Dict[int, Dict[Move, List[int]]] = {}
@@ -35,6 +36,7 @@ class PokemonMapper:
             List[DoubleBattleOrder], List[DefaultBattleOrder], None
         ] = None
         self.available_moves: Dict[int, List[Move]] = {}
+        self.opponent_info: Dict[str, Set[Move]] = self.parse_team(opponent_team)
         active_orders: List[List[BattleOrder]] = [[], []]
 
         # your mons
@@ -68,21 +70,7 @@ class PokemonMapper:
         for mon in battle.opponent_active_pokemon:
             if mon:
                 # hardcoded opponent moves
-                opp_moves: Set[Move]
-                if mon.species.strip().lower() == "Zigzagoon".strip().lower():
-                    opp_moves = {
-                        Move("doubleedge"),
-                        Move("surf"),
-                        Move("bodyslam"),
-                        Move("thunderbolt"),
-                    }
-                else:
-                    opp_moves = {
-                        Move("energyball"),
-                        Move("gigadrain"),
-                        Move("knockoff"),
-                        Move("leafstorm"),
-                    }
+                opp_moves: Set[Move] = self.opponent_info[get_pokemon_showdown_name(mon)]
                 # TODO in the general case, first retrieve known moves and then infer
                 # the other probabilistically
                 # moves = mon.moves # pokemon used moves
@@ -170,3 +158,12 @@ class PokemonMapper:
             pos: the position of the mon associated to index
         """
         return self.mon_indexes[index // 2]
+
+    def parse_team(self, opponent_team: str) -> Dict[str, Set[Move]]:
+        opponent_info: Dict[str, Set[Move]] = {}
+        coarse_split = re.split(r'Ability|\n\n', opponent_team[1:-1])
+        for i in range(0,len(coarse_split),2):
+            mon_name = re.split(r'@|\n|\(| ',coarse_split[i])[0]
+            opponent_info[mon_name] = { Move(Move.retrieve_id(re.split(r'\n',move_name)[0])) for move_name in re.split(r'- ',coarse_split[i+1])[-4:] }
+        return opponent_info
+

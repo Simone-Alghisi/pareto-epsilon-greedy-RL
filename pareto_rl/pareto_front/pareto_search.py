@@ -45,7 +45,7 @@ def configure_subparsers(subparsers):
     """
     Subparser parameters:
     Args:
-        dry [bool]: whether to run without showing any plot 
+        dry [bool]: whether to run without showing any plot
     """
     parser = subparsers.add_parser("pareto", help="Test the Pareto search")
     parser.add_argument(
@@ -139,6 +139,7 @@ def pareto_search(
             pos = pm.get_field_pos_from_genotype(i)
             move = c[i]
             target = c[i + 1] if c[i + 1] < 3 else 0
+            target = 0 if move.deduced_target in ['self', 'randomNormal'] else target
             if pos < 0:
                 if first_order is None:
                     first_order = BattleOrder(move, move_target=target)

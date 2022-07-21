@@ -79,6 +79,8 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
 
         if done:
           break
+      player.step_reset()
+      player.episode_reset()
 
 def train(player: BaseRLPlayer, num_episodes: int, args):
   memory = ReplayMemory(args['memory'])
@@ -93,7 +95,7 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
     # games
     episode_info = {'episode': i_episode}
     # Intermediate evaluation
-    if i_episode % args['eval_interval'] == 0 or i_episode == num_episodes-1:
+    if (i_episode % args['eval_interval'] == 0 and i_episode != 0) or i_episode == num_episodes-1:
       winrate = eval(player,args['eval_interval_episodes'],**args)
       episode_info['winrate'] = winrate
 
@@ -161,7 +163,8 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
       if done:
         episode_durations.append(t + 1)
         break
-
+    player.step_reset()
+    player.episode_reset()
     episode_info.update({
       'step': args['step'],
       'ep_loss': episode_cumul_loss/(t+1),
@@ -202,7 +205,7 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
     for t in count():
       player.update_pm()
       # Follow learned policy (eps_greedy=False -> never choose random move)
-      actions = player.policy(state, eps_greedy=False)
+      actions = player.policy(state, eps_greedy=False, pareto=False)
 
       if isinstance(player, DoubleActionRLPlayer):
         observation, _, done, _ = player.step(player._encode_actions(actions.tolist()))
@@ -219,6 +222,8 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
 
       # Move to the next state
       state = next_state
+    player.step_reset()
+    player.episode_reset()
 
   print(f'DarkrAI has won {player.n_won_battles} out of {num_episodes} games')
   return player.n_won_battles/num_episodes
@@ -228,24 +233,24 @@ def main(args):
   n_moves = 4
   n_switches = 4
   n_targets = 5
-  input_size = 36
+  input_size = 40
   args = {
     'batch_size': 128,
     'gamma': 0.999,
-    'target_update': 5000,
-    'eval_interval': 500,
-    'eval_interval_episodes': 50,
+    'target_update': 750,
+    'eval_interval': 200,
+    'eval_interval_episodes': 100,
     'eps_start': 0.9,
     'eps_end': 0.05,
-    'eps_decay': 10**4,
+    'eps_decay': 600,
     'input_size': input_size,
     'hidden_layers': hidden_layers,
-    'train_episodes': 20000,
+    'train_episodes': 2000,
     'eval_episodes': 100,
-    'memory': 20000,
+    'memory': 128*20,
     'combined_actions': True,
     'fixed_team': True,
-    'fill_memory': False,
+    'fill_memory': True,
     'pareto': True,
   }
 
