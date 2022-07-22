@@ -256,15 +256,16 @@ class NextTurn(benchmarks.Benchmark):
                         i += 1
 
         # send the request
-        data["requests"] = [requests]
-        responses = damage_request_server(data)
-        responses = json.loads(responses)
-        responses = responses.pop()
+        if i > 0:
+          data["requests"] = [requests]
+          responses = damage_request_server(data)
+          responses = json.loads(responses)
+          responses = responses.pop()
 
-        for i, response in responses.items():
-            # save the result in the buffer
-            key = mapping[int(i)]
-            self.turn_buffer[key] = response
+          for i, response in responses.items():
+              # save the result in the buffer
+              key = mapping[int(i)]
+              self.turn_buffer[key] = response
 
         for turn, c in zip(turns, candidates):
             mon_dmg = 0

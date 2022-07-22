@@ -294,7 +294,6 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
 
   def calc_reward(self, last_battle, current_battle) -> float:
     return self.reward_computing_helper(current_battle,fainted_value=2,hp_value=1,victory_value=30)
-    # return self.reward_computing_helper(current_battle,fainted_value=5,hp_value=1,victory_value=60,status_value=0.5)
 
 class BaseRLPlayer(SimpleRLPlayer, ABC):
   def __init__(
@@ -381,20 +380,11 @@ class DoubleActionRLPlayer(BaseRLPlayer):
     if pos in self.pm.moves_targets:
       moves = [ move for move in self.pm.moves_targets[pos].keys() ]
     if(action < (self.n_actions - self.n_switches) and not battle.force_switch[idx]):
-      #moves
       move = action // self.n_targets
-      # target = DoubleBattle.OPPONENT_1_POSITION if action % 2 == 0 else DoubleBattle.OPPONENT_2_POSITION
       target = (action % self.n_targets) - 2
-      if move >= len(moves):
-        # import pdb; pdb.set_trace()
-        pass
       return self.agent.create_order(moves[move],move_target=target)
     elif(action >= (self.n_actions - self.n_switches) and not battle.force_switch[idx]):
       switch = action - (self.n_actions - self.n_switches)
-      # print(idx, switch, battle.available_switches)
-      if switch >= len(battle.available_switches[idx]):
-        # import pdb; pdb.set_trace()
-        pass
       return self.agent.create_order(battle.available_switches[idx][switch])
     else:
       return self.agent.choose_random_move(battle)
@@ -428,7 +418,6 @@ class DoubleActionRLPlayer(BaseRLPlayer):
       except:
         battle_order = ForfeitBattleOrder()
 
-    # print(battle_order)
     return battle_order
 
   def optimize_model(self, memory: ReplayMemory):
@@ -578,7 +567,6 @@ class DoubleActionRLPlayer(BaseRLPlayer):
       self.eps_threshold = eps_threshold
 
     if not eps_greedy or sample > eps_threshold:
-    # if True:
       with torch.no_grad():
         #divide output in 2 halves, select the max in the first half and the max in the second half.
         output = self.policy_net(state)
@@ -623,7 +611,7 @@ class CombineActionRLPlayer(BaseRLPlayer):
     self.output_size = (n_moves * n_targets) * self.n_actions + n_switches * (self.n_actions -1) + self.n_actions * 2 + 1
     self._init_model(input_size,hidden_layers)
 
-  def action_to_move(self, action, battle: DoubleBattle) -> BattleOrder:  # pyre-ignore
+  def action_to_move(self, action, battle: DoubleBattle) -> BattleOrder:
     return self.decode_action(action)
 
   def optimize_model(self, memory: ReplayMemory):
@@ -686,11 +674,8 @@ class CombineActionRLPlayer(BaseRLPlayer):
       -1.0 * step / self.eps_decay
     )
     self.eps_threshold = eps_threshold
-    # wandb.log({'eps_threshold': eps_threshold})
-    # args['step'] += 1
 
     if sample > eps_threshold or not eps_greedy:
-    # if False:
       with torch.no_grad():
         output = self.policy_net(state)
         mask = self.mask_unavailable_moves(self.pm.available_orders).to(self.device)
@@ -799,10 +784,6 @@ class CombineActionRLPlayer(BaseRLPlayer):
         elif (-2 in self.current_battle.available_switches and self.current_battle.force_switch[1]) or self.current_battle.active_pokemon[1]:
           idx += self.n_actions
           idx += self.encode_order(first_order, -2)
-        else:
-          import pdb
-
-          pdb.set_trace()
       else:
         first_idx = self.encode_order(first_order, -1)
         second_idx = self.encode_order(second_order, -2)
@@ -830,10 +811,7 @@ class CombineActionRLPlayer(BaseRLPlayer):
       move_idx = self.pm.available_moves[pos].index(Move(order.order._id))
       return move_idx * self.n_targets + target_idx
     elif isinstance(order.order, Pokemon):
-      try:
-        switches = self.pm.available_switches[pos]
-      except:
-        import pdb; pdb.set_trace()
+      switches = self.pm.available_switches[pos]
       for i, mon in enumerate(switches):
         if mon.species == order.order.species:
           return self.n_targets * self.n_moves + i
@@ -847,11 +825,7 @@ class CombineActionRLPlayer(BaseRLPlayer):
         if mask[idx] == False:
           mask[idx] = True
         else:
-          import pdb
-
-          print("error in the mapping or same battle order")
-
-          pdb.set_trace()
+          raise "error in the mapping or same battle order"
     else:
       idx = self.encode_action(DefaultBattleOrder())
       mask[idx] = True
@@ -893,8 +867,8 @@ class ParetoRLPLayer(CombineActionRLPlayer):
           # TODO idk if this can or cannot handle switch properly
           args = Namespace(dry=True)
           pareto_orders = pareto_search(args, self.current_battle, self.pm, self.agent)
-          pareto_orders = self.get_unique_orders(pareto_orders)
-          mask = self.mask_unavailable_moves(pareto_orders).to(self.device)
+          unique_pareto_orders = self.get_unique_orders(pareto_orders)
+          mask = self.mask_unavailable_moves(unique_pareto_orders).to(self.device)
         else:
           mask = self.mask_unavailable_moves(self.pm.available_orders).to(self.device)
 

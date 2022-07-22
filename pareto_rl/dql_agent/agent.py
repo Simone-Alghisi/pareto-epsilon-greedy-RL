@@ -237,7 +237,7 @@ def main(args):
   args = {
     'batch_size': 128,
     'gamma': 0.999,
-    'target_update': 750,
+    'target_update': 5000,
     'eval_interval': 200,
     'eval_interval_episodes': 100,
     'eps_start': 0.9,
@@ -322,12 +322,6 @@ def main(args):
     'device': agent.device,
     'step': 0,
   })
-
-  # remember to change policy so that is always random
-  # sample_transitions(agent,1000,'2v2_1k',**args)
-  # pca('2v2_1k',30,10)
-  # sfs('2v2_1k')
-  # variance_threshold('2v2_1k')
 
   train(agent,args['train_episodes'],args)
   final_winrate = eval(agent,args['eval_episodes'],**args)
