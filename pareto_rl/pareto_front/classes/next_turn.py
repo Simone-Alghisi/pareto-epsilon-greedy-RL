@@ -233,7 +233,40 @@ class NextTurn(benchmarks.Benchmark):
                 ) // 100
                 n_opp += 1
 
+        turns = []
+        responses = {}
+        requests = {}
+        mapping = {}
+        i = 0
+
         for c in candidates:
+            # {attacker_pos: {target_pos: {attacker_args, target_args, move, field}}}
+            # [{0: {}, 1: {}}]
+            turn = prepare_request(c, pm)
+            turns.append(turn)
+            for attacker_pos, targets in turn.items():
+                for target_pos, r in targets.items():
+                    move = Move(Move.retrieve_id(r["move"]))
+                    key = hash(f"{attacker_pos}{target_pos}{move}")
+
+                    # exploit the turn buffer
+                    if key not in self.turn_buffer:
+                        mapping[i] = key
+                        requests[i] = r
+                        i += 1
+
+        # send the request
+        data["requests"] = [requests]
+        responses = damage_request_server(data)
+        responses = json.loads(responses)
+        responses = responses.pop()
+
+        for i, response in responses.items():
+            # save the result in the buffer
+            key = mapping[int(i)]
+            self.turn_buffer[key] = response
+
+        for turn, c in zip(turns, candidates):
             mon_dmg = 0
             mon_hp = 0
             opp_dmg = 0
@@ -242,41 +275,23 @@ class NextTurn(benchmarks.Benchmark):
             # retrieve the current turn order of the pokemon
             turn_order = get_turn_order(c, pm, player)
 
-            # a dictionary to decide wheter one mon has been
+            # a dictionary to decide whether one mon has been
             # defeated and cannot attack anymore
             remaining_hp = starting_hp.copy()
 
             dmg_taken = {}
-            # prepare a possible request for the candidate
-            possible_requests = prepare_request(c, pm)
 
             for attacker_pos in turn_order:
                 # that pokemon is already dead (like the neurons in ReLU)
                 if remaining_hp[attacker_pos] == 0:
                     continue
 
-                gene_idx = pm.mon_indexes.index(attacker_pos) * 2
-
-                for target_pos, request in possible_requests[attacker_pos].items():
-                    # move
-                    move = c[gene_idx]
-                    # key of the hash
+                for target_pos, r in turn[attacker_pos].items():
+                    move = Move(Move.retrieve_id(r["move"]))
                     key = hash(f"{attacker_pos}{target_pos}{move}")
 
-                    # exploit the turn buffer
-                    if key in self.turn_buffer:
-                        r = self.turn_buffer[key]
-                    else:
-                        # send the request
-                        data["requests"] = [{attacker_pos: request}]
-                        r = damage_request_server(data)
-                        r = json.loads(r)
-                        r = r.pop()
-                        r = list(r.values()).pop()
-                        # save the result in the buffer
-                        self.turn_buffer[key] = r
+                    damage = self.turn_buffer[key]["damage"]
 
-                    damage = r["damage"]
                     if isinstance(damage, list):
                         damage = damage[len(damage) // 2]
 
@@ -412,7 +427,7 @@ def next_turn_crossover(random, mom, dad, args):
     return children
 
 
-def prepare_request(c, pm: PokemonMapper) -> Dict[int, List[Dict[str, Dict[str, any]]]]:
+def prepare_request(c, pm: PokemonMapper) -> Dict[int, Dict[str, Dict[str, any]]]:
     r"""
     Function which prepares the requests to send to the damage calculator
     server in order to evaluate the individual fitness
