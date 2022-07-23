@@ -111,7 +111,7 @@ def get_possible_showdown_targets(
 def prepare_pokemon_request(mon: Pokemon) -> Dict[str, Any]:
     request: Dict = {}
     # insert name
-    request["name"] = get_pokemon_showdown_name(mon)
+    request["name"] = get_pokemon_showdown_name(mon).title()
     # insert species
     request["species"] = mon.species
     # pokemon types
@@ -125,17 +125,17 @@ def prepare_pokemon_request(mon: Pokemon) -> Dict[str, Any]:
     # pokemon gender
     request["gender"] = None
     if mon.gender:
-        request["gender"] = mon.gender.name
+        request["gender"] = mon.gender.name[0].title()
     # ability
     request["ability"] = None
     if mon.ability:
-        request["ability"] = mon.ability
+        request["ability"] = mon.ability.title()
     # dynamax
     request["isDynamaxed"] = mon.is_dynamaxed
     # item
     request["item"] = None
     if mon.item and mon.item != "unknown_item":
-        request["item"] = mon.item
+        request["item"] = mon.item.title()
     # boots
     # Target format 'hp', 'at', 'df', 'sa', 'sd', 'sp'
     # Current format "atk": 0, "def": 0, "spa": 0, "spd": 0,"spe": 0,
@@ -147,7 +147,7 @@ def prepare_pokemon_request(mon: Pokemon) -> Dict[str, Any]:
     request["boosts"]["sp"] = mon.boosts["spe"]
     # stats
     request["stats"] = {}
-    # TODO current hp value is missing
+    # TODO hp is missing
     request["stats"]["at"] = mon.stats["atk"]
     request["stats"]["df"] = mon.stats["def"]
     request["stats"]["sa"] = mon.stats["spa"]
