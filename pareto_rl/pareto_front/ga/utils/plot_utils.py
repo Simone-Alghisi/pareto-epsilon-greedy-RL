@@ -252,6 +252,7 @@ def plot_results_multi_objective_PF(individuals, title, args):
                 axes[i, j].set_ylabel(args["objective_" + str(i)])
         f.subplots_adjust(hspace=0.30)
         f.subplots_adjust(wspace=0.30)
+        plt.show()
 
 
 """

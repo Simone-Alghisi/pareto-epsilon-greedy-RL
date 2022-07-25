@@ -31,9 +31,14 @@ from pareto_rl.pareto_front.classes.next_turn import (
     NextTurnTest,
     next_turn_test_mutation,
 )
+import pareto_rl.pareto_front.ga.utils.plot_utils as plot_utils
 import matplotlib.pyplot as plt
+# from adjustText import adjust_text
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 
+import numpy as np
+import seaborn as sb
+import pandas as pd
 
 def configure_subparsers(subparsers):
     r"""Configure a new subparser for testing the Pareto search.
@@ -45,7 +50,7 @@ def configure_subparsers(subparsers):
     """
     Subparser parameters:
     Args:
-        dry [bool]: whether to run without showing any plot 
+        dry [bool]: whether to run without showing any plot
     """
     parser = subparsers.add_parser("pareto", help="Test the Pareto search")
     parser.add_argument(
@@ -68,6 +73,48 @@ def main(args):
 
     pareto_search(args)
 
+def generate_multilevel_diagram(population_fitness):
+
+    print(population_fitness.tolist())
+    max_components = []
+    for i in range(len(population_fitness[0])):
+        max_components.append(max(population_fitness, key= lambda x:x[i])[i])
+
+    min_components = []
+    for i in range(len(population_fitness[0])):
+        min_components.append(min(population_fitness, key= lambda x:x[i])[i])
+
+    max_components = np.asarray(max_components)
+    min_components = np.asarray(min_components)
+
+    population_fitness = np.asarray(population_fitness)
+
+    # normalization
+    normalized_fitness = np.empty(shape=(len(population_fitness),len(population_fitness[0])))
+
+    for index,element in enumerate(population_fitness):
+        normalized_fitness[index] = ((element-min_components)/(max_components-min_components))
+
+    ideal_distance = []
+
+    for element in normalized_fitness:
+        ideal_distance.append(np.linalg.norm(element))
+
+
+    df = pd.DataFrame(np.c_[population_fitness,ideal_distance],columns=["Mon_Dmg","Opp_Dmg","Mon_HP","Opp_HP","dist"])
+
+    fig, axs = plt.subplots(2, 2)
+
+    sb.scatterplot(y="dist", x= "Mon_Dmg", data=df, ax=axs[0,0])
+    sb.scatterplot(y="dist", x= "Opp_Dmg", data=df, ax=axs[0,1])
+    sb.scatterplot(y="dist", x= "Mon_HP", data=df, ax=axs[1,0])
+    sb.scatterplot(y="dist", x= "Opp_HP", data=df, ax=axs[1,1])
+    for ax in axs.flat:
+        ax.set(xlabel='x-label', ylabel='Distance from optimal point')
+
+    # adjust_text(texts, force_points=0.2, force_text=0.2, expand_points=(1, 1), expand_text=(1, 1), arrowprops=dict(arrowstyle="-", color='black', lw=0.5))
+
+    plt.show()
 
 def pareto_search(
     args,
@@ -118,14 +165,15 @@ def pareto_search(
 
     # runs nsga2
     final_pop, final_pop_fitnesses = nsga2(
-        rng, problem, display=display, num_vars=8, **nsga2_args
+        rng, problem, display=True, num_vars=8, **nsga2_args
     )
 
-    if not args.dry:
+    print(final_pop)
+    print(final_pop_fitnesses)
+    if not args.dry or True:
         print("Final Population\n", final_pop)
         print("Final Population Fitnesses\n", final_pop_fitnesses)
-        plt.ioff()
-        plt.show()
+        #generate_multilevel_diagram(final_pop_fitnesses)
 
     orders = []
 
