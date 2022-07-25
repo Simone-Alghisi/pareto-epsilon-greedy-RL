@@ -25,6 +25,7 @@ from pareto_rl.damage_calculator.requester import (
     damage_request_server,
 )
 from poke_env.environment.double_battle import DoubleBattle
+from poke_env.environment.pokemon import Pokemon
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from pareto_rl.dql_agent.utils.utils import (
     compute_opponent_stats,
@@ -34,6 +35,7 @@ from typing import List, Tuple, Dict, Union
 from random import sample
 import copy
 import json
+from copy import deepcopy
 
 # possible pokemon
 pkmn = ["gengar", "vulpix", "charmander", "venusaur"]
@@ -179,6 +181,7 @@ class NextTurn(benchmarks.Benchmark):
         # buffer for the actual turn, it stores the result of the damage calculator
         # without the need of sending a request
         self.turn_buffer = {}
+        self.p_switch = 0.05
 
     def generator(self, random, args) -> List[Union[Move, int]]:
         r"""
@@ -194,11 +197,45 @@ class NextTurn(benchmarks.Benchmark):
         """
         turn = []
         # who does what against who
-        for _, moves in self.pm.moves_targets.items():
-            random_move = random.choice(list(moves.keys()))
-            random_target = random.choice(moves[random_move])
-            turn += [random_move, random_target]
+        # for _, moves in self.pm.moves_targets.items():
+        available_switches = deepcopy(self.pm.available_switches)
+        for pos in self.pm.mon_to_pos.values():
+            if len(available_switches[pos]) > 0:
+                if random.random() < self.p_switch:
+                    turn += [self._choose_random_switch(random,available_switches,pos), None]
+                else:
+                    turn += self._choose_random_move(random,pos)
+            else:
+                turn += self._choose_random_move(random,pos)
         return turn
+
+
+    def _choose_random_switch(self, random, available_switches, pos) -> Pokemon:
+        switch = random.choice(available_switches[pos])
+        self._remove_inconsistent_switches(available_switches, pos, switch)
+        return switch
+
+
+    def _remove_inconsistent_switches(self, available_switches, pos, switch) -> None:
+        ally_pos = (abs(pos)%2 + 1) * (pos/abs(pos))
+        if ally_pos in available_switches:
+            for i, mon in enumerate(available_switches[ally_pos]):
+                if mon.species == switch.species:
+                    del available_switches[ally_pos][i]
+                    break
+
+    def _add_consistent_switches(self, available_switches, pos, switch) -> None:
+        available_switches[pos].append(switch)
+        ally_pos = (abs(pos)%2 + 1) * (pos/abs(pos))
+        if ally_pos in available_switches:
+            available_switches[ally_pos].append(switch)
+
+
+    def _choose_random_move(self, random, pos) -> List[Union[Move, int]]:
+        random_move = random.choice(list(self.pm.moves_targets[pos].keys()))
+        random_target = random.choice(self.pm.moves_targets[pos][random_move])
+        return [random_move, random_target]
+
 
     def evaluator(self, candidates, args) -> List[Pareto]:
         r"""
@@ -358,12 +395,19 @@ def next_turn_mutation(random, candidate, args):
     """
     mut_rate = args.setdefault("mutation_rate", 0.1)
     mutant = copy.deepcopy(candidate)
-    problem = args["problem"]
-    pm = problem.pm
+    problem: NextTurn = args["problem"]
+    pm: PokemonMapper = problem.pm
     moves_targets = pm.moves_targets
     already_mutated = False
+    available_switches = deepcopy(pm.available_switches)
 
-    for i, _ in enumerate(candidate):
+    for i in range(0,len(candidate),2):
+        if isinstance(candidate[i], Pokemon):
+            pos = pm.get_field_pos_from_genotype(i)
+            switch = candidate[i]
+            problem._remove_inconsistent_switches(available_switches, pos, switch)
+
+    for i in range(0,len(candidate)):
         if already_mutated:
             already_mutated = False
             continue
@@ -372,20 +416,34 @@ def next_turn_mutation(random, candidate, args):
             # get available moves of the mon at a certain position
             moves = moves_targets[pos]
             if i % 2 == 0:
-                current_target = mutant[i + 1]
-                mutated_move = random.choice(list(moves.keys()))
-                mutant[i] = mutated_move
-                move_targets = moves[mutated_move]
-                # if target is not an option for the mutated move
-                if current_target not in move_targets:
-                    mutant[i + 1] = random.choice(move_targets)
-                    already_mutated = True
+                already_mutated = mutate(random, available_switches, pos, mutant, problem, moves, i)
             else:
-                # pick a new target from the available ones for the current move
-                move_targets = moves[mutant[i - 1]]
-                mutant[i] = random.choice(move_targets)
+                if mutant[i] is not None:
+                    # pick a new target from the available ones for the current move
+                    move_targets = moves[mutant[i - 1]]
+                    mutant[i] = random.choice(move_targets)
     return mutant
 
+def mutate(random, available_switches, pos, mutant, problem, moves, idx):
+    already_mutated = False
+    if len(available_switches[pos]) > 0 and random.random() < problem.p_switch:
+        if isinstance(mutant[idx], Pokemon):
+            old_switch = mutant[idx]
+            problem._add_consistent_switches(available_switches, pos, old_switch)
+        mutated_switch = random.choice(available_switches)
+        mutant[idx] = mutated_switch
+        mutant[idx + 1] = None
+        problem._remove_inconsistent_switches(available_switches, pos, mutated_switch)
+    else:
+        mutated_move = random.choice(list(moves.keys()))
+        mutant[idx] = mutated_move
+        move_targets = moves[mutated_move]
+        current_target = mutant[i + 1]
+        # if target is not an option for the mutated move
+        if current_target is None or current_target not in move_targets:
+            mutant[idx + 1] = random.choice(move_targets)
+            already_mutated = True
+    return already_mutated
 
 @crossover
 def next_turn_crossover(random, mom, dad, args):
@@ -411,6 +469,8 @@ def next_turn_crossover(random, mom, dad, args):
     """
     ux_bias = args.setdefault("ux_bias", 0.5)
     crossover_rate = args.setdefault("crossover_rate", 1.0)
+    problem: NextTurn = args['problem']
+    pm: PokemonMapper = problem.pm
     children = []
     if random.random() < crossover_rate:
         bro = copy.deepcopy(dad)
@@ -420,6 +480,23 @@ def next_turn_crossover(random, mom, dad, args):
             if random.random() < ux_bias:
                 bro[i : i + 2] = mom[i : i + 2]
                 sis[i : i + 2] = dad[i : i + 2]
+        pos = -1
+        if pos in pm.available_switches:
+            ally_pos = (abs(pos)%2 + 1) * (pos/abs(pos))
+            if ally_pos in pm.available_switches:
+                idx = pm.mon_indexes.index(pos) * 2
+                ally_idx = pm.mon_indexes.index(ally_pos) * 2
+                if isinstance(bro[idx],Pokemon) and isinstance(bro[ally_idx],Pokemon) and bro[idx].species == bro[ally_idx].species:
+                    available_switches = deepcopy(pm.available_switches)
+                    switch = bro[idx]
+                    if random.random() < 0.5:
+                        moves = pm.moves_targets[pos]
+                        problem._remove_inconsistent_switches(available_switches, pos, switch)
+                        mutate(random, available_switches, pos, bro, problem, moves, idx)
+                    else:
+                        moves = pm.moves_targets[ally_pos]
+                        problem._remove_inconsistent_switches(available_switches, ally_pos, switch)
+                        mutate(random, available_switches, ally_pos, bro, problem, moves, ally_idx)
         children.append(bro)
         children.append(sis)
     else:

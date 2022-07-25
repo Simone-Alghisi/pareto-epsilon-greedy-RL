@@ -8,8 +8,10 @@ from poke_env.player.battle_order import (
 from pareto_rl.dql_agent.utils.move import Move
 from poke_env.environment.move import Move as OriginalMove
 from poke_env.environment.pokemon import Pokemon
+from poke_env.data import to_id_str
 from pareto_rl.dql_agent.utils.utils import get_possible_showdown_targets, get_pokemon_showdown_name
-from typing import Dict, List, Set, Union
+from typing import Dict, List, Set, Union, OrderedDict
+from collections import OrderedDict as ordered_dict
 
 
 class PokemonMapper:
@@ -28,10 +30,10 @@ class PokemonMapper:
         self.battle = battle
         self.moves_targets: Dict[int, Dict[Move, List[int]]] = {}
         self.original_moves_targets: Dict[int, Dict[Move, List[int]]] = {}
-        self.mon_to_pos: Dict[Pokemon, int] = {}
-        self.pos_to_mon: Dict[int, Pokemon] = {}
+        self.mon_to_pos: OrderedDict[Pokemon, int] = ordered_dict()
+        self.pos_to_mon: OrderedDict[int, Pokemon] = ordered_dict()
         self.mon_indexes: List[int] = []
-        self.available_switches: Dict[int, list] = {}
+        self.available_switches: Dict[int, List[Pokemon]] = {}
         self.available_orders: Union[
             List[DoubleBattleOrder], List[DefaultBattleOrder], None
         ] = None
@@ -116,7 +118,7 @@ class PokemonMapper:
             targets[casted_move] = pt
             original_targets[casted_move] = ot
             if pos not in self.available_moves:
-              self.available_moves[pos] = []
+                self.available_moves[pos] = []
             self.available_moves[pos].append(casted_move)
             if orders is not None:
                 orders.extend(
@@ -138,6 +140,15 @@ class PokemonMapper:
 
         if available_switches is not None:
             self.available_switches[pos] = available_switches
+        else:
+            possible_switches = {mon_name for mon_name in self.opponent_info.keys()}
+            for active_opp in self.battle.opponent_active_pokemon:
+                if active_opp:
+                    possible_switches.remove(get_pokemon_showdown_name(active_opp))
+            for opp in self.battle.opponent_team.values():
+                if opp.fainted:
+                    possible_switches.remove(get_pokemon_showdown_name(opp))
+            self.available_switches[pos] = [ Pokemon(species=to_id_str(showdown_name)) for showdown_name in possible_switches ]
 
     def alive_pokemon_number(self) -> int:
         r"""
