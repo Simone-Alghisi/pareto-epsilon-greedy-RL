@@ -7,7 +7,10 @@ from poke_env.player.battle_order import (
 from poke_env.teambuilder.teambuilder import Teambuilder
 from poke_env.player.openai_api import _AsyncPlayer
 from poke_env.player_configuration import PlayerConfiguration
-from poke_env.server_configuration import ServerConfiguration, LocalhostServerConfiguration
+from poke_env.server_configuration import (
+    ServerConfiguration,
+    LocalhostServerConfiguration,
+)
 from pareto_rl.pareto_front.pareto_search import pareto_search
 from argparse import Namespace
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
@@ -25,7 +28,8 @@ import types
 class ParetoPlayer(Player):
     r"""ParetoPlayer, should perform only Pareto optimal moves"""
 
-    def __init__(self, battle_format="gen82v2doubles", team=None, **kwargs):
+    # def __init__(self, battle_format="gen82v2doubles", team=None, **kwargs):
+    def __init__(self, battle_format="gen8doublesubers", team=None, **kwargs):
         if team is None:
             team = StaticTeambuilder(TEAM)
         super(ParetoPlayer, self).__init__(
@@ -41,6 +45,7 @@ class ParetoPlayer(Player):
         orders = pareto_search(args, battle, pm, self)
         return orders[int(random.random() * len(orders))]
 
+
 def bind_pareto(instance):
     instance.last_turn: List[Tuple[str, str]] = []
     instance.estimates: Dict[str, Dict[str, Dict[str, int]]] = {"mon": {}, "opp": {}}
@@ -48,6 +53,7 @@ def bind_pareto(instance):
     instance.update_mon_estimates = types.MethodType(update_mon_estimates, instance)
     instance.analyse_previous_turn = types.MethodType(analyse_previous_turn, instance)
     instance._handle_battle_message = types.MethodType(_handle_battle_message, instance)
+
 
 def get_mon_estimates(self, mon: Pokemon, pos: int) -> Dict[str, int]:
     category = "mon" if pos < 0 else "opp"
@@ -58,11 +64,13 @@ def get_mon_estimates(self, mon: Pokemon, pos: int) -> Dict[str, int]:
             self.estimates[category][mon.species] = compute_initial_stats(mon)
     return self.estimates[category][mon.species]
 
+
 def update_mon_estimates(
     self, mon: Pokemon, pos: int, stat: str, new_value: int
 ) -> None:
     category = "mon" if pos < 0 else "opp"
     self.estimates[category][mon.species][stat] = new_value
+
 
 def analyse_previous_turn(self, pm: PokemonMapper, battle: DoubleBattle) -> None:
     r"""
@@ -85,8 +93,11 @@ def analyse_previous_turn(self, pm: PokemonMapper, battle: DoubleBattle) -> None
     actual_turn = []
     predicted_turn = []
 
-    # for the moment, do not consider previous turn
-    for mon_str, move_str in self.last_turn:
+    # for mon_str, move_str in self.last_turn:
+    for action in self.last_turn:
+        mon_str = action
+        if isinstance(action, tuple):
+            mon_str = action[0]
         # convert from showdown to pokemon instance
         showdown_pos = mon_str.split(":")[0]
         pos = map_showdown_to_pos[showdown_pos]
@@ -94,12 +105,18 @@ def analyse_previous_turn(self, pm: PokemonMapper, battle: DoubleBattle) -> None
         if pos not in pm.pos_to_mon:
             continue
         mon = pm.pos_to_mon[pos]
+        if isinstance(action, tuple):
+            print(action)
+            move_str = action[1]
+            move_id = Move.retrieve_id(move_str)
+            move = Move(move_id)
+            priority = move.priority
+        else:
+            # https://pokemondb.net/pokebase/119034/how-much-priority-does-switching-have
+            priority = 6
         mon_speed = self.get_mon_estimates(mon, pos)["spe"]
-        move_id = Move.retrieve_id(move_str)
-        move = Move(move_id)
-        move_priority = move.priority
-        actual_turn.append((pos, mon, move_priority, mon_speed))
-        predicted_turn.append((pos, mon, move_priority, mon_speed))
+        actual_turn.append((pos, mon, priority, mon_speed))
+        predicted_turn.append((pos, mon, priority, mon_speed))
 
     predicted_turn.sort(key=lambda x: (x[2], x[3]), reverse=True)
 
@@ -109,14 +126,14 @@ def analyse_previous_turn(self, pm: PokemonMapper, battle: DoubleBattle) -> None
 
     # updating the beliefs concerning the opponent pokemon speed/priority
     while i < len(actual_turn) and j < len(predicted_turn):
-        pos, mon, move_priority, mon_speed = actual_turn[i]
-        pr_pos, pr_mon, pr_move_priority, pr_mon_speed = predicted_turn[j]
+        pos, mon, priority, mon_speed = actual_turn[i]
+        pr_pos, pr_mon, pr_priority, pr_mon_speed = predicted_turn[j]
 
         if pr_pos in already_examined:
             # we already adjusted the speed of that pokemon
             j += 1
         elif pos != pr_pos:
-            if move_priority == pr_move_priority:
+            if priority == pr_priority:
                 # at least one is an opponent, so I do not know everything about him
                 if pos > 0:
                     # consider case where mon it's faster
@@ -129,6 +146,7 @@ def analyse_previous_turn(self, pm: PokemonMapper, battle: DoubleBattle) -> None
             # we predicted correctly
             i += 1
             j += 1
+
 
 async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
     """Handles a battle message.
@@ -147,9 +165,6 @@ async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
     else:
         battle = await self._get_battle(split_messages[0][0])
 
-    # clear the previous turn
-    # self.last_turn = []
-
     for split_message in split_messages[1:]:
         if len(split_message) <= 1:
             continue
@@ -162,12 +177,6 @@ async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
                 if battle.move_on_next_request:
                     await self._handle_battle_request(battle)
                     battle.move_on_next_request = False
-        # TODO extract all relevant information to exploit the last turn knowledge
-        elif split_message[1] == "move":
-            # append the actual order of the pokemon to last turn and their move
-            mon = split_message[2]
-            move = split_message[3]
-            self.last_turn.append((mon, move))
         elif split_message[1] == "win" or split_message[1] == "tie":
             if split_message[1] == "win":
                 battle._won_by(split_message[2])
@@ -179,17 +188,14 @@ async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
             async with self._battle_end_condition:
                 self._battle_end_condition.notify_all()
         elif split_message[1] == "error":
-            self.logger.log(
-                25, "Error message received: %s", "|".join(split_message)
-            )
+            self.logger.log(25, "Error message received: %s", "|".join(split_message))
             if split_message[2].startswith(
                 "[Invalid choice] Sorry, too late to make a different move"
             ):
                 if battle.trapped:
                     await self._handle_battle_request(battle)
             elif split_message[2].startswith(
-                "[Unavailable choice] Can't switch: The active Pokémon is "
-                "trapped"
+                "[Unavailable choice] Can't switch: The active Pokémon is " "trapped"
             ) or split_message[2].startswith(
                 "[Invalid choice] Can't switch: The active Pokémon is trapped"
             ):
@@ -222,13 +228,11 @@ async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
                 and " doesn't have a move matching " in split_message[2]
             ):
                 await self._handle_battle_request(battle, maybe_default_order=True)
-            elif split_message[2].startswith(
-                "[Invalid choice] Incomplete choice: "
-            ):
+            elif split_message[2].startswith("[Invalid choice] Incomplete choice: "):
                 await self._handle_battle_request(battle, maybe_default_order=True)
-            elif split_message[2].startswith(
-                "[Unavailable choice]"
-            ) and split_message[2].endswith("is disabled"):
+            elif split_message[2].startswith("[Unavailable choice]") and split_message[
+                2
+            ].endswith("is disabled"):
                 battle.move_on_next_request = True
             elif split_message[2].startswith(
                 "[Invalid choice] Can't move: You sent more choices than unfainted"
@@ -247,6 +251,17 @@ async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
             self.logger.warning("Received 'bigerror' message: %s", split_message)
         else:
             battle._parse_message(split_message)
+
+        # TODO extract all relevant information to exploit the last turn knowledge
+        if split_message[1] == "switch":
+            # append the actual order of the pokemon to last turn
+            switch = split_message[2]
+            self.last_turn.append((switch))
+        elif split_message[1] == "move":
+            # append the actual order of the pokemon to last turn and their move
+            mon = split_message[2]
+            move = split_message[3]
+            self.last_turn.append((mon, move))
 
 
 TEAM = """
@@ -268,21 +283,30 @@ EVs: 252 HP / 136 Atk / 120 SpA
 """
 
 OPP_TEAM = """
-Zigzagoon @ Aguav Berry
-Ability: Quick Feet
-EVs: 252 HP / 136 Atk / 120 SpA
-- Double-Edge
-- Surf
-- Body Slam
-- Thunderbolt
+Zigzagoon @ Aguav Berry  
+Ability: Quick Feet  
+EVs: 252 HP / 136 Atk / 120 SpA  
+- Double-Edge  
+- Surf  
+- Body Slam  
+- Thunderbolt  
 
-Bulbasaur @ Aguav Berry
-Ability: Overgrow
-EVs: 4 HP / 252 SpA / 160 Spe
-- Energy Ball
-- Giga Drain
-- Knock Off
-- Leaf Storm
+Bulbasaur @ Aguav Berry  
+Ability: Overgrow  
+EVs: 4 HP / 252 SpA / 160 Spe  
+- Energy Ball  
+- Giga Drain  
+- Knock Off  
+- Leaf Storm  
+
+Pichu @ Aguav Berry  
+Ability: Static  
+Shiny: Yes  
+EVs: 48 Spe  
+- Nuzzle  
+- Body Slam  
+- Electroweb  
+- Endeavor  
 """
 
 

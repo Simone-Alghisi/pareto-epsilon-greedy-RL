@@ -57,7 +57,7 @@ def get_possible_showdown_targets(
             "foeSide": [4],
             "normal": [ally_position, *opponent_positions],
             "randomNormal": opponent_positions,  # convert back to 0
-            "scripted": [6], # depends on the last pokemon that hit
+            "scripted": [6],  # depends on the last pokemon that hit
             "self": [self_position],  # convert back to 0
             battle.EMPTY_TARGET_POSITION: [battle.EMPTY_TARGET_POSITION],
             None: opponent_positions,
@@ -170,7 +170,7 @@ def get_pokemon_showdown_name(mon: Pokemon):
 
 def compute_opponent_stats(stat: str, mon: Pokemon):
     opp_stat = 0
-    # these computation does not assume anything about EV and natures
+    # these computations do not assume anything about EV and natures
     if stat == "hp":
         opp_stat = (
             math.floor(((2 * mon.base_stats[stat] + 31) * mon.level) / 100)
@@ -194,16 +194,17 @@ def compute_initial_stats(mon: Pokemon) -> Dict[str, int]:
 
 
 def does_anybody_have_tabu_moves(battle: DoubleBattle, tabus: List[str]):
-  for mon in battle.team.values():
-    if mon:
-      for move in mon.moves.values():
-        if move._id in tabus:
-          return True
-  return False
+    for mon in battle.team.values():
+        if mon:
+            for move in mon.moves.values():
+                if move._id in tabus:
+                    return True
+    return False
+
 
 def is_anyone_someone(battle: DoubleBattle, monsters: List[str]):
-  for mon in battle.team.values():
-    if mon:
-      if mon.species in monsters:
-        return True
-  return False
+    for mon in battle.team.values():
+        if mon:
+            if mon.species in monsters:
+                return True
+    return False

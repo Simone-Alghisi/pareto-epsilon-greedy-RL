@@ -236,6 +236,24 @@ class NextTurn(benchmarks.Benchmark):
         random_target = random.choice(self.pm.moves_targets[pos][random_move])
         return [random_move, random_target]
 
+    def _repair_switches(self, random, pos, child) -> None:
+        if pos in self.pm.available_switches:
+            ally_pos = int((abs(pos)%2 + 1) * (pos/abs(pos)))
+            if ally_pos in self.pm.available_switches:
+                idx = self.pm.mon_indexes.index(pos) * 2
+                ally_idx = self.pm.mon_indexes.index(ally_pos) * 2
+                if isinstance(child[idx],Pokemon) and isinstance(child[ally_idx],Pokemon) and child[idx].species == child[ally_idx].species:
+                    available_switches = deepcopy(self.pm.available_switches)
+                    switch = child[idx]
+                    if random.random() < 0.5:
+                        moves = self.pm.moves_targets[pos]
+                        self._remove_inconsistent_switches(available_switches, pos, switch)
+                        mutate(random, available_switches, pos, child, self, moves, idx)
+                    else:
+                        moves = self.pm.moves_targets[ally_pos]
+                        self._remove_inconsistent_switches(available_switches, ally_pos, switch)
+                        mutate(random, available_switches, ally_pos, child, self, moves, ally_idx)
+
 
     def evaluator(self, candidates, args) -> List[Pareto]:
         r"""
@@ -259,6 +277,7 @@ class NextTurn(benchmarks.Benchmark):
         n_mon = 0
         n_opp = 0
 
+        # TODO... runtime computation + pos_to_mon needs to be changed after turn order
         starting_hp: Dict[int, int] = {}
         for pos, mon in pm.pos_to_mon.items():
             if pos < 0:
@@ -277,6 +296,10 @@ class NextTurn(benchmarks.Benchmark):
         i = 0
 
         for c in candidates:
+            # 1. compute the turn order
+            # 2. check who is gonna switch
+            # 3. change pm.pos_to_mon, i.e. take the mon based on the switches (instantiate if needed)
+
             # {attacker_pos: {target_pos: {attacker_args, target_args, move, field}}}
             # [{0: {}, 1: {}}]
             turn = prepare_request(c, pm)
@@ -313,12 +336,14 @@ class NextTurn(benchmarks.Benchmark):
             # retrieve the current turn order of the pokemon
             turn_order = get_turn_order(c, pm, player)
 
+            # TODO... switches demand a runtime hp_computation
             # a dictionary to decide whether one mon has been
             # defeated and cannot attack anymore
             remaining_hp = starting_hp.copy()
 
             dmg_taken = {}
 
+            # TODO... check if it is a switch and not a move
             for attacker_pos in turn_order:
                 # that pokemon is already dead (like the neurons in ReLU)
                 if remaining_hp[attacker_pos] == 0:
@@ -424,7 +449,7 @@ def next_turn_mutation(random, candidate, args):
                     mutant[i] = random.choice(move_targets)
     return mutant
 
-def mutate(random, available_switches, pos, mutant, problem, moves, idx):
+def mutate(random, available_switches, pos, mutant, problem, moves, idx) -> bool:
     already_mutated = False
     if len(available_switches[pos]) > 0 and random.random() < problem.p_switch:
         if isinstance(mutant[idx], Pokemon):
@@ -438,7 +463,7 @@ def mutate(random, available_switches, pos, mutant, problem, moves, idx):
         mutated_move = random.choice(list(moves.keys()))
         mutant[idx] = mutated_move
         move_targets = moves[mutated_move]
-        current_target = mutant[i + 1]
+        current_target = mutant[idx + 1]
         # if target is not an option for the mutated move
         if current_target is None or current_target not in move_targets:
             mutant[idx + 1] = random.choice(move_targets)
@@ -480,23 +505,11 @@ def next_turn_crossover(random, mom, dad, args):
             if random.random() < ux_bias:
                 bro[i : i + 2] = mom[i : i + 2]
                 sis[i : i + 2] = dad[i : i + 2]
-        pos = -1
-        if pos in pm.available_switches:
-            ally_pos = (abs(pos)%2 + 1) * (pos/abs(pos))
-            if ally_pos in pm.available_switches:
-                idx = pm.mon_indexes.index(pos) * 2
-                ally_idx = pm.mon_indexes.index(ally_pos) * 2
-                if isinstance(bro[idx],Pokemon) and isinstance(bro[ally_idx],Pokemon) and bro[idx].species == bro[ally_idx].species:
-                    available_switches = deepcopy(pm.available_switches)
-                    switch = bro[idx]
-                    if random.random() < 0.5:
-                        moves = pm.moves_targets[pos]
-                        problem._remove_inconsistent_switches(available_switches, pos, switch)
-                        mutate(random, available_switches, pos, bro, problem, moves, idx)
-                    else:
-                        moves = pm.moves_targets[ally_pos]
-                        problem._remove_inconsistent_switches(available_switches, ally_pos, switch)
-                        mutate(random, available_switches, ally_pos, bro, problem, moves, ally_idx)
+
+        for child in [bro, sis]:
+            for pos in [-1, 1]:
+                problem._repair_switches(random, pos, child)
+
         children.append(bro)
         children.append(sis)
     else:
@@ -520,31 +533,33 @@ def prepare_request(c, pm: PokemonMapper) -> Dict[int, Dict[str, Dict[str, any]]
     request = {}
     # for each of the pokemon in the individual (at most 4)
     for i in range(0, len(c), 2):
-        # attacker
-        attacker_pos = pm.get_field_pos_from_genotype(i)
-        attacker = pm.pos_to_mon[attacker_pos]
+        # check if we are talking about a move
+        if isinstance(c[i], Move):
+            # attacker
+            attacker_pos = pm.get_field_pos_from_genotype(i)
+            attacker = pm.pos_to_mon[attacker_pos]
 
-        # target
-        target_pos = c[i + 1]
-        possible_targets = map_abstract_target(target_pos, attacker_pos, pm)
+            # target
+            target_pos = c[i + 1]
+            possible_targets = map_abstract_target(target_pos, attacker_pos, pm)
 
-        # move
-        move = c[i]
-        move_name = move.get_showdown_name()
+            # move
+            move = c[i]
+            move_name = move.get_showdown_name()
 
-        attacker_args = prepare_pokemon_request(attacker)
-        request[attacker_pos] = {}
+            attacker_args = prepare_pokemon_request(attacker)
+            request[attacker_pos] = {}
 
-        for target_pos in possible_targets:
-            target = pm.pos_to_mon[target_pos]
-            target_args = prepare_pokemon_request(target)
-            request[attacker_pos][target_pos] = {
-                "attacker": attacker_args,
-                "target": target_args,
-                "move": move_name,
-                # TODO map poke_env var for damage_calc
-                "field": {"gameType": "Doubles"},
-            }
+            for target_pos in possible_targets:
+                target = pm.pos_to_mon[target_pos]
+                target_args = prepare_pokemon_request(target)
+                request[attacker_pos][target_pos] = {
+                    "attacker": attacker_args,
+                    "target": target_args,
+                    "move": move_name,
+                    # TODO map poke_env var for damage_calc
+                    "field": {"gameType": "Doubles"},
+                }
     return request
 
 
@@ -571,9 +586,12 @@ def get_turn_order(c, pm: PokemonMapper, player) -> List[int]:
         pos = pm.get_field_pos_from_genotype(i)
         mon = pm.pos_to_mon[pos]
         mon_speed = player.get_mon_estimates(mon, pos)["spe"]
-        move = c[i]
-        move_priority = move.priority
-        turn_order.append((pos, move_priority, mon_speed))
+        if isinstance(c[i], Move):
+            move = c[i]
+            priority = move.priority
+        else:
+            priority = 6
+        turn_order.append((pos, priority, mon_speed))
 
     # sort the moves based first on their priority and then the speed of the pokemons
     turn_order.sort(key=lambda x: (x[1], x[2]), reverse=True)
