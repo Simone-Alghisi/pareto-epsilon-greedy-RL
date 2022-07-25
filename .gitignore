@@ -37,3 +37,6 @@ dist
 
 # wandb local logs
 wandb/
+
+# nsga2 runs
+nsga2/
