@@ -1,3 +1,4 @@
+import math
 from pareto_rl.dql_agent.utils.move import Move
 from poke_env.environment.move import SPECIAL_MOVES
 from poke_env.data import POKEDEX
@@ -6,7 +7,6 @@ from poke_env.environment.pokemon import Pokemon
 from poke_env.environment.pokemon_type import PokemonType
 from poke_env.environment.double_battle import DoubleBattle
 from typing import Dict, List, Any, Tuple
-import math
 
 # https://github.com/hsahovic/poke-env/blob/1a35c10648fd99797c0e4fe1eb595c295b4ea8ba/src/poke_env/environment/double_battle.py#L215
 def get_possible_showdown_targets(
@@ -108,7 +108,7 @@ def get_possible_showdown_targets(
     return original_targets, pareto_targets
 
 
-def prepare_pokemon_request(mon: Pokemon) -> Dict[str, Any]:
+def prepare_pokemon_request(mon: Pokemon, pos: int) -> Dict[str, Any]:
     request: Dict = {}
     # insert name
     request["name"] = get_pokemon_showdown_name(mon)
@@ -159,8 +159,10 @@ def prepare_pokemon_request(mon: Pokemon) -> Dict[str, Any]:
         request["status"] = mon.status.name
     # toxicCounter
     request["toxicCounter"] = mon.status_counter
-    # current hp, TODO handle approximations for opponents
-    # request["curHP"] = mon.current_hp
+    request["curHP"] = mon.current_hp
+    if pos > 0:
+        request["curHP"] *= compute_opponent_stats("hp", mon)
+        request["curHP"] = request["curHP"] // 100
     return request
 
 

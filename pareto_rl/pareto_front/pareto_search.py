@@ -137,14 +137,16 @@ def pareto_search(
         second_order = None
         for i in range(0, len(c), 2):
             pos = pm.get_field_pos_from_genotype(i)
-            move = c[i]
-            target = c[i + 1] if c[i + 1] < 3 else 0
-            target = 0 if move.deduced_target in ['self', 'randomNormal'] else target
+            action = c[i]
+            target = DoubleBattle.EMPTY_TARGET_POSITION
+            if isinstance(action, Move):
+                target = c[i + 1] if c[i + 1] < 3 else 0
+                target = 0 if action.deduced_target in ['self', 'randomNormal'] else target
             if pos < 0:
                 if first_order is None:
-                    first_order = BattleOrder(move, move_target=target)
+                    first_order = BattleOrder(action, move_target=target)
                 else:
-                    second_order = BattleOrder(move, move_target=target)
+                    second_order = BattleOrder(action, move_target=target)
         orders.append(
             DoubleBattleOrder(first_order=first_order, second_order=second_order)
         )

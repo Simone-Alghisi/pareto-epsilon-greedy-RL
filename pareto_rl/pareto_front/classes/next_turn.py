@@ -32,9 +32,9 @@ from pareto_rl.dql_agent.utils.utils import (
     prepare_pokemon_request,
 )
 from typing import List, OrderedDict, Tuple, Dict, Union
-from random import sample
 import copy
 import json
+from random import sample
 from copy import deepcopy
 
 # possible pokemon
@@ -300,15 +300,15 @@ class NextTurn(benchmarks.Benchmark):
 
         # send the request
         if i > 0:
-          data["requests"] = [requests]
-          responses = damage_request_server(data)
-          responses = json.loads(responses)
-          responses = responses.pop()
+            data["requests"] = [requests]
+            responses = damage_request_server(data)
+            responses = json.loads(responses)
+            responses = responses.pop()
 
-          for i, response in responses.items():
-              # save the result in the buffer
-              key = mapping[int(i)]
-              self.turn_buffer[key] = response
+            for i, response in responses.items():
+                # save the result in the buffer
+                key = mapping[int(i)]
+                self.turn_buffer[key] = response
 
         for attacks, turn_order, pos_to_mon in turns:
             mon_dmg = 0
@@ -451,7 +451,7 @@ def mutate(random, available_switches, pos, mutant, problem, moves, idx) -> bool
         if isinstance(mutant[idx], Pokemon):
             old_switch = mutant[idx]
             problem._add_consistent_switches(available_switches, pos, old_switch)
-        mutated_switch = random.choice(available_switches)
+        mutated_switch = random.choice(available_switches[pos])
         mutant[idx] = mutated_switch
         mutant[idx + 1] = None
         problem._remove_inconsistent_switches(available_switches, pos, mutated_switch)
@@ -548,12 +548,12 @@ def prepare_request(c, pm: PokemonMapper, turn_order: List[int]) -> Tuple[Dict[i
             move = c[i]
             move_name = move.get_showdown_name()
 
-            attacker_args = prepare_pokemon_request(attacker)
+            attacker_args = prepare_pokemon_request(attacker, attacker_pos)
             request[attacker_pos] = {}
 
             for target_pos in possible_targets:
                 target = pos_to_mon[target_pos]
-                target_args = prepare_pokemon_request(target)
+                target_args = prepare_pokemon_request(target, target_pos)
                 request[attacker_pos][target_pos] = {
                     "attacker": attacker_args,
                     "target": target_args,
@@ -582,7 +582,8 @@ def prepare_request(c, pm: PokemonMapper, turn_order: List[int]) -> Tuple[Dict[i
                         break
                 if not found:
                     # Pareto knows the pokemon exists, but it did not enter the field yet
-                    pos_to_mon[switch_pos] = Pokemon(species=switch.species)
+                    switch._set_hp_status("100/100")
+                    pos_to_mon[switch_pos] = switch
 
     return request, pos_to_mon
 

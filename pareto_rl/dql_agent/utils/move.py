@@ -19,7 +19,7 @@ class Move(OriginalMove):
         Returns:
           equals: bool, whether they are equal
         """
-        return self._id == o._id if isinstance(o, Move) else self == o
+        return self._id == o._id if isinstance(o, Move) else self is o
 
     def __hash__(self) -> int:
         r"""

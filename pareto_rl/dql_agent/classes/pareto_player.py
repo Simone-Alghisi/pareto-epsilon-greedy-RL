@@ -41,6 +41,8 @@ class ParetoPlayer(Player):
         pm = PokemonMapper(battle, OPP_TEAM)
         # TODO idk if this can or cannot handle switch properly
         self.analyse_previous_turn(pm, battle)
+        if sum(battle.force_switch) > 0:
+            return self.choose_random_doubles_move(battle)
         args = Namespace(dry=True)
         orders = pareto_search(args, battle, pm, self)
         return orders[int(random.random() * len(orders))]
@@ -106,7 +108,6 @@ def analyse_previous_turn(self, pm: PokemonMapper, battle: DoubleBattle) -> None
             continue
         mon = pm.pos_to_mon[pos]
         if isinstance(action, tuple):
-            print(action)
             move_str = action[1]
             move_id = Move.retrieve_id(move_str)
             move = Move(move_id)
@@ -256,7 +257,7 @@ async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
         if split_message[1] == "switch":
             # append the actual order of the pokemon to last turn
             switch = split_message[2]
-            self.last_turn.append((switch))
+            self.last_turn.append(switch)
         elif split_message[1] == "move":
             # append the actual order of the pokemon to last turn and their move
             mon = split_message[2]
@@ -280,33 +281,42 @@ EVs: 252 HP / 136 Atk / 120 SpA
 - Fire Fang
 - Heat Wave
 - Seismic Toss
+
+Pichu @ Aguav Berry
+Ability: Static
+Shiny: Yes
+EVs: 48 Spe
+- Nuzzle
+- Body Slam
+- Electroweb
+- Endeavor
 """
 
 OPP_TEAM = """
-Zigzagoon @ Aguav Berry  
-Ability: Quick Feet  
-EVs: 252 HP / 136 Atk / 120 SpA  
-- Double-Edge  
-- Surf  
-- Body Slam  
-- Thunderbolt  
+Zigzagoon @ Aguav Berry
+Ability: Quick Feet
+EVs: 252 HP / 136 Atk / 120 SpA
+- Double-Edge
+- Surf
+- Body Slam
+- Thunderbolt
 
-Bulbasaur @ Aguav Berry  
-Ability: Overgrow  
-EVs: 4 HP / 252 SpA / 160 Spe  
-- Energy Ball  
-- Giga Drain  
-- Knock Off  
-- Leaf Storm  
+Bulbasaur @ Aguav Berry
+Ability: Overgrow
+EVs: 4 HP / 252 SpA / 160 Spe
+- Energy Ball
+- Giga Drain
+- Knock Off
+- Leaf Storm
 
-Pichu @ Aguav Berry  
-Ability: Static  
-Shiny: Yes  
-EVs: 48 Spe  
-- Nuzzle  
-- Body Slam  
-- Electroweb  
-- Endeavor  
+Pichu @ Aguav Berry
+Ability: Static
+Shiny: Yes
+EVs: 48 Spe
+- Nuzzle
+- Body Slam
+- Electroweb
+- Endeavor
 """
 
 
