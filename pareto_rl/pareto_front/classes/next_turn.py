@@ -31,7 +31,7 @@ from pareto_rl.dql_agent.utils.utils import (
     compute_opponent_stats,
     prepare_pokemon_request,
 )
-from typing import List, Tuple, Dict, Union
+from typing import List, OrderedDict, Tuple, Dict, Union
 from random import sample
 import copy
 import json
@@ -274,21 +274,6 @@ class NextTurn(benchmarks.Benchmark):
         player = self.player
         data = {"requests": []}
 
-        n_mon = 0
-        n_opp = 0
-
-        # TODO... runtime computation + pos_to_mon needs to be changed after turn order
-        starting_hp: Dict[int, int] = {}
-        for pos, mon in pm.pos_to_mon.items():
-            if pos < 0:
-                starting_hp[pos] = mon.current_hp
-                n_mon += 1
-            else:
-                starting_hp[pos] = (
-                    mon.current_hp * compute_opponent_stats("hp", mon)
-                ) // 100
-                n_opp += 1
-
         turns = []
         responses = {}
         requests = {}
@@ -296,15 +281,13 @@ class NextTurn(benchmarks.Benchmark):
         i = 0
 
         for c in candidates:
-            # 1. compute the turn order
-            # 2. check who is gonna switch
-            # 3. change pm.pos_to_mon, i.e. take the mon based on the switches (instantiate if needed)
+            # compute the turn order to handle correctly switches
+            turn_order = get_turn_order(c, pm, player)
 
-            # {attacker_pos: {target_pos: {attacker_args, target_args, move, field}}}
-            # [{0: {}, 1: {}}]
-            turn = prepare_request(c, pm)
-            turns.append(turn)
-            for attacker_pos, targets in turn.items():
+            # prepare the request and change who is on the field
+            attacks, pos_to_mon = prepare_request(c, pm, turn_order)
+            turns.append((attacks, turn_order, pos_to_mon))
+            for attacker_pos, targets in attacks.items():
                 for target_pos, r in targets.items():
                     move = Move(Move.retrieve_id(r["move"]))
                     key = hash(f"{attacker_pos}{target_pos}{move}")
@@ -327,29 +310,42 @@ class NextTurn(benchmarks.Benchmark):
               key = mapping[int(i)]
               self.turn_buffer[key] = response
 
-        for turn, c in zip(turns, candidates):
+        for attacks, turn_order, pos_to_mon in turns:
             mon_dmg = 0
             mon_hp = 0
             opp_dmg = 0
             opp_hp = 0
+            n_mon = 0
+            n_opp = 0
 
-            # retrieve the current turn order of the pokemon
-            turn_order = get_turn_order(c, pm, player)
+            # Runtime hp instance, given that switches may change the pokemon on the field
+            starting_hp: Dict[int, int] = {}
+            for pos, mon in pos_to_mon.items():
+                if pos < 0:
+                    starting_hp[pos] = mon.current_hp
+                    n_mon += 1
+                else:
+                    starting_hp[pos] = (
+                        mon.current_hp * compute_opponent_stats("hp", mon)
+                    ) // 100
+                    n_opp += 1
 
-            # TODO... switches demand a runtime hp_computation
+
             # a dictionary to decide whether one mon has been
             # defeated and cannot attack anymore
             remaining_hp = starting_hp.copy()
 
             dmg_taken = {}
 
-            # TODO... check if it is a switch and not a move
             for attacker_pos in turn_order:
+                # it's a switch, which is already been performed
+                if attacker_pos not in attacks:
+                    continue
                 # that pokemon is already dead (like the neurons in ReLU)
                 if remaining_hp[attacker_pos] == 0:
                     continue
 
-                for target_pos, r in turn[attacker_pos].items():
+                for target_pos, r in attacks[attacker_pos].items():
                     move = Move(Move.retrieve_id(r["move"]))
                     key = hash(f"{attacker_pos}{target_pos}{move}")
 
@@ -518,7 +514,7 @@ def next_turn_crossover(random, mom, dad, args):
     return children
 
 
-def prepare_request(c, pm: PokemonMapper) -> Dict[int, Dict[str, Dict[str, any]]]:
+def prepare_request(c, pm: PokemonMapper, turn_order: List[int]) -> Tuple[Dict[int, Dict[str, Dict[str, any]]], OrderedDict[int, Pokemon]]:
     r"""
     Function which prepares the requests to send to the damage calculator
     server in order to evaluate the individual fitness
@@ -530,14 +526,19 @@ def prepare_request(c, pm: PokemonMapper) -> Dict[int, Dict[str, Dict[str, any]]
     Returns:
     - requests [Dict]: request ready to be sent.
     """
+    # TODO... this should not break anything but you never know
     request = {}
-    # for each of the pokemon in the individual (at most 4)
-    for i in range(0, len(c), 2):
+    pos_to_mon: OrderedDict[int, Pokemon] = pm.pos_to_mon.copy()
+
+    # for each of the pokemon in turn order
+    for pos in turn_order:
+        # TODO... we could convert this into a function
+        i = pm.mon_indexes.index(pos) * 2
         # check if we are talking about a move
         if isinstance(c[i], Move):
             # attacker
-            attacker_pos = pm.get_field_pos_from_genotype(i)
-            attacker = pm.pos_to_mon[attacker_pos]
+            attacker_pos = pos
+            attacker = pos_to_mon[attacker_pos]
 
             # target
             target_pos = c[i + 1]
@@ -551,7 +552,7 @@ def prepare_request(c, pm: PokemonMapper) -> Dict[int, Dict[str, Dict[str, any]]
             request[attacker_pos] = {}
 
             for target_pos in possible_targets:
-                target = pm.pos_to_mon[target_pos]
+                target = pos_to_mon[target_pos]
                 target_args = prepare_pokemon_request(target)
                 request[attacker_pos][target_pos] = {
                     "attacker": attacker_args,
@@ -560,7 +561,30 @@ def prepare_request(c, pm: PokemonMapper) -> Dict[int, Dict[str, Dict[str, any]]
                     # TODO map poke_env var for damage_calc
                     "field": {"gameType": "Doubles"},
                 }
-    return request
+        elif isinstance(c[i], Pokemon):
+            # TODO... we may create a function for this
+            switch_pos = pos
+            switch: Pokemon = c[i]
+            # TODO... the switch should already be valid, no need to check
+            if switch_pos < 0:
+                # If we want to switch into our pokemon, we have it no matter what
+                for mon in pm.battle.team.values():
+                    if mon.species == switch.species:
+                        pos_to_mon[switch_pos] = mon
+                        break
+            else:
+                found = False
+                # If we are considering an opponent pokemon, we may have to create it
+                for mon in pm.battle.opponent_team.values():
+                    if mon.species == switch.species:
+                        pos_to_mon[switch_pos] = mon
+                        found = True
+                        break
+                if not found:
+                    # Pareto knows the pokemon exists, but it did not enter the field yet
+                    pos_to_mon[switch_pos] = Pokemon(species=switch.species)
+
+    return request, pos_to_mon
 
 
 def get_turn_order(c, pm: PokemonMapper, player) -> List[int]:
