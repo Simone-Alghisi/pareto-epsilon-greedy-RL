@@ -3,13 +3,11 @@ import random
 import math
 import torch.nn as nn
 import torch.optim as optim
-import numpy as np
 from argparse import Namespace
 from gym.spaces import Space
 from abc import ABC, abstractmethod
-from typing import Any, Dict, List, Union, Tuple
+from typing import List, Optional, Union
 from poke_env.environment.double_battle import DoubleBattle
-from poke_env.environment.battle import Battle
 from poke_env.environment.pokemon import Pokemon
 from poke_env.environment.move import Move as OriginalMove
 from poke_env.player.env_player import Gen8EnvSinglePlayer
@@ -323,7 +321,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         self.gamma = gamma
         self.n_actions = None
         self.output_size = None
-        self.pm = None
+        self.update_pm()
 
     def _init_model(self, input_size, hidden_layers):
         self.policy_net = DarkrAI(input_size, hidden_layers, self.output_size).to(self.device)
@@ -333,7 +331,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         self.optimiser = optim.Adam(self.policy_net.parameters())
 
     def update_pm(self):
-        self.pm = PokemonMapper(self.current_battle, OPP_TEAM)
+        self.pm: PokemonMapper = PokemonMapper(self.current_battle, OPP_TEAM)
 
     def update_target(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())

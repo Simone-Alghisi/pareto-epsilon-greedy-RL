@@ -1,21 +1,19 @@
-from poke_env.environment.pokemon import Pokemon
-from poke_env.player.player import Player
-from poke_env.environment.double_battle import DoubleBattle
-from poke_env.player.battle_order import (
-    BattleOrder,
-)
-from poke_env.teambuilder.teambuilder import Teambuilder
-from pareto_rl.pareto_front.pareto_search import pareto_search
-from argparse import Namespace
-from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
-from pareto_rl.dql_agent.utils.utils import (
-    compute_initial_stats,
-)
-from pareto_rl.dql_agent.utils.move import Move
-from typing import List, Tuple, Dict
 import orjson
 import random
 import types
+from argparse import Namespace
+from poke_env.environment.pokemon import Pokemon
+from poke_env.player.player import Player
+from poke_env.environment.double_battle import DoubleBattle
+from poke_env.player.battle_order import BattleOrder
+from poke_env.teambuilder.teambuilder import Teambuilder
+from pareto_rl.dql_agent.utils.move import Move
+from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
+from pareto_rl.dql_agent.utils.teams import TEST_TEAM_1 as TEAM
+from pareto_rl.dql_agent.utils.teams import TEST_TEAM_2 as OPP_TEAM
+from pareto_rl.dql_agent.utils.utils import compute_initial_stats
+from pareto_rl.pareto_front.pareto_search import pareto_search
+from typing import List, Tuple, Dict
 
 
 class ParetoPlayer(Player):
@@ -27,6 +25,11 @@ class ParetoPlayer(Player):
         super(ParetoPlayer, self).__init__(
             battle_format=battle_format, team=team, **kwargs
         )
+        self.last_turn: List[Tuple[str, str]] = []
+        self.estimates: Dict[str, Dict[str, Dict[str, int]]] = {
+            "mon": {},
+            "opp": {},
+        }
         bind_pareto(self)
 
     def choose_move(self, battle: DoubleBattle) -> BattleOrder:
@@ -245,7 +248,7 @@ async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
         else:
             battle._parse_message(split_message)
 
-        # TODO extract all relevant information to exploit the last turn knowledge
+        # extract all relevant information to exploit the last turn knowledge
         if split_message[1] == "switch":
             # append the actual order of the pokemon to last turn
             switch = split_message[2]
@@ -255,61 +258,6 @@ async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
             mon = split_message[2]
             move = split_message[3]
             self.last_turn.append((mon, move))
-
-
-TEAM = """
-Zigzagoon-Galar @ Aguav Berry
-Ability: Quick Feet
-EVs: 252 HP / 136 Atk / 120 SpA
-- Double-Edge
-- Surf
-- Knock Off
-- Thunderbolt
-
-Charmander @ Aguav Berry
-Ability: Blaze
-EVs: 252 HP / 136 Atk / 120 SpA
-- Fire Blast
-- Fire Fang
-- Heat Wave
-- Seismic Toss
-
-Pichu @ Aguav Berry
-Ability: Static
-Shiny: Yes
-EVs: 48 Spe
-- Nuzzle
-- Body Slam
-- Electroweb
-- Endeavor
-"""
-
-OPP_TEAM = """
-Zigzagoon @ Aguav Berry
-Ability: Quick Feet
-EVs: 252 HP / 136 Atk / 120 SpA
-- Double-Edge
-- Surf
-- Body Slam
-- Thunderbolt
-
-Bulbasaur @ Aguav Berry
-Ability: Overgrow
-EVs: 4 HP / 252 SpA / 160 Spe
-- Energy Ball
-- Giga Drain
-- Knock Off
-- Leaf Storm
-
-Pichu @ Aguav Berry
-Ability: Static
-Shiny: Yes
-EVs: 48 Spe
-- Nuzzle
-- Body Slam
-- Electroweb
-- Endeavor
-"""
 
 
 class StaticTeambuilder(Teambuilder):

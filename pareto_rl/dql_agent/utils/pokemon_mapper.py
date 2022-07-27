@@ -24,7 +24,6 @@ class PokemonMapper:
     and could be useful for other applications, e.g.
     - moves_targets: dictionary that given the mon position (int), returns
     the possible targets' position (int) for each of the mon moves
-    - mon_to_pos: a dictionary that given a mon returns its field position
     - pos_to_mon: a dictionary that given a position, returns the mon in it
     - mon_indexes: a list used to link mon to genotype
     """
@@ -35,7 +34,6 @@ class PokemonMapper:
         self.battle = battle
         self.moves_targets: Dict[int, Dict[Move, List[int]]] = {}
         self.original_moves_targets: Dict[int, Dict[Move, List[int]]] = {}
-        self.mon_to_pos: OrderedDict[Pokemon, int] = ordered_dict()
         self.pos_to_mon: OrderedDict[int, Pokemon] = ordered_dict()
         self.mon_indexes: List[int] = []
         self.available_switches: Dict[int, List[Pokemon]] = {}
@@ -112,7 +110,6 @@ class PokemonMapper:
         available additional information to the mapper, i.e.
         - moves_targets: dictionary that given the mon position (int), returns
         the possible targets' position (int) for each of the mon moves
-        - mon_to_pos: a dictionary that given a mon returns its field position
         - pos_to_mon: a dictionary that given a position, returns the mon in it
         - mon_indexes: a list used to link mon to genotype
         Args:
@@ -145,7 +142,6 @@ class PokemonMapper:
         # map the target with its position
         self.moves_targets[pos] = targets
         self.original_moves_targets[pos] = original_targets
-        self.mon_to_pos[mon] = pos
         self.pos_to_mon[pos] = mon
         self.mon_indexes.append(pos)
 

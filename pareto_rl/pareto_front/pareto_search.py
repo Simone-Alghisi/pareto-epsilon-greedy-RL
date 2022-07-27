@@ -16,10 +16,9 @@ Authors:
 - Erich Robbi (erich.robbi@studenti.unitn.it)
 """
 
-from typing import Dict, List, Tuple
-from inspyred.ec import variators
+from typing import List
+from poke_env.player.player import Player
 from pareto_rl.pareto_front.ga.utils.inspyred_utils import NumpyRandomWrapper
-from poke_env.environment.pokemon import Pokemon
 from pareto_rl.dql_agent.utils.move import Move
 from poke_env.environment.double_battle import DoubleBattle
 from pareto_rl.pareto_front.ga.nsga2 import nsga2
@@ -28,8 +27,6 @@ from pareto_rl.pareto_front.classes.next_turn import (
     NextTurn,
     next_turn_mutation,
     next_turn_crossover,
-    NextTurnTest,
-    next_turn_test_mutation,
 )
 import matplotlib.pyplot as plt
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
@@ -71,9 +68,9 @@ def main(args):
 
 def pareto_search(
     args,
-    battle: DoubleBattle = None,
-    pm: PokemonMapper = None,
-    player=None,
+    battle: DoubleBattle,
+    pm: PokemonMapper,
+    player: Player,
 ) -> List[DoubleBattleOrder]:
     r"""Main function which runs the pareto search returning the final population and final population fitness
     It can perform it either on a Showdown battle or on some static pokemon team
@@ -81,7 +78,6 @@ def pareto_search(
         - args: command line arguments
         - battle [DoubleBattle] = None: Pokémon battle
         - pm [PokemonMapper] = None: pokemon mapper
-        - last_turn [List[Tuple[str, str]]] = None: last turn
     Returns:
         - lists of [DoubleBattleOrder]
     """
@@ -97,14 +93,9 @@ def pareto_search(
     """
     -------------------------------------------------------------------------
     """
-    if (battle is not None) and (pm is not None):
-        problem = NextTurn(battle, pm, player)
-        # crossover and mutation
-        nsga2_args["variator"] = [next_turn_crossover, next_turn_mutation]
-    else:
-        problem = NextTurnTest()
-        # crossover and mutation
-        nsga2_args["variator"] = [variators.uniform_crossover, next_turn_test_mutation]
+    problem = NextTurn(battle, pm, player)
+    # crossover and mutation
+    nsga2_args["variator"] = [next_turn_crossover, next_turn_mutation]
 
     # name of the objective for plot purposes
     nsga2_args["objective_0"] = "Mon Dmg"
@@ -130,8 +121,7 @@ def pareto_search(
     orders = []
 
     # Build battle orders starting from the
-    # final population by the means of the
-    # Pokémon mapper
+    # final population by the means of the pokemapper
     for c in final_pop:
         first_order = None
         second_order = None
@@ -141,7 +131,9 @@ def pareto_search(
             target = DoubleBattle.EMPTY_TARGET_POSITION
             if isinstance(action, Move):
                 target = c[i + 1] if c[i + 1] < 3 else 0
-                target = 0 if action.deduced_target in ['self', 'randomNormal'] else target
+                target = (
+                    0 if action.deduced_target in ["self", "randomNormal"] else target
+                )
             if pos < 0:
                 if first_order is None:
                     first_order = BattleOrder(action, move_target=target)
