@@ -321,7 +321,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         self.gamma = gamma
         self.n_actions = None
         self.output_size = None
-        self.update_pm()
+        self.pm: Optional[PokemonMapper] = None
 
     def _init_model(self, input_size, hidden_layers):
         self.policy_net = DarkrAI(input_size, hidden_layers, self.output_size).to(self.device)
