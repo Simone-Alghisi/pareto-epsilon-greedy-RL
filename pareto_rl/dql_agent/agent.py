@@ -1,3 +1,4 @@
+from math import inf
 import torch
 import os
 import wandb
@@ -66,7 +67,7 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
             for t in count():
                 player.update_pm()
                 # Select and perform an action
-                action = player.policy(state, args["step"])
+                action = player.policy(state, args["step"], pareto=args["pareto_p"])
 
                 # if not args['combined_actions']:
                 if isinstance(player, DoubleActionRLPlayer):
@@ -101,11 +102,13 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
 
 def train(player: BaseRLPlayer, num_episodes: int, args):
     memory = ReplayMemory(args["memory"])
+    run_number = int(wandb.run.name.split('-')[-1])
 
     if args["fill_memory"]:
         fill_memory(player, memory, args)
 
-    episode_durations = []
+    best_winrate = 0
+    best_reward = -inf
 
     # train loop
     for i_episode in tqdm(range(num_episodes), desc="Training", unit="episodes"):
@@ -118,6 +121,15 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
             winrate, reward = eval(player, args["eval_interval_episodes"], **args)
             episode_info["winrate"] = winrate
             episode_info["eval_reward"] = reward
+            # Save the model weights in case of improvements
+            if winrate > best_winrate:
+                best_winrate = winrate
+                model_path = os.path.abspath(f"./models/winrate_best_{run_number}.pth")
+                torch.save(player.policy_net.state_dict(), model_path)
+            if reward > best_reward:
+                best_reward = reward
+                model_path = os.path.abspath(f"./models/reward_best_{run_number}.pth")
+                torch.save(player.policy_net.state_dict(), model_path)
 
         # Initialize the environment and state
         observation = torch.tensor(
@@ -140,6 +152,7 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
         episode_cumul_loss = 0
         episode_cumul_reward = 0
 
+        t = 0
         for t in count():
             step_info = episode_info
             # turns
@@ -147,7 +160,7 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
 
             player.update_pm()
             # Select and perform an action
-            action = player.policy(state, args["step"])
+            action = player.policy(state, args["step"], pareto=args["pareto_p"])
 
             # if not args['combined_actions']:
             if isinstance(player, DoubleActionRLPlayer):
@@ -191,7 +204,6 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
             wandb.log(step_info)
 
             if done:
-                episode_durations.append(t + 1)
                 break
         player.step_reset()
         player.episode_reset()
@@ -209,8 +221,10 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
             player.update_target()
 
     player.reset_env()
-    model_path = os.path.abspath("./models/best.pth")
+    model_path = os.path.abspath(f"./models/final_{run_number}.pth")
     torch.save(player.policy_net.state_dict(), model_path)
+
+    return best_winrate, best_reward
 
 
 def eval(player: BaseRLPlayer, num_episodes: int, **args):
@@ -221,7 +235,6 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
         player.reset_battles()
         player.start_challenging()
 
-    episode_durations = []
     episode_reward = 0.0
     for _ in tqdm(range(num_episodes), desc="Evaluating", unit="episodes"):
         observation = torch.tensor(
@@ -240,10 +253,11 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
             continue
 
         episode_cumul_reward = 0.0
+        t = 0
         for t in count():
             player.update_pm()
             # Follow learned policy (eps_greedy=False -> never choose random move)
-            actions = player.policy(state, eps_greedy=False, pareto=False)
+            actions = player.policy(state, eps_greedy=False, pareto=0.0)
 
             if isinstance(player, DoubleActionRLPlayer):
                 observation, reward, done, _ = player.step(
@@ -261,7 +275,6 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
             if not done:
                 next_state = observation
             else:
-                episode_durations.append(t + 1)
                 break
 
             # Move to the next state
@@ -292,12 +305,12 @@ def main(args):
         "input_size": input_size,
         "hidden_layers": hidden_layers,
         "train_episodes": 3000,
-        "eval_episodes": 100,
         "memory": 128 * 40,
         "combined_actions": True,
         "fixed_team": True,
         "fill_memory": True,
         "pareto": True,
+        "pareto_p": 0.7,
     }
 
     battle_format = (
@@ -378,6 +391,5 @@ def main(args):
         }
     )
 
-    train(agent, args["train_episodes"], args)
-    final_winrate, final_reward = eval(agent, args["eval_episodes"], **args)
-    wandb.log({"winrate": final_winrate, "eval_reward": final_reward})
+    best_winrate, best_reward = train(agent, args["train_episodes"], args)
+    wandb.log({"best_winrate": best_winrate, "best_reward": best_reward})
