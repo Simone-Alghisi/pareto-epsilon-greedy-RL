@@ -5,21 +5,14 @@ from poke_env.player.battle_order import (
     BattleOrder,
 )
 from poke_env.teambuilder.teambuilder import Teambuilder
-from poke_env.player.openai_api import _AsyncPlayer
-from poke_env.player_configuration import PlayerConfiguration
-from poke_env.server_configuration import (
-    ServerConfiguration,
-    LocalhostServerConfiguration,
-)
 from pareto_rl.pareto_front.pareto_search import pareto_search
 from argparse import Namespace
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from pareto_rl.dql_agent.utils.utils import (
-    compute_opponent_stats,
     compute_initial_stats,
 )
 from pareto_rl.dql_agent.utils.move import Move
-from typing import List, Tuple, Dict, Optional, Union
+from typing import List, Tuple, Dict
 import orjson
 import random
 import types
@@ -28,7 +21,6 @@ import types
 class ParetoPlayer(Player):
     r"""ParetoPlayer, should perform only Pareto optimal moves"""
 
-    # def __init__(self, battle_format="gen82v2doubles", team=None, **kwargs):
     def __init__(self, battle_format="gen8doublesubers", team=None, **kwargs):
         if team is None:
             team = StaticTeambuilder(TEAM)
