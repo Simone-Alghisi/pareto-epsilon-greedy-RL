@@ -13,28 +13,28 @@ export class DamageCalcController{
   constructor() {}
 
   /**
-   * Function which answers the api request with the json 
+   * Function which answers the api request with the json
    * returned by the damage calculator request
-   * 
+   *
    * @param req Express request
-   * @param res Express response 
-   * 
+   * @param res Express response
+   *
    * It returns error code 200, success
   */
   calc(req: Request, res: Response): void {
     // Json array
     const json_array: any[] = [];
-    // if (field) 
+    // if (field)
     // field = new CalcField();
     for (const r of req.body.requests) {
       // Answer of each request
       const answer: any = {};
       // Loop over the pokemon positions
-      for(const pos in r){ 
+      for(const pos in r){
         const field = r[pos].field;
         // Instantiate the Damage Calc
         const damage_calc_model = new DamageCalcModel(
-          new CalcPokemon(r[pos].attacker.name, new Args(      
+          new CalcPokemon(r[pos].attacker.name, new Args(
             r[pos].attacker.species,
             r[pos].attacker.types,
             r[pos].attacker.weightkg,
@@ -45,6 +45,7 @@ export class DamageCalcController{
             r[pos].attacker.item,
             r[pos].attacker.status,
             r[pos].attacker.toxicCounter,
+            r[pos].attacker.curHP,
             new Stats(
               r[pos].attacker.boosts.hp,
               r[pos].attacker.boosts.at,
@@ -73,6 +74,7 @@ export class DamageCalcController{
             r[pos].target.item,
             r[pos].target.status,
             r[pos].target.toxicCounter,
+            r[pos].attacker.curHP,
             new Stats(
               r[pos].target.boosts.hp,
               r[pos].target.boosts.at,

@@ -17,7 +17,7 @@ def configure_subparsers(subparsers):
     """
     parser = subparsers.add_parser("pareto-battle", help="Test the Pareto agent")
     parser.add_argument(
-      "--player", type=str, default="nextSeason", help="Player to challenge"
+      "--player", type=str, default="ParetePareteParete", help="Player to challenge"
     )
     parser.set_defaults(func=main)
 

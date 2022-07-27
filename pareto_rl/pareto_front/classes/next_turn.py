@@ -21,145 +21,20 @@ from inspyred.ec.emo import Pareto
 from inspyred.ec.variators import mutator, crossover
 from pareto_rl.dql_agent.utils.move import Move
 from pareto_rl.damage_calculator.requester import (
-    damage_request_subprocess,
     damage_request_server,
 )
 from poke_env.environment.double_battle import DoubleBattle
+from poke_env.environment.pokemon import Pokemon
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from pareto_rl.dql_agent.utils.utils import (
     compute_opponent_stats,
     prepare_pokemon_request,
 )
-from typing import List, Tuple, Dict, Union
-from random import sample
+from typing import Any, List, OrderedDict, Tuple, Dict, Union
 import copy
 import json
-
-# possible pokemon
-pkmn = ["gengar", "vulpix", "charmander", "venusaur"]
-
-# possible values
-values = [
-    [
-        "sludge bomb",
-        "shadow ball",
-        "hex",
-        "toxic",
-    ],  # pokemon1.moves,     #4    # Gengar
-    ["vulpix", "charmander", "venusaur"],  # pokemon_on_field,   #3
-    [
-        "fire fang",
-        "flamethrower",
-        "sunny day",
-        "will-o-wisp",
-    ],  # pokemon2.moves,     #4    # Vulpix
-    ["gengar", "charmander", "venusaur"],  # pokemon_on_field,   #3
-    [
-        "fire punch",
-        "ember",
-        "earth power",
-        "tackle",
-    ],  # opponent1.moves,    #4    # Charmander
-    ["gengar", "vulpix", "venusaur"],  # pokemon_on_field,   #3
-    [
-        "energy ball",
-        "sleep powder",
-        "frenzy plant",
-        "leaf storm",
-    ],  # opponent2.moves,    #4    # Venusaur
-    ["gengar", "vulpix", "charmander"],  # pokemon_on_field    #3
-]
-
-
-class NextTurnTest(benchmarks.Benchmark):
-    r"""NextTurnTest, which inherit from the benchmarks.Benchmark
-
-    It is the problem class which deals with a predefined set of pokémon,
-    not attached to any Showdown pokémon battle
-    """
-
-    def __init__(self):
-        r"""NexTurnTest initialization"""
-        # n_dimensions and n_objectives
-        benchmarks.Benchmark.__init__(self, 8, 4)
-        # whether to maximize or minimize the data
-        self.maximize = True
-
-    def generator(self, random, args):
-        r"""Generator function, employed to generate a random population
-        Args:
-            - random: random number generator
-            - args: command line arguments
-        """
-        return [random.sample(values[i], 1)[0] for i in range(self.dimensions)]
-
-    def evaluator(self, candidates, args):
-        r"""Evaluator function, computes the fitness for the actual population
-        Args:
-            - candidates: actual population
-            - args: command line arguments
-        """
-        fitness = []
-        request = {"requests": []}
-        # prepare the damage request starting from the actual population
-        for _, c in enumerate(candidates):
-            request["requests"].append(prepare_static_request(pkmn, c))
-
-        # ask for the damage to the damage requester
-        result = damage_request_subprocess(json.dumps(request))
-        result = json.loads(result)
-
-        # compute the fitenss
-        # This fitness tries to to maximize the ally pokémon damage
-        # and in the meanwhile minimise the opponent damage
-        for r in result["results"]:
-            attacks = []
-            for attack in r.values():
-                damage = attack["damage"]
-                attacks.append(damage.pop() if isinstance(damage, list) else damage)
-
-            f1 = attacks[0] + attacks[1]
-
-            f2 = attacks[2] + attacks[3]
-
-            f3 = max((261 + 217) - f2, 0)
-
-            f4 = max((301 + 219) - f1, 0)
-
-            fitness.append(Pareto([f1, f2, f3, f4], self.maximize))
-        return fitness
-
-
-@mutator
-def next_turn_test_mutation(random, candidate, args):
-    r"""Mutation
-    Args:
-        - random: random number generator
-        - candidate: individual
-        - args: command line arguments
-    """
-    mut_rate = args.setdefault("mutation_rate", 0.1)
-    mutant = copy.copy(candidate)
-    for i, _ in enumerate(mutant):
-        if random.random() < mut_rate:
-            # random sample a pokémon
-            mutant[i] = random.sample(values[i], 1)[0]
-    return mutant
-
-
-def prepare_static_request(pkmn, c):
-    r"""Prepare static request method, employed in order to
-    prepare a request to the damage calculator
-    Args:
-        - pkmn: current pokemon
-        - c: pokémon array
-    """
-    return {
-        0: {"Attacker": pkmn[0], "Move": c[0], "Defender": c[1]},
-        1: {"Attacker": pkmn[1], "Move": c[2], "Defender": c[3]},
-        2: {"Attacker": pkmn[2], "Move": c[4], "Defender": c[5]},
-        3: {"Attacker": pkmn[3], "Move": c[6], "Defender": c[7]},
-    }
+from random import sample
+from copy import deepcopy
 
 
 class NextTurn(benchmarks.Benchmark):
@@ -179,6 +54,7 @@ class NextTurn(benchmarks.Benchmark):
         # buffer for the actual turn, it stores the result of the damage calculator
         # without the need of sending a request
         self.turn_buffer = {}
+        self.p_switch = 0.05
 
     def generator(self, random, args) -> List[Union[Move, int]]:
         r"""
@@ -194,11 +70,78 @@ class NextTurn(benchmarks.Benchmark):
         """
         turn = []
         # who does what against who
-        for _, moves in self.pm.moves_targets.items():
-            random_move = random.choice(list(moves.keys()))
-            random_target = random.choice(moves[random_move])
-            turn += [random_move, random_target]
+        # for _, moves in self.pm.moves_targets.items():
+        available_switches = deepcopy(self.pm.available_switches)
+        for pos in self.pm.pos_to_mon.keys():
+            if len(available_switches[pos]) > 0:
+                if random.random() < self.p_switch:
+                    turn += [
+                        self._choose_random_switch(random, available_switches, pos),
+                        None,
+                    ]
+                else:
+                    turn += self._choose_random_move(random, pos)
+            else:
+                turn += self._choose_random_move(random, pos)
         return turn
+
+    def _choose_random_switch(self, random, available_switches, pos) -> Pokemon:
+        switch = random.choice(available_switches[pos])
+        self._remove_inconsistent_switches(available_switches, pos, switch)
+        return switch
+
+    def _remove_inconsistent_switches(self, available_switches, pos, switch) -> None:
+        ally_pos = (abs(pos) % 2 + 1) * (pos / abs(pos))
+        if ally_pos in available_switches:
+            for i, mon in enumerate(available_switches[ally_pos]):
+                if mon.species == switch.species:
+                    del available_switches[ally_pos][i]
+                    break
+
+    def _add_consistent_switches(self, available_switches, pos, switch) -> None:
+        available_switches[pos].append(switch)
+        ally_pos = (abs(pos) % 2 + 1) * (pos / abs(pos))
+        if ally_pos in available_switches:
+            available_switches[ally_pos].append(switch)
+
+    def _choose_random_move(self, random, pos) -> List[Union[Move, int]]:
+        random_move = random.choice(list(self.pm.moves_targets[pos].keys()))
+        random_target = random.choice(self.pm.moves_targets[pos][random_move])
+        return [random_move, random_target]
+
+    def _repair_switches(self, random, pos, child) -> None:
+        if pos in self.pm.available_switches:
+            ally_pos = int((abs(pos) % 2 + 1) * (pos / abs(pos)))
+            if ally_pos in self.pm.available_switches:
+                idx = self.pm.mon_indexes.index(pos) * 2
+                ally_idx = self.pm.mon_indexes.index(ally_pos) * 2
+                if (
+                    isinstance(child[idx], Pokemon)
+                    and isinstance(child[ally_idx], Pokemon)
+                    and child[idx].species == child[ally_idx].species
+                ):
+                    available_switches = deepcopy(self.pm.available_switches)
+                    switch = child[idx]
+                    if random.random() < 0.5:
+                        moves = self.pm.moves_targets[pos]
+                        self._remove_inconsistent_switches(
+                            available_switches, pos, switch
+                        )
+                        mutate(random, available_switches, pos, child, self, moves, idx)
+                    else:
+                        moves = self.pm.moves_targets[ally_pos]
+                        self._remove_inconsistent_switches(
+                            available_switches, ally_pos, switch
+                        )
+                        mutate(
+                            random,
+                            available_switches,
+                            ally_pos,
+                            child,
+                            self,
+                            moves,
+                            ally_idx,
+                        )
 
     def evaluator(self, candidates, args) -> List[Pareto]:
         r"""
@@ -219,64 +162,82 @@ class NextTurn(benchmarks.Benchmark):
         player = self.player
         data = {"requests": []}
 
-        n_mon = 0
-        n_opp = 0
-
-        starting_hp: Dict[int, int] = {}
-        for pos, mon in pm.pos_to_mon.items():
-            if pos < 0:
-                starting_hp[pos] = mon.current_hp
-                n_mon += 1
-            else:
-                starting_hp[pos] = (
-                    mon.current_hp * compute_opponent_stats("hp", mon)
-                ) // 100
-                n_opp += 1
+        turns = []
+        responses = {}
+        requests = {}
+        mapping = {}
+        i = 0
 
         for c in candidates:
+            # compute the turn order to handle correctly switches
+            turn_order = get_turn_order(c, pm, player)
+
+            # prepare the request and change who is on the field
+            attacks, pos_to_mon = prepare_request(c, pm, turn_order)
+            turns.append((attacks, turn_order, pos_to_mon))
+            for attacker_pos, targets in attacks.items():
+                for target_pos, r in targets.items():
+                    move = Move(Move.retrieve_id(r["move"]))
+                    key = hash(f"{attacker_pos}{target_pos}{move}")
+
+                    # exploit the turn buffer
+                    if key not in self.turn_buffer:
+                        mapping[i] = key
+                        requests[i] = r
+                        i += 1
+
+        # send the request
+        if i > 0:
+            data["requests"] = [requests]
+            responses = damage_request_server(data)
+            responses = json.loads(responses)
+            responses = responses.pop()
+
+            for i, response in responses.items():
+                # save the result in the buffer
+                key = mapping[int(i)]
+                self.turn_buffer[key] = response
+
+        for attacks, turn_order, pos_to_mon in turns:
             mon_dmg = 0
             mon_hp = 0
             opp_dmg = 0
             opp_hp = 0
+            n_mon = 0
+            n_opp = 0
 
-            # retrieve the current turn order of the pokemon
-            turn_order = get_turn_order(c, pm, player)
+            # Runtime hp instance, given that switches may change the pokemon on the field
+            starting_hp: Dict[int, int] = {}
+            for pos, mon in pos_to_mon.items():
+                if pos < 0:
+                    starting_hp[pos] = mon.current_hp
+                    n_mon += 1
+                else:
+                    starting_hp[pos] = (
+                        mon.current_hp * compute_opponent_stats("hp", mon)
+                    ) // 100
+                    n_opp += 1
 
-            # a dictionary to decide wheter one mon has been
+            # a dictionary to decide whether one mon has been
             # defeated and cannot attack anymore
             remaining_hp = starting_hp.copy()
 
             dmg_taken = {}
-            # prepare a possible request for the candidate
-            possible_requests = prepare_request(c, pm)
 
             for attacker_pos in turn_order:
+                # it's a switch, which is already been performed
+                if attacker_pos not in attacks:
+                    continue
                 # that pokemon is already dead (like the neurons in ReLU)
                 if remaining_hp[attacker_pos] == 0:
                     continue
 
-                gene_idx = pm.mon_indexes.index(attacker_pos) * 2
-
-                for target_pos, request in possible_requests[attacker_pos].items():
-                    # move
-                    move = c[gene_idx]
-                    # key of the hash
+                for target_pos, r in attacks[attacker_pos].items():
+                    move = Move(Move.retrieve_id(r["move"]))
                     key = hash(f"{attacker_pos}{target_pos}{move}")
 
-                    # exploit the turn buffer
-                    if key in self.turn_buffer:
-                        r = self.turn_buffer[key]
-                    else:
-                        # send the request
-                        data["requests"] = [{attacker_pos: request}]
-                        r = damage_request_server(data)
-                        r = json.loads(r)
-                        r = r.pop()
-                        r = list(r.values()).pop()
-                        # save the result in the buffer
-                        self.turn_buffer[key] = r
+                    damage = self.turn_buffer[key]["damage"]
 
-                    damage = r["damage"]
                     if isinstance(damage, list):
                         damage = damage[len(damage) // 2]
 
@@ -342,12 +303,19 @@ def next_turn_mutation(random, candidate, args):
     """
     mut_rate = args.setdefault("mutation_rate", 0.1)
     mutant = copy.deepcopy(candidate)
-    problem = args["problem"]
-    pm = problem.pm
+    problem: NextTurn = args["problem"]
+    pm: PokemonMapper = problem.pm
     moves_targets = pm.moves_targets
     already_mutated = False
+    available_switches = deepcopy(pm.available_switches)
 
-    for i, _ in enumerate(candidate):
+    for i in range(0, len(candidate), 2):
+        if isinstance(candidate[i], Pokemon):
+            pos = pm.get_field_pos_from_genotype(i)
+            switch = candidate[i]
+            problem._remove_inconsistent_switches(available_switches, pos, switch)
+
+    for i in range(0, len(candidate)):
         if already_mutated:
             already_mutated = False
             continue
@@ -356,19 +324,37 @@ def next_turn_mutation(random, candidate, args):
             # get available moves of the mon at a certain position
             moves = moves_targets[pos]
             if i % 2 == 0:
-                current_target = mutant[i + 1]
-                mutated_move = random.choice(list(moves.keys()))
-                mutant[i] = mutated_move
-                move_targets = moves[mutated_move]
-                # if target is not an option for the mutated move
-                if current_target not in move_targets:
-                    mutant[i + 1] = random.choice(move_targets)
-                    already_mutated = True
+                already_mutated = mutate(
+                    random, available_switches, pos, mutant, problem, moves, i
+                )
             else:
-                # pick a new target from the available ones for the current move
-                move_targets = moves[mutant[i - 1]]
-                mutant[i] = random.choice(move_targets)
+                if mutant[i] is not None:
+                    # pick a new target from the available ones for the current move
+                    move_targets = moves[mutant[i - 1]]
+                    mutant[i] = random.choice(move_targets)
     return mutant
+
+
+def mutate(random, available_switches, pos, mutant, problem, moves, idx) -> bool:
+    already_mutated = False
+    if len(available_switches[pos]) > 0 and random.random() < problem.p_switch:
+        if isinstance(mutant[idx], Pokemon):
+            old_switch = mutant[idx]
+            problem._add_consistent_switches(available_switches, pos, old_switch)
+        mutated_switch = random.choice(available_switches[pos])
+        mutant[idx] = mutated_switch
+        mutant[idx + 1] = None
+        problem._remove_inconsistent_switches(available_switches, pos, mutated_switch)
+    else:
+        mutated_move = random.choice(list(moves.keys()))
+        mutant[idx] = mutated_move
+        move_targets = moves[mutated_move]
+        current_target = mutant[idx + 1]
+        # if target is not an option for the mutated move
+        if current_target is None or current_target not in move_targets:
+            mutant[idx + 1] = random.choice(move_targets)
+            already_mutated = True
+    return already_mutated
 
 
 @crossover
@@ -395,6 +381,7 @@ def next_turn_crossover(random, mom, dad, args):
     """
     ux_bias = args.setdefault("ux_bias", 0.5)
     crossover_rate = args.setdefault("crossover_rate", 1.0)
+    problem: NextTurn = args["problem"]
     children = []
     if random.random() < crossover_rate:
         bro = copy.deepcopy(dad)
@@ -404,6 +391,11 @@ def next_turn_crossover(random, mom, dad, args):
             if random.random() < ux_bias:
                 bro[i : i + 2] = mom[i : i + 2]
                 sis[i : i + 2] = dad[i : i + 2]
+
+        for child in [bro, sis]:
+            for pos in [-1, 1]:
+                problem._repair_switches(random, pos, child)
+
         children.append(bro)
         children.append(sis)
     else:
@@ -412,7 +404,9 @@ def next_turn_crossover(random, mom, dad, args):
     return children
 
 
-def prepare_request(c, pm: PokemonMapper) -> Dict[int, List[Dict[str, Dict[str, any]]]]:
+def prepare_request(
+    c, pm: PokemonMapper, turn_order: List[int]
+) -> Tuple[Dict[int, Dict[str, Dict[str, Any]]], OrderedDict[int, Pokemon]]:
     r"""
     Function which prepares the requests to send to the damage calculator
     server in order to evaluate the individual fitness
@@ -425,34 +419,64 @@ def prepare_request(c, pm: PokemonMapper) -> Dict[int, List[Dict[str, Dict[str, 
     - requests [Dict]: request ready to be sent.
     """
     request = {}
-    # for each of the pokemon in the individual (at most 4)
-    for i in range(0, len(c), 2):
-        # attacker
-        attacker_pos = pm.get_field_pos_from_genotype(i)
-        attacker = pm.pos_to_mon[attacker_pos]
+    pos_to_mon: OrderedDict[int, Pokemon] = pm.pos_to_mon.copy()
 
-        # target
-        target_pos = c[i + 1]
-        possible_targets = map_abstract_target(target_pos, attacker_pos, pm)
+    # for each of the pokemon in turn order
+    for pos in turn_order:
+        # TODO... we could convert this into a function
+        i = pm.mon_indexes.index(pos) * 2
+        # check if we are talking about a move
+        if isinstance(c[i], Move):
+            # attacker
+            attacker_pos = pos
+            attacker = pos_to_mon[attacker_pos]
 
-        # move
-        move = c[i]
-        move_name = move.get_showdown_name()
+            # target
+            target_pos = c[i + 1]
+            possible_targets = map_abstract_target(target_pos, attacker_pos, pm)
 
-        attacker_args = prepare_pokemon_request(attacker)
-        request[attacker_pos] = {}
+            # move
+            move = c[i]
+            move_name = move.get_showdown_name()
 
-        for target_pos in possible_targets:
-            target = pm.pos_to_mon[target_pos]
-            target_args = prepare_pokemon_request(target)
-            request[attacker_pos][target_pos] = {
-                "attacker": attacker_args,
-                "target": target_args,
-                "move": move_name,
-                # TODO map poke_env var for damage_calc
-                "field": {"gameType": "Doubles"},
-            }
-    return request
+            attacker_args = prepare_pokemon_request(attacker, attacker_pos)
+            request[attacker_pos] = {}
+
+            for target_pos in possible_targets:
+                target = pos_to_mon[target_pos]
+                target_args = prepare_pokemon_request(target, target_pos)
+                request[attacker_pos][target_pos] = {
+                    "attacker": attacker_args,
+                    "target": target_args,
+                    "move": move_name,
+                    # TODO map poke_env var for damage_calc
+                    "field": {"gameType": "Doubles"},
+                }
+        elif isinstance(c[i], Pokemon):
+            # TODO... we may create a function for this
+            switch_pos = pos
+            switch: Pokemon = c[i]
+            # the switch is already valid
+            if switch_pos < 0:
+                # If we want to switch into our pokemon, we have it no matter what
+                for mon in pm.battle.team.values():
+                    if mon.species == switch.species:
+                        pos_to_mon[switch_pos] = mon
+                        break
+            else:
+                found = False
+                # If we are considering an opponent pokemon, we may have to create it
+                for mon in pm.battle.opponent_team.values():
+                    if mon.species == switch.species:
+                        pos_to_mon[switch_pos] = mon
+                        found = True
+                        break
+                if not found:
+                    # Pareto knows the pokemon exists, but it did not enter the field yet
+                    switch._set_hp_status("100/100")
+                    pos_to_mon[switch_pos] = switch
+
+    return request, pos_to_mon
 
 
 def get_turn_order(c, pm: PokemonMapper, player) -> List[int]:
@@ -478,9 +502,12 @@ def get_turn_order(c, pm: PokemonMapper, player) -> List[int]:
         pos = pm.get_field_pos_from_genotype(i)
         mon = pm.pos_to_mon[pos]
         mon_speed = player.get_mon_estimates(mon, pos)["spe"]
-        move = c[i]
-        move_priority = move.priority
-        turn_order.append((pos, move_priority, mon_speed))
+        if isinstance(c[i], Move):
+            move = c[i]
+            priority = move.priority
+        else:
+            priority = 6
+        turn_order.append((pos, priority, mon_speed))
 
     # sort the moves based first on their priority and then the speed of the pokemons
     turn_order.sort(key=lambda x: (x[1], x[2]), reverse=True)

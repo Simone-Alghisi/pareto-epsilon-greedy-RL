@@ -1,3 +1,4 @@
+import re
 from poke_env.environment.double_battle import DoubleBattle
 from poke_env.player.battle_order import (
     BattleOrder,
@@ -7,8 +8,13 @@ from poke_env.player.battle_order import (
 from pareto_rl.dql_agent.utils.move import Move
 from poke_env.environment.move import Move as OriginalMove
 from poke_env.environment.pokemon import Pokemon
-from pareto_rl.dql_agent.utils.utils import get_possible_showdown_targets
-from typing import Dict, List, Set, Union
+from poke_env.data import to_id_str
+from pareto_rl.dql_agent.utils.utils import (
+    get_possible_showdown_targets,
+    get_pokemon_showdown_name,
+)
+from typing import Dict, List, Optional, Union, OrderedDict
+from collections import OrderedDict as ordered_dict
 
 
 class PokemonMapper:
@@ -18,23 +24,26 @@ class PokemonMapper:
     and could be useful for other applications, e.g.
     - moves_targets: dictionary that given the mon position (int), returns
     the possible targets' position (int) for each of the mon moves
-    - mon_to_pos: a dictionary that given a mon returns its field position
     - pos_to_mon: a dictionary that given a position, returns the mon in it
     - mon_indexes: a list used to link mon to genotype
     """
 
-    def __init__(self, battle: DoubleBattle) -> None:
+    def __init__(
+        self, battle: DoubleBattle, opponent_team: Optional[str] = None
+    ) -> None:
         self.battle = battle
         self.moves_targets: Dict[int, Dict[Move, List[int]]] = {}
         self.original_moves_targets: Dict[int, Dict[Move, List[int]]] = {}
-        self.mon_to_pos: Dict[Pokemon, int] = {}
-        self.pos_to_mon: Dict[int, Pokemon] = {}
+        self.pos_to_mon: OrderedDict[int, Pokemon] = ordered_dict()
         self.mon_indexes: List[int] = []
-        self.available_switches: Dict[int, list] = {}
-        self.available_orders: Union[
-            List[DoubleBattleOrder], List[DefaultBattleOrder], None
+        self.available_switches: Dict[int, List[Pokemon]] = {}
+        self.available_orders: Optional[
+            Union[List[DoubleBattleOrder], List[DefaultBattleOrder]]
         ] = None
         self.available_moves: Dict[int, List[Move]] = {}
+        self.opponent_info: Optional[Dict[str, List[OriginalMove]]] = self.parse_team(
+            opponent_team
+        )
         active_orders: List[List[BattleOrder]] = [[], []]
 
         # your mons
@@ -52,7 +61,9 @@ class PokemonMapper:
                 # do not look at me like that, if it breaks it's their fault
                 if sum(battle.force_switch) == 1 and self.available_orders is None:
                     if orders:
-                        self.available_orders = DoubleBattleOrder.join_orders(orders, None)
+                        self.available_orders = DoubleBattleOrder.join_orders(
+                            orders, None
+                        )
                     self.available_orders = [DefaultBattleOrder()]
 
             pos -= 1
@@ -67,25 +78,13 @@ class PokemonMapper:
         pos = 1
         for mon in battle.opponent_active_pokemon:
             if mon:
-                # hardcoded opponent moves
-                opp_moves: Set[Move]
-                if mon.species.strip().lower() == "Zigzagoon".strip().lower():
-                    opp_moves = {
-                        Move("doubleedge"),
-                        Move("surf"),
-                        Move("bodyslam"),
-                        Move("thunderbolt"),
-                    }
+                if self.opponent_info is not None:
+                    opp_moves: List[OriginalMove] = self.opponent_info[
+                        get_pokemon_showdown_name(mon)
+                    ]
                 else:
-                    opp_moves = {
-                        Move("energyball"),
-                        Move("gigadrain"),
-                        Move("knockoff"),
-                        Move("leafstorm"),
-                    }
-                # TODO in the general case, first retrieve known moves and then infer
-                # the other probabilistically
-                # moves = mon.moves # pokemon used moves
+                    # the other probabilistically
+                    opp_moves = list(mon.moves.values())  # pokemon used moves
                 self.mapper(opp_moves, mon, pos)
             pos += 1
 
@@ -103,15 +102,14 @@ class PokemonMapper:
         moves: List[OriginalMove],
         mon: Pokemon,
         pos: int,
-        available_switches: Union[List[Pokemon], None] = None,
-        orders: Union[List[BattleOrder], None] = None,
+        available_switches: Optional[List[Pokemon]] = None,
+        orders: Optional[List[BattleOrder]] = None,
     ) -> None:
         r"""
         Given a mon, its set of moves, and its position of the field, makes
         available additional information to the mapper, i.e.
         - moves_targets: dictionary that given the mon position (int), returns
         the possible targets' position (int) for each of the mon moves
-        - mon_to_pos: a dictionary that given a mon returns its field position
         - pos_to_mon: a dictionary that given a position, returns the mon in it
         - mon_indexes: a list used to link mon to genotype
         Args:
@@ -128,7 +126,7 @@ class PokemonMapper:
             targets[casted_move] = pt
             original_targets[casted_move] = ot
             if pos not in self.available_moves:
-              self.available_moves[pos] = []
+                self.available_moves[pos] = []
             self.available_moves[pos].append(casted_move)
             if orders is not None:
                 orders.extend(
@@ -144,12 +142,24 @@ class PokemonMapper:
         # map the target with its position
         self.moves_targets[pos] = targets
         self.original_moves_targets[pos] = original_targets
-        self.mon_to_pos[mon] = pos
         self.pos_to_mon[pos] = mon
         self.mon_indexes.append(pos)
 
         if available_switches is not None:
             self.available_switches[pos] = available_switches
+        else:
+            if self.opponent_info is not None:
+                possible_switches = {mon_name for mon_name in self.opponent_info.keys()}
+                for active_opp in self.battle.opponent_active_pokemon:
+                    if active_opp:
+                        possible_switches.remove(get_pokemon_showdown_name(active_opp))
+                for opp in self.battle.opponent_team.values():
+                    if opp.fainted:
+                        possible_switches.remove(get_pokemon_showdown_name(opp))
+                self.available_switches[pos] = [
+                    Pokemon(species=to_id_str(showdown_name))
+                    for showdown_name in possible_switches
+                ]
 
     def alive_pokemon_number(self) -> int:
         r"""
@@ -170,3 +180,18 @@ class PokemonMapper:
             pos: the position of the mon associated to index
         """
         return self.mon_indexes[index // 2]
+
+    def parse_team(
+        self, opponent_team: Optional[str]
+    ) -> Optional[Dict[str, List[OriginalMove]]]:
+        if opponent_team is None:
+            return None
+        opponent_info: Dict[str, List[OriginalMove]] = {}
+        coarse_split = re.split(r"Ability|\n\n", opponent_team[1:-1])
+        for i in range(0, len(coarse_split), 2):
+            mon_name = re.split(r"@|\n|\(| ", coarse_split[i])[0]
+            opponent_info[mon_name] = [
+                OriginalMove(Move.retrieve_id(re.split(r"\n", move_name)[0]))
+                for move_name in re.split(r"- ", coarse_split[i + 1])[-4:]
+            ]
+        return opponent_info

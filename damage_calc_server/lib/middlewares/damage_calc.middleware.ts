@@ -13,9 +13,9 @@ export class DamageCalcMiddleware extends CommonMiddleware {
 
   /**
    * Function which validates the move field of a request
-   * 
+   *
    * @param move move field
-   * 
+   *
    * @returns true if the field is valid
    * @returns false if the field is not valid
   */
@@ -24,26 +24,26 @@ export class DamageCalcMiddleware extends CommonMiddleware {
   }
 
   /**
-   * Function which validates the args field of a pokemon in the 
+   * Function which validates the args field of a pokemon in the
    * request
-   * 
+   *
    * @param args args field
-   * 
+   *
    * @returns true if the field is valid
    * @returns false if the field is not valid
   */
   static validateArgs(args: any): boolean {
-    return args.species && 
-    args.types && 
-    args.weightkg && 
-    args.level && 
-    args.gender && 
-    args.ability && 
-    args.is_dynamaxed && 
-    args.item && 
-    args.status && 
-    args.toxicCounter && 
-    // args.curHP && 
+    return args.species &&
+    args.types &&
+    args.weightkg &&
+    args.level &&
+    args.gender &&
+    args.ability &&
+    args.is_dynamaxed &&
+    args.item &&
+    args.status &&
+    args.toxicCounter &&
+    args.curHP &&
     DamageCalcMiddleware.validateString(args.species) &&
     DamageCalcMiddleware.validateStringArray(args.types) &&
     DamageCalcMiddleware.isNumber(args.weightkg) &&
@@ -54,23 +54,23 @@ export class DamageCalcMiddleware extends CommonMiddleware {
     DamageCalcMiddleware.stringOrUndefined(args.item) &&
     DamageCalcMiddleware.stringOrUndefined(args.status) &&
     DamageCalcMiddleware.isNumber(args.toxicCounter)
-    // DamageCalcMiddleware.isNumber(args.curHP)
+    DamageCalcMiddleware.isNumber(args.curHP)
   }
 
   /**
-   * Function which validates the stats field of a pokemon in the 
+   * Function which validates the stats field of a pokemon in the
    * request
-   * 
+   *
    * @param stat args field
    * @param boost if it is a boost field
-   * 
+   *
    * @returns true if the field is valid
    * @returns false if the field is not valid
   */
   static validateStats(stat: any, boost: boolean): boolean{
     let valid: boolean;
     if(boost){
-      valid = 
+      valid =
       stat.at && DamageCalcMiddleware.isNumber(stat.at) &&
       stat.df && DamageCalcMiddleware.isNumber(stat.df) &&
       stat.sa && DamageCalcMiddleware.isNumber(stat.sa) &&
@@ -88,11 +88,11 @@ export class DamageCalcMiddleware extends CommonMiddleware {
   }
 
   /**
-   * Function which validates the fields of a pokemon in the 
+   * Function which validates the fields of a pokemon in the
    * request
-   * 
+   *
    * @param mon pokemon field
-   * 
+   *
    * @returns true if the field is valid
    * @returns false if the field is not valid
   */
@@ -102,11 +102,11 @@ export class DamageCalcMiddleware extends CommonMiddleware {
 
   /**
    * Function which validates the batch of requests to the @smogol/calc
-   * 
+   *
    * @param req Express request
-   * @param res Express response 
+   * @param res Express response
    * @param next Express next function
-   * 
+   *
    * In case of errors, it returns error code 422, unprocessable entity
   */
   validateRequestBatch(req: Request, res: Response, next: NextFunction) :void {
@@ -119,12 +119,12 @@ export class DamageCalcMiddleware extends CommonMiddleware {
         for (const pos in r) {
           // Check if the request is valid
           if (
-            DamageCalcMiddleware.validatePokemonFields(r[pos].attacker) && 
-            DamageCalcMiddleware.validatePokemonFields(r[pos].target) && 
+            DamageCalcMiddleware.validatePokemonFields(r[pos].attacker) &&
+            DamageCalcMiddleware.validatePokemonFields(r[pos].target) &&
             r[pos].move &&
-            DamageCalcMiddleware.validateMove(r[pos].move) && 
-            DamageCalcMiddleware.validateArgs(r[pos].attacker.args) && 
-            DamageCalcMiddleware.validateArgs(r[pos].target.args) && 
+            DamageCalcMiddleware.validateMove(r[pos].move) &&
+            DamageCalcMiddleware.validateArgs(r[pos].attacker.args) &&
+            DamageCalcMiddleware.validateArgs(r[pos].target.args) &&
             r[pos].attacker.boost &&
             r[pos].attacker.stats &&
             r[pos].target.sats &&
@@ -150,11 +150,11 @@ export class DamageCalcMiddleware extends CommonMiddleware {
   /**
    * Function which performs a request setup, which means that
    * it adapts the requests for both posts and gets
-   * 
+   *
    * @param req Express request
-   * @param res Express response 
+   * @param res Express response
    * @param next Express next function
-   * 
+   *
    * In case of errors, it returns error code 422, unprocessable entity
   */
   setupReq(req: Request, res: Response, next: NextFunction) :void{
