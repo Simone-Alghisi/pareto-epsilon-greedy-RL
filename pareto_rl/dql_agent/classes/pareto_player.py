@@ -270,7 +270,7 @@ async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
             mon = split_message[2]
             move = split_message[3]
             self.last_turn.append((mon, move))
-        elif split_message[1] == "poke" and split_message[2] == "p2":
+        elif split_message[1] == "poke" and split_message[2] == battle.opponent_role:
             self.full_team.add(split_message[3].split(",")[0])
 
 

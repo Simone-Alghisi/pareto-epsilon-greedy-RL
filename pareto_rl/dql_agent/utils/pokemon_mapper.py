@@ -36,7 +36,8 @@ class PokemonMapper:
         showdown_opp_team: Optional[str] = None,
     ) -> None:
         self.battle: DoubleBattle = battle
-        self.full_team: Set[str] = full_team
+        # Damn you, Urshifu-*!
+        self.full_team: Set[str] = {mon_name.split('-*')[0] for mon_name in full_team}
         self.opponent_info: Optional[Dict[str, List[OriginalMove]]] = self.parse_team(
             showdown_opp_team
         )

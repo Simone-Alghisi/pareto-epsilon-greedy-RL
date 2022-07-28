@@ -103,6 +103,7 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
 def train(player: BaseRLPlayer, num_episodes: int, args):
     memory = ReplayMemory(args["memory"])
     run_number = int(wandb.run.name.split('-')[-1])
+    player.start_challenging()
 
     if args["fill_memory"]:
         fill_memory(player, memory, args)
@@ -290,21 +291,21 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
 def main(args):
     hidden_layers = [256, 128]
     n_moves = 4
-    n_switches = 1
+    n_switches = 4
     n_targets = 5
-    input_size = 104
+    input_size = 364
     args = {
         "batch_size": 128,
         "gamma": 0.999,
-        "target_update": 750,
-        "eval_interval": 200,
+        "target_update": 500,
+        "eval_interval": 150,
         "eval_interval_episodes": 100,
         "eps_start": 0.9,
         "eps_end": 0.05,
-        "eps_decay": 10**3,
+        "eps_decay": 500,
         "input_size": input_size,
         "hidden_layers": hidden_layers,
-        "train_episodes": 3000,
+        "train_episodes": 1500,
         "memory": 128 * 40,
         "combined_actions": True,
         "fixed_team": True,

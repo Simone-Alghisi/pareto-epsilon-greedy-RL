@@ -7,17 +7,19 @@ from argparse import Namespace
 from gym.spaces import Space
 from abc import ABC, abstractmethod
 from typing import List, Optional, Union
+from poke_env.data import MOVES
 from poke_env.environment.double_battle import DoubleBattle
 from poke_env.environment.pokemon import Pokemon
 from poke_env.environment.move import Move as OriginalMove
 from poke_env.player.env_player import Gen8EnvSinglePlayer
 from poke_env.player.battle_order import BattleOrder, DefaultBattleOrder, DoubleBattleOrder, ForfeitBattleOrder
-from pareto_rl.dql_agent.utils.move import Move
-from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
 from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder, bind_pareto
+from pareto_rl.dql_agent.utils.move import Move
+from pareto_rl.dql_agent.utils.teams import VGC_1 as OPP_TEAM
+from pareto_rl.dql_agent.utils.teams import VGC_2 as TEAM
+from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from pareto_rl.pareto_front.pareto_search import pareto_search
-from pareto_rl.dql_agent.classes.max_damage_player import TEAM as OPP_TEAM
 
 class SimpleRLPlayer(Gen8EnvSinglePlayer):
     def __init__(self, **kwargs):
@@ -28,15 +30,27 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         active = []
         bench = []
         # labels = []
+        mon_data_len = 0
+        move_data_len = 0
 
         obs.append(len([mon for mon in battle.team.values() if not mon.fainted])/len(battle.team))
         # labels.append("remaning_mon")
         obs.append(len([mon for mon in battle.opponent_team.values() if not mon.fainted])/len(battle.opponent_team))
         # labels.append("remaning_opp")
+        weathers = list(battle.weather.keys())
+        if len(weathers) > 0:
+            obs.append(weathers[0].value / 8)
+        else:
+            obs.append(0)
+        # labels.append("weather")
+        fields = list(battle.fields.keys())
+        if len(fields) > 0:
+            obs.append(fields[0].value / 13)
+        else:
+            obs.append(0)
+        # labels.append("field")
 
         for i,mon in enumerate(battle.team.values()):
-            # lots of info are available, the problem is time,
-            # hughes effect, and also mapping
             mon_data = []
             # bl = f"mon_{i}"
 
@@ -45,7 +59,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             mon_data.extend(types)
             # labels.extend([f"{bl}_type_1", f"{bl}_type_2"])
 
-            # hp normalised (good idea?)
+            # hp normalised
             mon_data.append(mon.current_hp_fraction)
             # labels.append(f"{bl}_hp_frac")
 
@@ -53,74 +67,42 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             mon_data.append(mon.protect_counter/10)
             # labels.append(f"{bl}_protect_counter")
 
-            # stats (5)
-            mon_data.extend([stat / 614 for stat in mon.stats.values()])
-            # labels.extend([f"{bl}_{stat}" for stat in mon.stats.keys()])
+            for stat_name, stat in mon.stats.items():
+                boost = mon.boosts[stat_name]
 
-            # boosts and debuffs (7)
-            # TODO it may be possible to compute it together with
-            # the stats above to reduce the parameters
-            # mon_data.extend([(boost+6)/12 for boost in mon.boosts.values()])
-            # labels.extend([f"{bl}_{boost}" for boost in mon.boosts.keys()])
-
-            # for stat_name, stat in mon.stats.items():
-            #       boost = mon.boosts[stat_name]
-            #
-            #       # labels.append(f"{bl}_{stat_name}_w_boost_mult")
-            #       if boost >= 0:
-            #           mon_data.append(stat/614*((2+boost)/2))
-            #       else:
-            #           mon_data.append(stat/614*(2/(2+(-boost))))
+                # labels.append(f"{bl}_{stat_name}_w_boost_mult")
+                if boost >= 0:
+                    mon_data.append(stat/614*((2+boost)/2))
+                else:
+                    mon_data.append(stat/614*(2/(2+(-boost))))
 
             # status
-            # TODO one-hot-encoding?
-            # mon_data.append(mon.status.value / 7 if mon.status is not None else 0)
+            mon_data.append(mon.status.value / 7 if mon.status is not None else 0)
             # labels.append(f"{bl}_status")
 
             # moves
-            # TODO... is it possible to have less than 4?
-            j = 0
-            # mbl = f"move_{j}"
             for j, move in enumerate(mon.moves.values()):
                 # mbl = f"move_{j}"
                 move_data = []
 
-                # TODO... should we consider insering the move id?
-                # while it may be difficult to learn...
-                # it may be particularly useful to discriminate
-                # the final effect of the move if similar
-                # N.B this is a string, need to convert it using
-                # the MOVES dictionary from the json
-                # move_data.append(move._id)
+                # id
+                move_data.append(MOVES[move._id]["num"] / 826)
+                # labels.append(f"{bl}_{mbl}_id")
 
                 # base power
                 move_damage = move.base_power
                 # consider STAB (same type attack bonus)
                 if move.type in mon.types:
                     move_damage *= 1.5
-                # move_data.append(move_damage / 100) # normalisation
                 # labels.append(f"{bl}_{mbl}_damage")
 
                 # priority
-                # move_data.append((move.priority + 7)/12)
+                move_data.append((move.priority + 7)/12)
                 # labels.append(f"{bl}_{mbl}_priority")
 
-                # accuracy
-                # TODO... should we encode together w/ damage?
-                # move_data.append(move.accuracy)
-                # labels.append(f"{bl}_{mbl}_accuracy")
-
-                # category (?)
-                # move_data.append((move.category.value - 1) / 2)
-                # labels.append(f"{bl}_{mbl}_category")
-
-                # pp (?)
-                # move_data.append(move.current_pp / move.max_pp)
-                # labels.append(f"{bl}_{mbl}_remaining_pp_percentage")
-
-                # recoil (?)
-                # move_data.append(move.recoil)
-                # labels.append(f"{bl}_{mbl}_recoil")
+                # type
+                move_data.append(move.type.value/18)
+                # labels.append(f"{bl}_{mbl}_type")
 
                 # damage for each active opponent (2)
                 for k, opp in enumerate(battle.opponent_active_pokemon):
@@ -132,21 +114,19 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                         # if one is dead, append -1
                         move_data.append(-1)
 
+                move_data_len = len(move_data)
                 mon_data.extend(move_data)
 
-            # mon_data.extend([-1 for _ in range(8)]*(4-len(mon.moves)))
-            mon_data.extend([-1 for _ in range(2)]*(4-len(mon.moves)))
+            mon_data.extend([-1 for _ in range(move_data_len)]*(4-len(mon.moves)))
 
-            # for l in range(4-len(mon.moves)):
-            #       # labels.extend([f"{bl}_move_{l}_damage",
+            # for l in range(4-len(mon.moves), len(mon.moves)):
+            #           labels.extend([f"{bl}_move_{l}_id",
             #           f"{bl}_move_{l}_priority",
-            #           f"{bl}_move_{l}_accuracy",
-            #           f"{bl}_move_{l}_category",
-            #           f"{bl}_move_{l}_remaining_pp_percentage",
-            #           f"{bl}_move_{l}_recoil",
+            #           f"{bl}_move_{l}_type",
             #           f"{bl}_move_{l}_act_1_dmg",
             #           f"{bl}_move_{l}_act_2_dmg"])
 
+            mon_data_len = len(mon_data)
             if mon.active == True:
                 active.extend(mon_data)
             else:
@@ -159,8 +139,6 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
         bench = []
 
         for i, mon in enumerate(battle.opponent_team.values()):
-            # lots of info are available, the problem is time,
-            # hughes effect, and also mapping
             mon_data = []
             # bl = f"opp_{i}"
 
@@ -169,7 +147,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             mon_data.extend(types)
             # labels.extend([f"{bl}_type_1", f"{bl}_type_2"])
 
-            # hp normalised (good idea?)
+            # hp normalised
             mon_data.append(mon.current_hp_fraction)
             # labels.append(f"{bl}_hp_frac")
 
@@ -177,76 +155,45 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             mon_data.append(mon.protect_counter/10)
             # labels.append(f"{bl}_protect_counter")
 
-            # stats (5)
-            mon_data.extend([stat / 230 for stat_key, stat in mon.base_stats.items() if stat_key != 'hp'])
-            # labels.extend([f"{bl}_{stat}" for stat in mon.base_stats.keys()])
+            # stats + boosts (5)
+            for stat_name, stat in mon.base_stats.items():
+                if stat_name == "hp":
+                    continue
+                boost = mon.boosts[stat_name]
 
-            # boosts and debuffs (7)
-            # TODO it may be possible to compute it together with
-            # the stats above to reduce the parameters
-            # mon_data.extend([(boost+6)/12 for boost in mon.boosts.values()])
-            # labels.extend([f"{bl}_{boost}" for boost in mon.boosts.keys()])
-
-            # for stat_name, stat in mon.base_stats.items():
-            #       if stat_name == "hp":
-            #           continue
-            #       boost = mon.boosts[stat_name]
-            #
-            #       # labels.append(f"{bl}_{stat_name}_w_boost_mult")
-            #       if boost >= 0:
-            #           mon_data.append(stat/230*((2+boost)/2))
-            #       else:
-            #           mon_data.append(stat/230*(2/(2+(-boost))))
+                # labels.append(f"{bl}_{stat_name}_w_boost_mult")
+                if boost >= 0:
+                    mon_data.append(stat/230*((2+boost)/2))
+                else:
+                    mon_data.append(stat/230*(2/(2+(-boost))))
 
             # status
-            # TODO one-hot-encoding?
-            # mon_data.append(mon.status.value / 7 if mon.status is not None else 0)
+            mon_data.append(mon.status.value / 7 if mon.status is not None else 0)
             # labels.append(f"{bl}_status")
 
             # moves
-            # TODO... is it possible to have less than 4?
-            j = 0
-            # mbl = f"move_{j}"
             for j, move in enumerate(mon.moves.values()):
                 # mbl = f"move_{j}"
                 move_data = []
 
-                # TODO... should we consider insering the move id?
-                # while it may be difficult to learn...
-                # it may be particularly useful to discriminate
-                # the final effect of the move if similar
-                # N.B this is a string, need to convert it using
-                # the MOVES dictionary from the json
-                # move_data.append(move._id)
+                # id
+                move_data.append(MOVES[move._id]["num"] / 826)
+                # labels.append(f"{bl}_{mbl}_id")
 
                 # base power
                 move_damage = move.base_power
                 # consider STAB (same type attack bonus)
                 if move.type in mon.types:
                     move_damage *= 1.5
-                # move_data.append(move_damage / 100) # normalisation
                 # labels.append(f"{bl}_{mbl}_damage")
 
                 # priority
-                # move_data.append((move.priority + 7)/12)
+                move_data.append((move.priority + 7)/12)
                 # labels.append(f"{bl}_{mbl}_priority")
 
-                # accuracy
-                # TODO... should we encode together w/ damage?
-                # move_data.append(move.accuracy)
-                # labels.append(f"{bl}_{mbl}_accuracy")
-
-                # category (?)
-                # move_data.append((move.category.value - 1) / 2)
-                # labels.append(f"{bl}_{mbl}_category")
-
-                # pp (?)
-                # move_data.append(move.current_pp / move.max_pp)
-                # labels.append(f"{bl}_{mbl}_remaining_pp_percentage")
-
-                # recoil (?)
-                # move_data.append(move.recoil)
-                # labels.append(f"{bl}_{mbl}_recoil")
+                # type
+                move_data.append(move.type.value/18)
+                # labels.append(f"{bl}_{mbl}_type")
 
                 # damage for each active opponent (2)
                 for k, opp in enumerate(battle.active_pokemon):
@@ -258,16 +205,14 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                         # if one is dead, append -1
                         move_data.append(-1)
 
+                move_data_len = len(move_data)
                 mon_data.extend(move_data)
 
-            mon_data.extend([-1 for _ in range(2)]*(4-len(mon.moves)))
-            # for l in range(4-len(mon.moves)):
-            #       # labels.extend([f"{bl}_move_{l}_damage",
+            mon_data.extend([-1 for _ in range(move_data_len)]*(4-len(mon.moves)))
+            # for l in range(4-len(mon.moves), len(mon.moves)):
+            #           labels.extend([f"{bl}_move_{l}_id",
             #           f"{bl}_move_{l}_priority",
-            #           f"{bl}_move_{l}_accuracy",
-            #           f"{bl}_move_{l}_category",
-            #           f"{bl}_move_{l}_remaining_pp_percentage",
-            #           f"{bl}_move_{l}_recoil",
+            #           f"{bl}_move_{l}_type",
             #           f"{bl}_move_{l}_act_1_dmg",
             #           f"{bl}_move_{l}_act_2_dmg"])
 
@@ -276,14 +221,11 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
             else:
                 bench.extend(mon_data)
 
-        # 3v3
-        bench.extend([-1 for _ in range(17)]*(1-len(bench)))
+        benched_mons = (len(bench)//mon_data_len)
+        bench.extend([-1 for _ in range(mon_data_len)]*(len(self.agent.full_team)-2-benched_mons))
         obs.extend(active)
         obs.extend(bench)
 
-        # we could also take into account the opponents
-        # (which I would say is mandatory)
-        # and the field conditions (at least some of them)
         # return (obs, labels)
         return obs
 
@@ -307,6 +249,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
             **kwargs):
         super(BaseRLPlayer, self).__init__(
             team=(StaticTeambuilder(TEAM) if kwargs['battle_format'] == 'gen8doublesubers' else None),
+            start_challenging=False,
             **kwargs
         )
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -322,6 +265,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         self.n_actions = None
         self.output_size = None
         self.pm: Optional[PokemonMapper] = None
+        bind_pareto(self.agent)
 
     def _init_model(self, input_size, hidden_layers):
         self.policy_net = DarkrAI(input_size, hidden_layers, self.output_size).to(self.device)
@@ -331,7 +275,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         self.optimiser = optim.Adam(self.policy_net.parameters())
 
     def update_pm(self):
-        self.pm: PokemonMapper = PokemonMapper(self.current_battle, OPP_TEAM)
+        self.pm: PokemonMapper = PokemonMapper(self.current_battle, self.agent.full_team, OPP_TEAM)
 
     def update_target(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
@@ -719,7 +663,10 @@ class CombineActionRLPlayer(BaseRLPlayer):
                 switch_2_trg = possible_switches[
                     act_2 - (self.n_moves * self.n_targets)
                 ] # [0, self.n_switches-1), but removing the same
-                mon_2 = self.pm.available_switches[-2][switch_2_trg]
+                try:
+                  mon_2 = self.pm.available_switches[-2][switch_2_trg]
+                except:
+                  import pdb; pdb.set_trace()
                 second_order = BattleOrder(mon_2)
             return DoubleBattleOrder(first_order, second_order)
         elif (
@@ -846,7 +793,6 @@ class ParetoRLPLayer(CombineActionRLPlayer):
             **kwargs
             ):
         super(ParetoRLPLayer, self).__init__(input_size,hidden_layers,n_switches,n_moves,n_targets,eps_start,eps_end,eps_decay,batch_size,gamma,**kwargs)
-        bind_pareto(self.agent)
 
     def policy(self, state, step: int = 0, eps_greedy: bool = True, pareto: float = 1.0):
         self.policy_net.eval()
@@ -891,110 +837,3 @@ class ParetoRLPLayer(CombineActionRLPlayer):
 
     def episode_reset(self):
         self.agent.estimates = {"mon": {}, "opp": {}}
-
-
-TEAM = """
-Zacian-Crowned @ Rusted Sword
-Ability: Intrepid Sword
-EVs: 252 Atk / 4 SpD / 252 Spe
-Jolly Nature
-- Substitute
-- Behemoth Blade
-- Sacred Sword
-- Protect
-
-Landorus-Therian (M) @ Sitrus Berry
-Ability: Intimidate
-EVs: 68 HP / 252 Atk / 4 SpD / 184 Spe
-Jolly Nature
-- Rock Slide
-- Earthquake
-- Protect
-- Swords Dance
-
-Groudon @ Assault Vest
-Ability: Drought
-EVs: 252 HP / 252 Atk / 4 SpD
-Adamant Nature
-- Rock Slide
-- Fire Punch
-- Precipice Blades
-- Dragon Claw
-
-Charizard @ Life Orb
-Ability: Solar Power
-EVs: 252 SpA / 4 SpD / 252 Spe
-Timid Nature
-IVs: 0 Atk
-- Air Slash
-- Protect
-- Solar Beam
-- Heat Wave
-
-Venusaur @ Coba Berry
-Ability: Chlorophyll
-EVs: 180 HP / 76 SpA / 252 Spe
-IVs: 0 Atk
-- Protect
-- Sleep Powder
-- Leaf Storm
-- Earth Power
-
-Urshifu-Rapid-Strike @ Focus Sash
-Ability: Unseen Fist
-EVs: 252 Atk / 4 SpD / 252 Spe
-Jolly Nature
-- Detect
-- Aqua Jet
-- Close Combat
-- Surging Strikes
-"""
-
-TEAM = """
-Zacian-Crowned @ Rusted Sword
-Ability: Intrepid Sword
-EVs: 252 Atk / 4 SpD / 252 Spe
-Jolly Nature
-- Substitute
-- Behemoth Blade
-- Sacred Sword
-- Protect
-
-Venusaur @ Coba Berry
-Ability: Chlorophyll
-EVs: 180 HP / 76 SpA / 252 Spe
-IVs: 0 Atk
-- Protect
-- Sleep Powder
-- Leaf Storm
-- Earth Power
-
-Groudon @ Assault Vest
-Ability: Drought
-EVs: 252 HP / 252 Atk / 4 SpD
-Adamant Nature
-- Rock Slide
-- Fire Punch
-- Precipice Blades
-- Dragon Claw
-"""
-
-# TEAM = """
-# Zacian-Crowned @ Rusted Sword
-# Ability: Intrepid Sword
-# EVs: 252 Atk / 4 SpD / 252 Spe
-# Jolly Nature
-# - Substitute
-# - Behemoth Blade
-# - Sacred Sword
-# - Protect
-#
-# Venusaur @ Coba Berry
-# Ability: Chlorophyll
-# EVs: 180 HP / 76 SpA / 252 Spe
-# IVs: 0 Atk
-# - Protect
-# - Sleep Powder
-# - Leaf Storm
-# - Earth Power
-# """

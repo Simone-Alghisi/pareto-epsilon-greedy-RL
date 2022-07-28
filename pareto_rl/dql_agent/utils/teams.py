@@ -165,6 +165,55 @@ Jolly Nature
 - Surging Strikes
 """
 
+VGC_2_3VS3= """
+Zacian-Crowned @ Rusted Sword
+Ability: Intrepid Sword
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Substitute
+- Behemoth Blade
+- Sacred Sword
+- Protect
+
+Venusaur @ Coba Berry
+Ability: Chlorophyll
+EVs: 180 HP / 76 SpA / 252 Spe
+IVs: 0 Atk
+- Protect
+- Sleep Powder
+- Leaf Storm
+- Earth Power
+
+Groudon @ Assault Vest
+Ability: Drought
+EVs: 252 HP / 252 Atk / 4 SpD
+Adamant Nature
+- Rock Slide
+- Fire Punch
+- Precipice Blades
+- Dragon Claw
+"""
+
+VGC_2_2VS2= """
+Zacian-Crowned @ Rusted Sword
+Ability: Intrepid Sword
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Substitute
+- Behemoth Blade
+- Sacred Sword
+- Protect
+
+Venusaur @ Coba Berry
+Ability: Chlorophyll
+EVs: 180 HP / 76 SpA / 252 Spe
+IVs: 0 Atk
+- Protect
+- Sleep Powder
+- Leaf Storm
+- Earth Power
+"""
+
 TEST_TEAM_1 = """
 Zigzagoon-Galar @ Aguav Berry
 Ability: Quick Feet

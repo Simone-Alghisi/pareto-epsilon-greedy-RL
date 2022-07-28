@@ -1,9 +1,9 @@
 import json
 from pareto_rl.damage_calculator.requester import damage_request_server
-from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder
+from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder, bind_pareto
 from pareto_rl.dql_agent.utils.move import Move
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
-from pareto_rl.dql_agent.utils.teams import VGC_1_3VS3 as TEAM
+from pareto_rl.dql_agent.utils.teams import VGC_1 as TEAM
 from pareto_rl.dql_agent.utils.utils import prepare_pokemon_request
 from pareto_rl.pareto_front.classes.next_turn import map_abstract_target
 from poke_env.environment.double_battle import DoubleBattle
@@ -28,11 +28,12 @@ class DoubleMaxDamagePlayer(MaxBasePowerPlayer):
             ),
             **kwargs
         )
+        bind_pareto(self)
 
     def choose_max_doubles_move(
         self, battle: DoubleBattle
     ) -> Union[DoubleBattleOrder, DefaultBattleOrder]:
-        pm: PokemonMapper = PokemonMapper(battle)
+        pm: PokemonMapper = PokemonMapper(battle, self.full_team)
         orders = pm.available_orders
         data = {"requests": []}
         valid_orders: List[DoubleBattleOrder] = []
