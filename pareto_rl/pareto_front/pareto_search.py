@@ -21,16 +21,27 @@ from poke_env.player.player import Player
 from pareto_rl.pareto_front.ga.utils.inspyred_utils import NumpyRandomWrapper
 from pareto_rl.dql_agent.utils.move import Move
 from poke_env.environment.double_battle import DoubleBattle
-from pareto_rl.pareto_front.ga.nsga2 import nsga2
+from pareto_rl.pareto_front.ga.nsga2 import (
+    nsga2,
+    init_nsga2,
+    get_evaluations,
+    parse_evaluation
+)
 from poke_env.player.battle_order import BattleOrder, DoubleBattleOrder
 from pareto_rl.pareto_front.classes.next_turn import (
     NextTurn,
     next_turn_mutation,
     next_turn_crossover,
 )
+import pareto_rl.pareto_front.ga.utils.plot_utils as plot_utils
 import matplotlib.pyplot as plt
+# from adjustText import adjust_text
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
+from pathlib import Path
 
+import numpy as np
+import seaborn as sb
+import pandas as pd
 
 def configure_subparsers(subparsers):
     r"""Configure a new subparser for testing the Pareto search.
@@ -63,8 +74,22 @@ def main(args):
         print("\t{}: {}".format(p, v))
     print("\n")
 
+    # init nsga2
+    init_nsga2()
+
     pareto_search(args)
 
+    # plot the diagrams
+    if not args.dry:
+        folder = f"{Path(__file__).parent.absolute()}/../../nsga2_runs/"
+        files = get_evaluations(folder)
+        populations = []
+        for i, file in enumerate(files):
+            population, args = parse_evaluation(file)
+            populations.append(population)
+            plot_utils.generate_multilevel_diagram(population, f"NSGA2 run {i} multilevel diagram")
+            plot_utils.plot_results_multi_objective_PF(population, f"NSGA2 run {i} objective vs objective", args)
+        plot_utils.generate_multilevel_diagram_different_population(populations, "NSGA2 runs comparisons multilevel diagram")
 
 def pareto_search(
     args,
@@ -81,9 +106,6 @@ def pareto_search(
     Returns:
         - lists of [DoubleBattleOrder]
     """
-
-    # If dry do not show any plot
-    display = not args.dry
 
     # parameters for NSGA-2
     nsga2_args = {}
@@ -109,14 +131,12 @@ def pareto_search(
 
     # runs nsga2
     final_pop, final_pop_fitnesses = nsga2(
-        rng, problem, display=display, num_vars=8, **nsga2_args
+        rng, problem, num_vars=8, **nsga2_args
     )
 
     if not args.dry:
         print("Final Population\n", final_pop)
         print("Final Population Fitnesses\n", final_pop_fitnesses)
-        plt.ioff()
-        plt.show()
 
     orders = []
 

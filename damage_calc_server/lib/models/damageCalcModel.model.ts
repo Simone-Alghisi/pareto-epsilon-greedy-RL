@@ -2,26 +2,26 @@ import {Generations, calculate, Pokemon, Move, Field} from '@smogon/calc';
 
 export class Stats {
   hp: number | undefined;
-  at: number | undefined;
-  df: number | undefined;
-  sa: number | undefined;
-  sd: number | undefined;
-  sp: number | undefined;
+  atk: number | undefined;
+  def: number | undefined;
+  spa: number | undefined;
+  spd: number | undefined;
+  spe: number | undefined;
 
   constructor(
     hp: number | undefined,
-    at: number | undefined,
-    df: number | undefined,
-    sa: number | undefined,
-    sd: number | undefined,
-    sp: number | undefined
+    atk: number | undefined,
+    def: number | undefined,
+    spa: number | undefined,
+    spd: number | undefined,
+    spe: number | undefined
   ){
     this.hp = hp;
-    this.at = at;
-    this.df = df;
-    this.sa = sa;
-    this.sd = sd;
-    this.sp = sp;
+    this.atk = atk;
+    this.def = def;
+    this.spa = spa;
+    this.spd = spd;
+    this.spe = spe;
   }
 
   static describe(): string[] {

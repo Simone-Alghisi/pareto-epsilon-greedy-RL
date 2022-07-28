@@ -37,3 +37,12 @@ dist
 
 # wandb local logs
 wandb/
+
+# nsga2 runs
+nsga2/
+
+# plots
+analysis/**/*.pdf
+
+# cvs
+analysis/**/*.csv

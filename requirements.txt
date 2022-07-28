@@ -12,3 +12,7 @@ tqdm==4.64.0
 typing==3.7.4.3
 typing_extensions==4.1.1
 wandb>=0.12.16
+scikit-learn==1.1.1
+pandas==1.4.3
+seaborn==0.11.2
+adjustText==0.7.3
