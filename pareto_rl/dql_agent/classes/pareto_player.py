@@ -46,6 +46,7 @@ class ParetoPlayer(Player):
 def bind_pareto(instance):
     instance.last_turn: List[Tuple[str, str]] = []
     instance.estimates: Dict[str, Dict[str, Dict[str, int]]] = {"mon": {}, "opp": {}}
+    instance.full_team: Set[str] = set()
     instance.get_mon_estimates = types.MethodType(get_mon_estimates, instance)
     instance.update_mon_estimates = types.MethodType(update_mon_estimates, instance)
     instance.analyse_previous_turn = types.MethodType(analyse_previous_turn, instance)
@@ -258,6 +259,8 @@ async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
             mon = split_message[2]
             move = split_message[3]
             self.last_turn.append((mon, move))
+        elif split_message[1] == "poke" and split_message[2] == "p2":
+            self.full_team.add(split_message[3].split(",")[0])
 
 
 class StaticTeambuilder(Teambuilder):

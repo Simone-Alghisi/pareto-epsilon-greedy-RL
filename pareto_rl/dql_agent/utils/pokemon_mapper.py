@@ -31,7 +31,7 @@ class PokemonMapper:
     def __init__(
         self, battle: DoubleBattle, opponent_team: Optional[str] = None
     ) -> None:
-        self.battle = battle
+        self.battle: DoubleBattle = battle
         self.moves_targets: Dict[int, Dict[Move, List[int]]] = {}
         self.original_moves_targets: Dict[int, Dict[Move, List[int]]] = {}
         self.pos_to_mon: OrderedDict[int, Pokemon] = ordered_dict()
