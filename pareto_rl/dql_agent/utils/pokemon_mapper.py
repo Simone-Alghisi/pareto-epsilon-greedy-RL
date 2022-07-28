@@ -171,7 +171,6 @@ class PokemonMapper:
 
             remaining_opps: List[str] = list(self.full_team.difference(known_opp))
             to_sample: int = self.battle.max_team_size - len(known_opp)
-            print(remaining_opps, to_sample)
             possible_switches.extend(random.sample(remaining_opps, to_sample))
 
             self.available_switches[pos] = [
