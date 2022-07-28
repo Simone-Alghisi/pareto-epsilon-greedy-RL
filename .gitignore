@@ -41,8 +41,8 @@ wandb/
 # nsga2 runs
 nsga2/
 
-# q-q plot
-analysis/Normality_QQ.pdf
+# plots
+analysis/**/*.pdf
 
-# box-plot
-analysis/box_plot.pdf
+# cvs
+analysis/**/*.csv

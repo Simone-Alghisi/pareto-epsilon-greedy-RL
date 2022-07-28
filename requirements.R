@@ -14,7 +14,9 @@ installPackages <- function(packages = "default") {
       "tibble",
 			"devtools",
 			"ggplot2", 
-			"utils"
+			"utils",
+			"ggpmisc",
+			"optparse"
 		)
 	}
 	packagecheck <- match(packages, utils::installed.packages()[,1])
