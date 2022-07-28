@@ -1,4 +1,4 @@
-VGC = """
+VGC_1 = """
 Calyrex-Shadow @ Focus Sash
 Ability: As One (Spectrier)
 EVs: 4 HP / 252 SpA / 252 Spe
@@ -57,7 +57,7 @@ Jolly Nature
 - Poison Jab
 """
 
-VGC_3VS3 = """
+VGC_1_3VS3 = """
 Kyogre @ Mystic Water
 Ability: Drizzle
 EVs: 188 HP / 252 SpA / 4 SpD / 64 Spe
@@ -87,7 +87,7 @@ Jolly Nature
 - Poison Jab
 """
 
-VGC_2VS2 = """
+VGC_1_2VS2 = """
 Kyogre @ Mystic Water
 Ability: Drizzle
 EVs: 188 HP / 252 SpA / 4 SpD / 64 Spe
@@ -106,6 +106,63 @@ Jolly Nature
 - Brick Break
 - Iron Tail
 - Superpower
+"""
+
+VGC_2 = """
+Zacian-Crowned @ Rusted Sword
+Ability: Intrepid Sword
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Substitute
+- Behemoth Blade
+- Sacred Sword
+- Protect
+
+Landorus-Therian (M) @ Sitrus Berry
+Ability: Intimidate
+EVs: 68 HP / 252 Atk / 4 SpD / 184 Spe
+Jolly Nature
+- Rock Slide
+- Earthquake
+- Protect
+- Swords Dance
+
+Groudon @ Assault Vest
+Ability: Drought
+EVs: 252 HP / 252 Atk / 4 SpD
+Adamant Nature
+- Rock Slide
+- Fire Punch
+- Precipice Blades
+- Dragon Claw
+
+Charizard @ Life Orb
+Ability: Solar Power
+EVs: 252 SpA / 4 SpD / 252 Spe
+Timid Nature
+IVs: 0 Atk
+- Air Slash
+- Protect
+- Solar Beam
+- Heat Wave
+
+Venusaur (F) @ Coba Berry
+Ability: Chlorophyll
+EVs: 180 HP / 76 SpA / 252 Spe
+IVs: 0 Atk
+- Protect
+- Sleep Powder
+- Leaf Storm
+- Earth Power
+
+Urshifu-Rapid-Strike @ Focus Sash
+Ability: Unseen Fist
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Detect
+- Aqua Jet
+- Close Combat
+- Surging Strikes
 """
 
 TEST_TEAM_1 = """

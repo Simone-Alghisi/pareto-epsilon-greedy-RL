@@ -1,3 +1,4 @@
+import random
 import re
 from poke_env.environment.double_battle import DoubleBattle
 from poke_env.player.battle_order import (
@@ -13,7 +14,7 @@ from pareto_rl.dql_agent.utils.utils import (
     get_possible_showdown_targets,
     get_pokemon_showdown_name,
 )
-from typing import Dict, List, Optional, Union, OrderedDict
+from typing import Dict, List, Optional, Set, Union, OrderedDict
 from collections import OrderedDict as ordered_dict
 
 
@@ -29,9 +30,16 @@ class PokemonMapper:
     """
 
     def __init__(
-        self, battle: DoubleBattle, opponent_team: Optional[str] = None
+        self,
+        battle: DoubleBattle,
+        full_team: Set[str],
+        showdown_opp_team: Optional[str] = None,
     ) -> None:
         self.battle: DoubleBattle = battle
+        self.full_team: Set[str] = full_team
+        self.opponent_info: Optional[Dict[str, List[OriginalMove]]] = self.parse_team(
+            showdown_opp_team
+        )
         self.moves_targets: Dict[int, Dict[Move, List[int]]] = {}
         self.original_moves_targets: Dict[int, Dict[Move, List[int]]] = {}
         self.pos_to_mon: OrderedDict[int, Pokemon] = ordered_dict()
@@ -41,9 +49,6 @@ class PokemonMapper:
             Union[List[DoubleBattleOrder], List[DefaultBattleOrder]]
         ] = None
         self.available_moves: Dict[int, List[Move]] = {}
-        self.opponent_info: Optional[Dict[str, List[OriginalMove]]] = self.parse_team(
-            opponent_team
-        )
         active_orders: List[List[BattleOrder]] = [[], []]
 
         # your mons
@@ -82,9 +87,11 @@ class PokemonMapper:
                     opp_moves: List[OriginalMove] = self.opponent_info[
                         get_pokemon_showdown_name(mon)
                     ]
-                else:
+                elif len(mon.moves) > 0:
                     # the other probabilistically
                     opp_moves = list(mon.moves.values())  # pokemon used moves
+                else:
+                    opp_moves = [OriginalMove("tackle")]
                 self.mapper(opp_moves, mon, pos)
             pos += 1
 
@@ -148,18 +155,29 @@ class PokemonMapper:
         if available_switches is not None:
             self.available_switches[pos] = available_switches
         else:
-            if self.opponent_info is not None:
-                possible_switches = {mon_name for mon_name in self.opponent_info.keys()}
-                for active_opp in self.battle.opponent_active_pokemon:
-                    if active_opp:
-                        possible_switches.remove(get_pokemon_showdown_name(active_opp))
-                for opp in self.battle.opponent_team.values():
-                    if opp.fainted:
-                        possible_switches.remove(get_pokemon_showdown_name(opp))
-                self.available_switches[pos] = [
-                    Pokemon(species=to_id_str(showdown_name))
-                    for showdown_name in possible_switches
-                ]
+            possible_switches: List[str] = []
+            active_opps: Set[str] = {
+                get_pokemon_showdown_name(active_opp)
+                for active_opp in self.battle.opponent_active_pokemon
+                if active_opp
+            }
+            known_opp: Set[str] = set()
+
+            for opp in self.battle.opponent_team.values():
+                showdown_name = get_pokemon_showdown_name(opp)
+                known_opp.add(showdown_name)
+                if not opp.fainted and not showdown_name in active_opps:
+                    possible_switches.append(showdown_name)
+
+            remaining_opps: List[str] = list(self.full_team.difference(known_opp))
+            to_sample: int = self.battle.max_team_size - len(known_opp)
+            print(remaining_opps, to_sample)
+            possible_switches.extend(random.sample(remaining_opps, to_sample))
+
+            self.available_switches[pos] = [
+                Pokemon(species=to_id_str(showdown_name))
+                for showdown_name in possible_switches
+            ]
 
     def alive_pokemon_number(self) -> int:
         r"""
@@ -182,12 +200,12 @@ class PokemonMapper:
         return self.mon_indexes[index // 2]
 
     def parse_team(
-        self, opponent_team: Optional[str]
+        self, showdown_opp_team: Optional[str]
     ) -> Optional[Dict[str, List[OriginalMove]]]:
-        if opponent_team is None:
+        if showdown_opp_team is None:
             return None
         opponent_info: Dict[str, List[OriginalMove]] = {}
-        coarse_split = re.split(r"Ability|\n\n", opponent_team[1:-1])
+        coarse_split = re.split(r"Ability|\n\n", showdown_opp_team[1:-1])
         for i in range(0, len(coarse_split), 2):
             mon_name = re.split(r"@|\n|\(| ", coarse_split[i])[0]
             opponent_info[mon_name] = [

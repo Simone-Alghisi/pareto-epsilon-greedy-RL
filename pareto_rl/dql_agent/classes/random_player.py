@@ -7,7 +7,7 @@ from poke_env.player.battle_order import (
 from poke_env.player.random_player import RandomPlayer
 from poke_env.environment.double_battle import DoubleBattle
 from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder
-from pareto_rl.dql_agent.utils.teams import VGC_3VS3 as TEAM
+from pareto_rl.dql_agent.utils.teams import VGC_1_3VS3 as TEAM
 
 
 class DoubleRandomPlayer(RandomPlayer):

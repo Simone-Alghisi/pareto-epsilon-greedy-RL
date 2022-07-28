@@ -10,10 +10,9 @@ from poke_env.teambuilder.teambuilder import Teambuilder
 from pareto_rl.dql_agent.utils.move import Move
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from pareto_rl.dql_agent.utils.teams import TEST_TEAM_1 as TEAM
-from pareto_rl.dql_agent.utils.teams import TEST_TEAM_2 as OPP_TEAM
 from pareto_rl.dql_agent.utils.utils import compute_initial_stats
 from pareto_rl.pareto_front.pareto_search import pareto_search
-from typing import List, Tuple, Dict
+from typing import List, Set, Tuple, Dict
 
 
 class ParetoPlayer(Player):
@@ -30,23 +29,35 @@ class ParetoPlayer(Player):
             "mon": {},
             "opp": {},
         }
+        self.full_team: Set[str] = set()
         bind_pareto(self)
 
     def choose_move(self, battle: DoubleBattle) -> BattleOrder:
-        pm = PokemonMapper(battle, OPP_TEAM)
+        pm = PokemonMapper(battle, self.full_team)
         # TODO idk if this can or cannot handle switch properly
-        self.analyse_previous_turn(pm, battle)
+        self.analyse_previous_turn(pm)
         if sum(battle.force_switch) > 0:
             return self.choose_random_doubles_move(battle)
         args = Namespace(dry=True)
         orders = pareto_search(args, battle, pm, self)
         return orders[int(random.random() * len(orders))]
 
+    def get_mon_estimates(self, mon: Pokemon, pos: int) -> Dict[str, int]:
+        pass
+
+    def update_mon_estimates(
+        self, mon: Pokemon, pos: int, stat: str, new_value: int
+    ) -> None:
+        pass
+
+    def analyse_previous_turn(self, pm: PokemonMapper) -> None:
+        pass
+
 
 def bind_pareto(instance):
-    instance.last_turn: List[Tuple[str, str]] = []
-    instance.estimates: Dict[str, Dict[str, Dict[str, int]]] = {"mon": {}, "opp": {}}
-    instance.full_team: Set[str] = set()
+    instance.last_turn = []
+    instance.estimates = {"mon": {}, "opp": {}}
+    instance.full_team = set()
     instance.get_mon_estimates = types.MethodType(get_mon_estimates, instance)
     instance.update_mon_estimates = types.MethodType(update_mon_estimates, instance)
     instance.analyse_previous_turn = types.MethodType(analyse_previous_turn, instance)
@@ -70,10 +81,10 @@ def update_mon_estimates(
     self.estimates[category][mon.species][stat] = new_value
 
 
-def analyse_previous_turn(self, pm: PokemonMapper, battle: DoubleBattle) -> None:
+def analyse_previous_turn(self, pm: PokemonMapper) -> None:
     r"""
     Returns a possible turn order (prediction) based on the current moves
-    to be perfomed in the genotype for the current turn and the estimated
+    to be performed in the genotype for the current turn and the estimated
     speed.
     Args:
         - c: a candidate (genotype) encoding moves and target for each

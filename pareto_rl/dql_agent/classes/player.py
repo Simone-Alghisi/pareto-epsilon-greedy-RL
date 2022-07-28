@@ -856,7 +856,7 @@ class ParetoRLPLayer(CombineActionRLPlayer):
         )
         self.eps_threshold = eps_threshold
 
-        self.agent.analyse_previous_turn(self.pm, self.current_battle)
+        self.agent.analyse_previous_turn(self.pm)
         action = None
         if sample > eps_threshold or not eps_greedy:
             with torch.no_grad():
