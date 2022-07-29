@@ -105,7 +105,10 @@ class NextTurn(benchmarks.Benchmark):
 
     def _choose_random_move(self, random, pos) -> List[Union[Move, int]]:
         random_move = random.choice(list(self.pm.moves_targets[pos].keys()))
-        random_target = random.choice(self.pm.moves_targets[pos][random_move])
+        try:
+          random_target = random.choice(self.pm.moves_targets[pos][random_move])
+        except:
+          import pdb; pdb.set_trace()
         return [random_move, random_target]
 
     def _repair_switches(self, random, pos, child) -> None:
