@@ -99,7 +99,6 @@ class NextTurn(benchmarks.Benchmark):
                     break
 
     def _add_consistent_switches(self, available_switches, pos, switch) -> None:
-        available_switches[pos].append(switch)
         ally_pos = (abs(pos) % 2 + 1) * (pos / abs(pos))
         if ally_pos in available_switches:
             available_switches[ally_pos].append(switch)
@@ -122,17 +121,13 @@ class NextTurn(benchmarks.Benchmark):
                 ):
                     available_switches = deepcopy(self.pm.available_switches)
                     switch = child[idx]
+                    self._remove_inconsistent_switches(available_switches, pos, switch)
+                    self._remove_inconsistent_switches(available_switches, ally_pos, switch)
                     if random.random() < 0.5:
                         moves = self.pm.moves_targets[pos]
-                        self._remove_inconsistent_switches(
-                            available_switches, pos, switch
-                        )
                         mutate(random, available_switches, pos, child, self, moves, idx)
                     else:
                         moves = self.pm.moves_targets[ally_pos]
-                        self._remove_inconsistent_switches(
-                            available_switches, ally_pos, switch
-                        )
                         mutate(
                             random,
                             available_switches,
