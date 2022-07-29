@@ -57,6 +57,46 @@ Jolly Nature
 - Poison Jab
 """
 
+VGC_1_4VS4 = """
+Calyrex-Shadow @ Focus Sash
+Ability: As One (Spectrier)
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+IVs: 0 Atk
+- Astral Barrage
+- Protect
+- Will-O-Wisp
+- Expanding Force
+
+Kyogre @ Mystic Water
+Ability: Drizzle
+EVs: 188 HP / 252 SpA / 4 SpD / 64 Spe
+Timid Nature
+IVs: 0 Atk
+- Protect
+- Water Spout
+- Origin Pulse
+- Ice Beam
+
+Thundurus (M) @ Assault Vest
+Ability: Prankster
+EVs: 112 HP / 140 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Wild Charge
+- Brick Break
+- Iron Tail
+- Superpower
+
+Urshifu @ Choice Band
+Ability: Unseen Fist
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Close Combat
+- Sucker Punch
+- Wicked Blow
+- Poison Jab
+"""
+
 VGC_1_3VS3 = """
 Kyogre @ Mystic Water
 Ability: Drizzle
@@ -165,7 +205,45 @@ Jolly Nature
 - Surging Strikes
 """
 
-VGC_2_3VS3= """
+VGC_2_4VS4 = """
+Zacian-Crowned @ Rusted Sword
+Ability: Intrepid Sword
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Substitute
+- Behemoth Blade
+- Sacred Sword
+- Protect
+
+Groudon @ Assault Vest
+Ability: Drought
+EVs: 252 HP / 252 Atk / 4 SpD
+Adamant Nature
+- Rock Slide
+- Heat Crash
+- Precipice Blades
+- Shadow Claw
+
+Venusaur (F) @ Zoom Lens
+Ability: Chlorophyll
+EVs: 180 HP / 76 SpA / 252 Spe
+IVs: 0 Atk
+- Protect
+- Sleep Powder
+- Leaf Storm
+- Sludge Bomb
+
+Urshifu @ Focus Sash
+Ability: Unseen Fist
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Close Combat
+- Sucker Punch
+- Wicked Blow
+- Detect
+"""
+
+VGC_2_3VS3 = """
 Zacian-Crowned @ Rusted Sword
 Ability: Intrepid Sword
 EVs: 252 Atk / 4 SpD / 252 Spe
@@ -194,7 +272,7 @@ Adamant Nature
 - Dragon Claw
 """
 
-VGC_2_2VS2= """
+VGC_2_2VS2 = """
 Zacian-Crowned @ Rusted Sword
 Ability: Intrepid Sword
 EVs: 252 Atk / 4 SpD / 252 Spe

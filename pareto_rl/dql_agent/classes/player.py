@@ -437,12 +437,10 @@ class DoubleActionRLPlayer(BaseRLPlayer):
         valid = False
         n_targets = self.n_targets
         if pos in self.pm.original_moves_targets:
-            #TODO check if order is the same here and in rlplayer
             moves = [targets for _, targets in self.pm.original_moves_targets[pos].items()]
 
             if encoded_move_idx >= self.n_actions - self.n_switches:
                 # check validity of switch
-                # TODO check if benched pokemons' order/position matters
                 n_alive = len([mon for mon in self.current_battle.team.values() if not mon.fainted])
                 if n_alive > 2:
                     max_switch = n_alive - 2
@@ -465,7 +463,6 @@ class DoubleActionRLPlayer(BaseRLPlayer):
         move = [0,0]
         ally_pos = [pos for pos in self.pm.pos_to_mon.keys() if pos < 0]
         pos_to_idx = {-1: 0, -2: 1}
-        # TODO consider dead pokemon
         while not valid_moves:
             # get first valid actions for both players
             for pos in ally_pos:
@@ -492,7 +489,6 @@ class DoubleActionRLPlayer(BaseRLPlayer):
                 else:
                     valid_moves = True
             else:
-                # TODO seems that it happenes only with one pokemon available
                 break
 
         if not valid_moves:
@@ -519,7 +515,6 @@ class DoubleActionRLPlayer(BaseRLPlayer):
                 actions = torch.stack([ tensor.indices for tensor in outputs ])
                 return self._get_valid_actions(actions,utilities)
         else:
-            # TODO maybe more efficient getting random valid action then decoding
             actions = torch.stack([torch.randperm(self.n_actions) for _ in range(2)])
             utilities = torch.rand(2,self.n_actions)
             return self._get_valid_actions(actions,utilities)

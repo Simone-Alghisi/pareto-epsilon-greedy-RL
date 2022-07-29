@@ -115,8 +115,8 @@ class NextTurn(benchmarks.Benchmark):
         if pos in self.pm.available_switches:
             ally_pos = int((abs(pos) % 2 + 1) * (pos / abs(pos)))
             if ally_pos in self.pm.available_switches:
-                idx = self.pm.mon_indexes.index(pos) * 2
-                ally_idx = self.pm.mon_indexes.index(ally_pos) * 2
+                idx = self.pm.get_gene_idx_from_field_pos(pos)
+                ally_idx = self.pm.get_gene_idx_from_field_pos(ally_pos)
                 if (
                     isinstance(child[idx], Pokemon)
                     and isinstance(child[ally_idx], Pokemon)
@@ -421,8 +421,7 @@ def prepare_request(
 
     # for each of the pokemon in turn order
     for pos in turn_order:
-        # TODO... we could convert this into a function
-        i = pm.mon_indexes.index(pos) * 2
+        i = pm.get_gene_idx_from_field_pos(pos)
         # check if we are talking about a move
         if isinstance(c[i], Move):
             # attacker
@@ -451,7 +450,6 @@ def prepare_request(
                     "field": {"gameType": "Doubles"},
                 }
         elif isinstance(c[i], Pokemon):
-            # TODO... we may create a function for this
             switch_pos = pos
             switch: Pokemon = c[i]
             # the switch is already valid
@@ -486,8 +484,7 @@ def get_turn_order(c, pm: PokemonMapper, player) -> List[int]:
         - c: a candidate (genotype) encoding moves and target for each
         attacker
         - pm [PokemonMapper]
-        - last_turn: the last turn which has been performed (TODO... maybe
-        move it in a separate function)
+        - last_turn: the last turn which has been performed
     Returns:
         turn_order [List[int]]: a list encoding the possible turn order
         containing the position of the attacker that will act (from first

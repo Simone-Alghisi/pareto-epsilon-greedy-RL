@@ -83,28 +83,6 @@ def get_possible_showdown_targets(
             None: opponent_positions,
         }[move.deduced_target]
 
-    # use this in the pareto
-
-    # pokemon_ids = set(battle._opponent_active_pokemon.keys())
-    # pokemon_ids.update(battle._active_pokemon.keys())
-    # player_role, opponent_role = (
-    #    (battle.player_role, battle.opponent_role)
-    #    if self_position < 0
-    #    else (battle.opponent_role, battle.player_role)
-    # )
-    #
-    # targets_to_keep = {
-    #    {
-    #        f"{player_role}a": -1,
-    #        f"{player_role}b": -2,
-    #        f"{opponent_role}a": 1,
-    #        f"{opponent_role}b": 2,
-    #    }[pokemon_identifier]
-    #    for pokemon_identifier in pokemon_ids
-    # }
-    # targets_to_keep.add(battle.EMPTY_TARGET_POSITION)
-    # targets = [target for target in targets if target in targets_to_keep]
-
     return original_targets, pareto_targets
 
 
@@ -147,7 +125,6 @@ def prepare_pokemon_request(mon: Pokemon, pos: int) -> Dict[str, Any]:
     request["boosts"]["sp"] = mon.boosts["spe"]
     # stats
     request["stats"] = {}
-    # TODO current hp value is missing
     request["stats"]["at"] = mon.stats["atk"]
     request["stats"]["df"] = mon.stats["def"]
     request["stats"]["sa"] = mon.stats["spa"]
@@ -159,6 +136,7 @@ def prepare_pokemon_request(mon: Pokemon, pos: int) -> Dict[str, Any]:
         request["status"] = mon.status.name
     # toxicCounter
     request["toxicCounter"] = mon.status_counter
+    # current hp value
     request["curHP"] = mon.current_hp
     if pos > 0:
         request["curHP"] *= compute_opponent_stats("hp", mon)
