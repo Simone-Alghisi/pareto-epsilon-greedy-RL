@@ -290,21 +290,21 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
 def main(args):
     hidden_layers = [256, 128]
     n_moves = 4
-    n_switches = 4
+    n_switches = 2
     n_targets = 5
-    input_size = 364
+    input_size = 244
     args = {
         "batch_size": 128,
         "gamma": 0.999,
-        "target_update": 500,
-        "eval_interval": 150,
+        "target_update": 750,
+        "eval_interval": 200,
         "eval_interval_episodes": 100,
         "eps_start": 0.9,
         "eps_end": 0.05,
-        "eps_decay": 500,
+        "eps_decay": 600,
         "input_size": input_size,
         "hidden_layers": hidden_layers,
-        "train_episodes": 1500,
+        "train_episodes": 2000,
         "memory": 128 * 40,
         "combined_actions": True,
         "fixed_team": True,

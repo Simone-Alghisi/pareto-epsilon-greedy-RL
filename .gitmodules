@@ -1,3 +1,6 @@
 [submodule "poke-env"]
 	path = poke-env
 	url = https://github.com/Simone-Alghisi/poke-env
+[submodule "Pokemon_info"]
+	path = Pokemon_info
+	url = git@github.com:massimo-rizzoli/Pokemon_info.git

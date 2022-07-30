@@ -18,6 +18,7 @@ from pareto_rl.dql_agent.utils.utils import (
 )
 from typing import Dict, List, Optional, Set, Union, OrderedDict, Tuple
 from collections import OrderedDict as ordered_dict
+from pokemon_info.scraper import scrape_mon_data
 
 
 class PokemonMapper:
@@ -104,7 +105,11 @@ class PokemonMapper:
                         )
                         possible_moves: OrderedDict[str, float] = ordered_dict()
                         tmp: List[Tuple[str, float]] = []
-                        # TODO... change it into not and use the other file to download the data
+                        if not os.path.isfile(path):
+                          try:
+                            scrape_mon_data([showdown_name])
+                          except:
+                            print(f'Failed to download info for {showdown_name}')
                         if os.path.isfile(path):
                             with open(path) as move_file:
                                 reader = csv.DictReader(
@@ -229,7 +234,6 @@ class PokemonMapper:
 
             remaining_opps: List[str] = list(self.full_team.difference(known_opp))
             to_sample: int = self.battle.max_team_size - len(known_opp)
-            possible_switches.extend(random.sample(remaining_opps, to_sample))
 
             self.available_switches[pos] = [
                 Pokemon(species=to_id_str(showdown_name))

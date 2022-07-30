@@ -16,8 +16,7 @@ from poke_env.player.battle_order import BattleOrder, DefaultBattleOrder, Double
 from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
 from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder, bind_pareto
 from pareto_rl.dql_agent.utils.move import Move
-from pareto_rl.dql_agent.utils.teams import VGC_1 as OPP_TEAM
-from pareto_rl.dql_agent.utils.teams import VGC_2 as TEAM
+from pareto_rl.dql_agent.utils.teams import VGC_2_4VS4 as TEAM
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from pareto_rl.pareto_front.pareto_search import pareto_search
 
@@ -275,7 +274,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         self.optimiser = optim.Adam(self.policy_net.parameters())
 
     def update_pm(self):
-        self.pm: PokemonMapper = PokemonMapper(self.current_battle, self.agent.full_team, OPP_TEAM)
+        self.pm: PokemonMapper = PokemonMapper(self.current_battle, self.agent.full_team)
 
     def update_target(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
