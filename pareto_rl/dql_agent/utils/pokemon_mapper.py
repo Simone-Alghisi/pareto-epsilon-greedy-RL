@@ -1,3 +1,5 @@
+import csv
+import os
 import random
 import re
 from poke_env.environment.double_battle import DoubleBattle
@@ -14,8 +16,9 @@ from pareto_rl.dql_agent.utils.utils import (
     get_possible_showdown_targets,
     get_pokemon_showdown_name,
 )
-from typing import Dict, List, Optional, Set, Union, OrderedDict
+from typing import Dict, List, Optional, Set, Union, OrderedDict, Tuple
 from collections import OrderedDict as ordered_dict
+from pokemon_info.scraper import scrape_mon_data
 
 
 class PokemonMapper:
@@ -36,7 +39,8 @@ class PokemonMapper:
         showdown_opp_team: Optional[str] = None,
     ) -> None:
         self.battle: DoubleBattle = battle
-        self.full_team: Set[str] = full_team
+        # Damn you, Urshifu-*, Zacian-*, and Zamazenta-*!
+        self.full_team: Set[str] = {mon_name.split("-*")[0] for mon_name in full_team}
         self.opponent_info: Optional[Dict[str, List[OriginalMove]]] = self.parse_team(
             showdown_opp_team
         )
@@ -87,11 +91,47 @@ class PokemonMapper:
                     opp_moves: List[OriginalMove] = self.opponent_info[
                         get_pokemon_showdown_name(mon)
                     ]
-                elif len(mon.moves) > 0:
+                else:
                     # the other probabilistically
                     opp_moves = list(mon.moves.values())  # pokemon used moves
-                else:
-                    opp_moves = [OriginalMove("tackle")]
+                    opp_moves_names = [
+                        Move(move._id).get_showdown_name() for move in opp_moves
+                    ]
+                    missing_moves = 4 - len(opp_moves)
+                    if missing_moves > 0:
+                        showdown_name = get_pokemon_showdown_name(mon)
+                        path = (
+                            f"./pokemon-data/{showdown_name}/{showdown_name}_Moves.csv"
+                        )
+                        possible_moves: OrderedDict[str, float] = ordered_dict()
+                        tmp: List[Tuple[str, float]] = []
+                        if not os.path.isfile(path):
+                          try:
+                            scrape_mon_data([showdown_name])
+                          except:
+                            print(f'Failed to download info for {showdown_name}')
+                        if os.path.isfile(path):
+                            with open(path) as move_file:
+                                reader = csv.DictReader(
+                                    move_file, ["name", "type", "usage"]
+                                )
+                                for line in reader:
+                                    if (
+                                        line["name"] != "Other"
+                                        and line["name"] not in opp_moves_names
+                                    ):
+                                        usage = float(line["usage"][:-1]) / 100
+                                        tmp.append((line["name"], usage))
+                            while len(tmp) > 0:
+                                move_name, usage = tmp.pop()
+                                possible_moves[move_name] = usage
+                            # extract moves
+                            for _ in range(missing_moves):
+                                opp_moves.append(
+                                    self.extract_weighted_move(possible_moves)
+                                )
+                        else:
+                            opp_moves.append(OriginalMove("tackle"))
                 self.mapper(opp_moves, mon, pos)
             pos += 1
 
@@ -103,6 +143,22 @@ class PokemonMapper:
                     if (t not in self.moves_targets) and (t < 3):
                         tmp_targets.remove(t)
                 self.moves_targets[pos][m] = tmp_targets
+
+    def extract_weighted_move(
+        self, possible_moves: OrderedDict[str, float]
+    ) -> OriginalMove:
+        rand_val = random.random()
+        total = sum(list(possible_moves.values()))
+        summed_prob = 0
+        # default to avoid running out of possible_moves
+        move_name = "tackle"
+        for k, v in possible_moves.items():
+            summed_prob += v / total
+            if rand_val < summed_prob:
+                del possible_moves[k]
+                move_name = k
+                break
+        return OriginalMove(Move.retrieve_id(move_name))
 
     def mapper(
         self,
@@ -164,14 +220,20 @@ class PokemonMapper:
             known_opp: Set[str] = set()
 
             for opp in self.battle.opponent_team.values():
-                showdown_name = get_pokemon_showdown_name(opp)
-                known_opp.add(showdown_name)
+                showdown_name: str = get_pokemon_showdown_name(opp)
+                got_censored: bool = False
+                for censored in ["Zacian", "Zamazenta", "Urshifu"]:
+                    if showdown_name.startswith(censored):
+                        known_opp.add(showdown_name.split("-")[0])
+                        got_censored = True
+                        break
+                if not got_censored:
+                    known_opp.add(showdown_name)
                 if not opp.fainted and not showdown_name in active_opps:
                     possible_switches.append(showdown_name)
 
             remaining_opps: List[str] = list(self.full_team.difference(known_opp))
             to_sample: int = self.battle.max_team_size - len(known_opp)
-            possible_switches.extend(random.sample(remaining_opps, to_sample))
 
             self.available_switches[pos] = [
                 Pokemon(species=to_id_str(showdown_name))
@@ -197,6 +259,17 @@ class PokemonMapper:
             pos: the position of the mon associated to index
         """
         return self.mon_indexes[index // 2]
+
+    def get_gene_idx_from_field_pos(self, pos: int) -> int:
+        r"""
+        retrieves the gene index of the mon associated to a certain
+        field position.
+        Args:
+            - pos: the position of the mon associated to index
+        Returns:
+            index: the index of a gene in the genotype
+        """
+        return self.mon_indexes.index(pos) * 2
 
     def parse_team(
         self, showdown_opp_team: Optional[str]

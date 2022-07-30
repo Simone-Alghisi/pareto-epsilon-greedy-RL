@@ -1,7 +1,7 @@
-from math import inf
 import torch
 import os
 import wandb
+from math import inf
 from tqdm import tqdm
 from itertools import count
 from pareto_rl.dql_agent.classes.darkr_ai import ReplayMemory
@@ -58,13 +58,13 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
                 print(
                     "Damn you, \nMew!\nAnd to all that can AllySwitch\nDamn you, \ntoo!"
                 )
-                # TODO force finish game?
                 continue
+
             if is_anyone_someone(player.current_battle, ["ditto", "zoroark"]):
                 print("Damn you three, \nDitto and Zoroark!")
                 continue
 
-            for t in count():
+            for _ in count():
                 player.update_pm()
                 # Select and perform an action
                 action = player.policy(state, args["step"], pareto=args["pareto_p"])
@@ -103,6 +103,7 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
 def train(player: BaseRLPlayer, num_episodes: int, args):
     memory = ReplayMemory(args["memory"])
     run_number = int(wandb.run.name.split('-')[-1])
+    player.start_challenging()
 
     if args["fill_memory"]:
         fill_memory(player, memory, args)
@@ -135,15 +136,15 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
         observation = torch.tensor(
             player.reset(), dtype=torch.double, device=args["device"]
         )
-        prev_state = state = observation
+        state = observation
 
         if does_anybody_have_tabu_moves(
             player.current_battle, ["transform", "allyswitch"]
         ):
             print("Damn you, \nMew!\nAnd to all that can AllySwitch\nDamn you, \ntoo!")
-            # TODO force finish game?
             wandb.log(episode_info)
             continue
+
         if is_anyone_someone(player.current_battle, ["ditto", "zoroark"]):
             print("Damn you three, \nDitto and Zoroark!")
             wandb.log(episode_info)
@@ -184,7 +185,6 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
             # Store the transition in memory
             memory.push(state, action, next_state, reward)
             # Move to the next state
-            prev_state = state
             state = next_state
 
             # Perform one step of the optimization (on the policy network)
@@ -246,8 +246,8 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
             player.current_battle, ["transform", "allyswitch"]
         ):
             print("Damn you, \nMew!\nAnd to all that can AllySwitch\nDamn you, \ntoo!")
-            # TODO force finish game?
             continue
+
         if is_anyone_someone(player.current_battle, ["ditto", "zoroark"]):
             print("Damn you three, \nDitto and Zoroark!")
             continue
@@ -290,9 +290,9 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
 def main(args):
     hidden_layers = [256, 128]
     n_moves = 4
-    n_switches = 1
+    n_switches = 2
     n_targets = 5
-    input_size = 104
+    input_size = 244
     args = {
         "batch_size": 128,
         "gamma": 0.999,
@@ -301,10 +301,10 @@ def main(args):
         "eval_interval_episodes": 100,
         "eps_start": 0.9,
         "eps_end": 0.05,
-        "eps_decay": 10**3,
+        "eps_decay": 600,
         "input_size": input_size,
         "hidden_layers": hidden_layers,
-        "train_episodes": 3000,
+        "train_episodes": 2000,
         "memory": 128 * 40,
         "combined_actions": True,
         "fixed_team": True,

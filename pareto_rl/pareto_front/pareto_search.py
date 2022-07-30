@@ -109,7 +109,7 @@ def pareto_search(
 
     # parameters for NSGA-2
     nsga2_args = {}
-    nsga2_args["pop_size"] = 20
+    nsga2_args["pop_size"] = 40
     nsga2_args["max_generations"] = 10
 
     """

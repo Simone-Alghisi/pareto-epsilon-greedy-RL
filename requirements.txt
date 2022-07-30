@@ -16,3 +16,4 @@ scikit-learn==1.1.1
 pandas==1.4.3
 seaborn==0.11.2
 adjustText==0.7.3
+git+ssh://git@github.com/massimo-rizzoli/Pokemon_info.git

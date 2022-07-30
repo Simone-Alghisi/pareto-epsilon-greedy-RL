@@ -34,7 +34,6 @@ class ParetoPlayer(Player):
 
     def choose_move(self, battle: DoubleBattle) -> BattleOrder:
         pm = PokemonMapper(battle, self.full_team)
-        # TODO idk if this can or cannot handle switch properly
         self.analyse_previous_turn(pm)
         if sum(battle.force_switch) > 0:
             return self.choose_random_doubles_move(battle)
@@ -82,21 +81,6 @@ def update_mon_estimates(
 
 
 def analyse_previous_turn(self, pm: PokemonMapper) -> None:
-    r"""
-    Returns a possible turn order (prediction) based on the current moves
-    to be performed in the genotype for the current turn and the estimated
-    speed.
-    Args:
-        - c: a candidate (genotype) encoding moves and target for each
-        attacker
-        - pm [PokemonMapper]
-        - last_turn: the last turn which has been performed (TODO... maybe
-        move it in a separate function)
-    Returns:
-        turn_order [List[int]]: a list encoding the possible turn order
-        containing the position of the attacker that will act (from first
-        to last)
-    """
     map_showdown_to_pos = {"p1a": -1, "p1b": -2, "p2a": 1, "p2b": 2}
 
     actual_turn = []
@@ -270,7 +254,7 @@ async def _handle_battle_message(self, split_messages: List[List[str]]) -> None:
             mon = split_message[2]
             move = split_message[3]
             self.last_turn.append((mon, move))
-        elif split_message[1] == "poke" and split_message[2] == "p2":
+        elif split_message[1] == "poke" and split_message[2] == battle.opponent_role:
             self.full_team.add(split_message[3].split(",")[0])
 
 
