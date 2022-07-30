@@ -1,4 +1,5 @@
 import math
+import wandb
 from pareto_rl.dql_agent.utils.move import Move
 from poke_env.environment.move import SPECIAL_MOVES
 from poke_env.data import POKEDEX
@@ -6,7 +7,7 @@ from poke_env.environment.move_category import MoveCategory
 from poke_env.environment.pokemon import Pokemon
 from poke_env.environment.pokemon_type import PokemonType
 from poke_env.environment.double_battle import DoubleBattle
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 
 # https://github.com/hsahovic/poke-env/blob/1a35c10648fd99797c0e4fe1eb595c295b4ea8ba/src/poke_env/environment/double_battle.py#L215
 def get_possible_showdown_targets(
@@ -188,3 +189,15 @@ def is_anyone_someone(battle: DoubleBattle, monsters: List[str]):
             if mon.species in monsters:
                 return True
     return False
+
+def get_run_number() -> Optional[int]:
+    run_number = None
+    if wandb.run:
+        run_number = int(wandb.run.name.split('-')[-1])
+    return run_number
+
+def get_run_folder(folder: str) -> str:
+    run_number = get_run_number()
+    if run_number is not None:
+        folder = f'{folder}/{run_number}/'
+    return folder

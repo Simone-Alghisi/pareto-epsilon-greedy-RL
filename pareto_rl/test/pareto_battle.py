@@ -1,6 +1,7 @@
 import asyncio
 from pareto_rl.dql_agent.classes.pareto_player import ParetoPlayer
 from poke_env.player_configuration import PlayerConfiguration
+from pareto_rl.dql_agent.utils.utils import get_run_folder
 import pareto_rl.pareto_front.ga.utils.plot_utils as plot_utils
 from pareto_rl.pareto_front.ga.nsga2 import get_evaluations, parse_evaluation, init_nsga2
 from pathlib import Path
@@ -46,7 +47,7 @@ def main(args):
 
   # plot the diagrams if the argument dry is not specified
   if not args.dry:
-    folder = f"{Path(__file__).parent.absolute()}/../../nsga2_runs/"
+    folder = get_run_folder(f"{Path(__file__).parent.absolute()}/../../nsga2_runs/")
     files = get_evaluations(folder)
     populations = []
     for i, file in enumerate(files):

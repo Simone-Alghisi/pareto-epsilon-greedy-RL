@@ -19,8 +19,9 @@ Authors:
 import time
 from inspyred.ec.emo import NSGA2
 from inspyred.ec import terminators, variators
+from pareto_rl.dql_agent.utils.utils import get_run_folder
 
-from pareto_rl.pareto_front.ga.utils import inspyred_utils, plot_utils
+from pareto_rl.pareto_front.ga.utils import inspyred_utils
 import numpy as np
 import os
 import shutil
@@ -34,8 +35,8 @@ FOLDER = f"{Path(__file__).parent.absolute()}/../../../nsga2_runs/"
 def init_nsga2():
     r"""NSGA2 algorithm initialization, it clears the folder of the nsga2
     """
-    for filename in os.listdir(FOLDER):
-        file_path = os.path.join(FOLDER, filename)
+    for filename in os.listdir(get_run_folder(FOLDER)):
+        file_path = os.path.join(get_run_folder(FOLDER), filename)
         try:
             if os.path.isfile(file_path) or os.path.islink(file_path):
                 os.unlink(file_path)
@@ -118,7 +119,10 @@ def save_current_population(population, kwargs):
         kwargs: dictinary of additional arguments
     """
     get_file_name = current_millis_time()
-    with open(f"{FOLDER}{get_file_name}.csv",'w') as f:
+    folder = get_run_folder(FOLDER)
+    if not os.path.isdir(folder):
+        os.makedirs(folder)
+    with open(f"{folder}{get_file_name}.csv",'w') as f:
         writer = csv.writer(f)
         writer.writerow(["population","args"]) # header
         pop = json.dumps(population)
@@ -135,10 +139,10 @@ def get_evaluations(foldername):
     visible_files = [
         file.name for file in Path(foldername).iterdir() if not file.name.startswith(".")
     ]
-    
-    files = sorted( 
-        filter( lambda x: os.path.isfile(os.path.join(foldername, x)), visible_files),  
-        key = lambda x: int(x.split('.', 1)[0]) 
+
+    files = sorted(
+        filter( lambda x: os.path.isfile(os.path.join(foldername, x)), visible_files),
+        key = lambda x: int(x.split('.', 1)[0])
     )
 
     return list(map(lambda x: f"{foldername}{x}", files))
@@ -154,6 +158,6 @@ def parse_evaluation(filename):
     with open(f"{filename}") as f:
         csv_reader = csv.reader(f)
         header = next(csv_reader)
-        data = next(csv_reader)  
+        data = next(csv_reader)
 
     return json.loads(data[0]), json.loads(data[1])

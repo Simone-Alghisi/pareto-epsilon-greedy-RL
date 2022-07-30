@@ -18,6 +18,7 @@ Authors:
 
 from typing import List
 from poke_env.player.player import Player
+from pareto_rl.dql_agent.utils.utils import get_run_folder
 from pareto_rl.pareto_front.ga.utils.inspyred_utils import NumpyRandomWrapper
 from pareto_rl.dql_agent.utils.move import Move
 from poke_env.environment.double_battle import DoubleBattle
@@ -81,7 +82,7 @@ def main(args):
 
     # plot the diagrams
     if not args.dry:
-        folder = f"{Path(__file__).parent.absolute()}/../../nsga2_runs/"
+        folder = get_run_folder(f"{Path(__file__).parent.absolute()}/../../nsga2_runs/")
         files = get_evaluations(folder)
         populations = []
         for i, file in enumerate(files):

@@ -16,6 +16,7 @@ from pareto_rl.dql_agent.classes.max_damage_player import DoubleMaxDamagePlayer
 from pareto_rl.dql_agent.utils.utils import (
     is_anyone_someone,
     does_anybody_have_tabu_moves,
+    get_run_number,
 )
 
 
@@ -102,7 +103,7 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
 
 def train(player: BaseRLPlayer, num_episodes: int, args):
     memory = ReplayMemory(args["memory"])
-    run_number = int(wandb.run.name.split('-')[-1])
+    run_number = get_run_number()
     player.start_challenging()
 
     if args["fill_memory"]:
