@@ -16,7 +16,7 @@ from poke_env.player.battle_order import BattleOrder, DefaultBattleOrder, Double
 from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
 from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder, bind_pareto
 from pareto_rl.dql_agent.utils.move import Move
-from pareto_rl.dql_agent.utils.teams import VGC_2_4VS4 as TEAM
+from pareto_rl.dql_agent.utils.teams import VGC_2_2VS2 as TEAM
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from pareto_rl.pareto_front.pareto_search import pareto_search
 
