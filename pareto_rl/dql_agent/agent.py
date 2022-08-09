@@ -5,6 +5,7 @@ from math import inf
 from tqdm import tqdm
 from itertools import count
 from pareto_rl.dql_agent.classes.darkr_ai import ReplayMemory
+from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder
 from pareto_rl.dql_agent.classes.player import (
     BaseRLPlayer,
     DoubleActionRLPlayer,
@@ -13,6 +14,7 @@ from pareto_rl.dql_agent.classes.player import (
 )
 from poke_env.player_configuration import PlayerConfiguration
 from pareto_rl.dql_agent.classes.max_damage_player import DoubleMaxDamagePlayer
+from pareto_rl.dql_agent.utils.teams import VGC_2_2VS2 as TEAM
 from pareto_rl.dql_agent.utils.utils import (
     is_anyone_someone,
     does_anybody_have_tabu_moves,
@@ -97,6 +99,8 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
 
                 if done:
                     break
+            player.opponent._team = StaticTeambuilder(TEAM)
+            player.set_opponent(player.opponent)
             player.step_reset()
             player.episode_reset()
 

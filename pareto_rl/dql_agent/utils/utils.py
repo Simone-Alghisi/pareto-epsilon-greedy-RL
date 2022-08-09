@@ -190,14 +190,16 @@ def is_anyone_someone(battle: DoubleBattle, monsters: List[str]):
                 return True
     return False
 
+
 def get_run_number() -> Optional[int]:
     run_number = None
     if wandb.run:
-        run_number = int(wandb.run.name.split('-')[-1])
+        run_number = int(wandb.run.name.split("-")[-1])
     return run_number
+
 
 def get_run_folder(folder: str) -> str:
     run_number = get_run_number()
     if run_number is not None:
-        folder = f'{folder}/{run_number}/'
+        folder = f"{folder}/{run_number}/"
     return folder
