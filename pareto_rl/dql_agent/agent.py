@@ -21,8 +21,9 @@ from pareto_rl.dql_agent.utils.utils import (
     get_run_number,
 )
 
-from pareto_rl.dql_agent.utils.teams import VGC_1,VGC_2
+from pareto_rl.dql_agent.utils.teams import VGC_1, VGC_2
 from random import sample
+
 
 def configure_subparsers(subparsers):
     r"""Configure a new subparser for DQL agent.
@@ -41,11 +42,13 @@ def configure_subparsers(subparsers):
 
 
 def get_pokemon_list():
-    joined_teams = "".join([VGC_1,VGC_2])
+    joined_teams = "".join([VGC_1, VGC_2])
     return joined_teams[1:-1].split("\n\n")
 
+
 def sample_team(pokemon_list):
-    return "\n\n".join(sample(pokemon_list,2))
+    return "\n\n".join(sample(pokemon_list, 2))
+
 
 def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
     player.policy_net.eval()
@@ -106,7 +109,9 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
                 # Move to the next state
                 state = next_state
                 if done:
-                    player.opponent._team = StaticTeambuilder(sample_team(args['pokemon_list']))
+                    player.opponent._team = StaticTeambuilder(
+                        sample_team(args["pokemon_list"])
+                    )
                     player.set_opponent(player.opponent)
                     break
             player.step_reset()
@@ -217,6 +222,10 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
             wandb.log(step_info)
 
             if done:
+                player.opponent._team = StaticTeambuilder(
+                    sample_team(args["pokemon_list"])
+                )
+                player.set_opponent(player.opponent)
                 break
         player.step_reset()
         player.episode_reset()
@@ -288,6 +297,10 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
             if not done:
                 next_state = observation
             else:
+                player.opponent._team = StaticTeambuilder(
+                    sample_team(args["pokemon_list"])
+                )
+                player.set_opponent(player.opponent)
                 break
 
             # Move to the next state
@@ -326,7 +339,7 @@ def main(args):
         "fill_memory": True,
         "pareto": True,
         "pareto_p": 0.7,
-        "pokemon_list": pokemon_list
+        "pokemon_list": pokemon_list,
     }
 
     battle_format = (
