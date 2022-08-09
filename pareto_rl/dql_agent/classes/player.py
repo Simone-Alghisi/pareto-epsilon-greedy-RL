@@ -221,7 +221,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 bench.extend(mon_data)
 
         benched_mons = (len(bench)//mon_data_len)
-        bench.extend([-1 for _ in range(mon_data_len)]*(len(self.agent.full_team)-2-benched_mons))
+        bench.extend([-1 for _ in range(mon_data_len)]*(len(battle._teampreview_opponent_team)-2-benched_mons))
         obs.extend(active)
         obs.extend(bench)
 
@@ -274,7 +274,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         self.optimiser = optim.Adam(self.policy_net.parameters())
 
     def update_pm(self):
-        self.pm: PokemonMapper = PokemonMapper(self.current_battle, self.agent.full_team)
+        self.pm: PokemonMapper = PokemonMapper(self.current_battle)
 
     def update_target(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
@@ -830,5 +830,4 @@ class ParetoRLPLayer(CombineActionRLPlayer):
         self.agent.last_turn = []
 
     def episode_reset(self):
-        self.agent.full_team = set()
         self.agent.estimates = {"mon": {}, "opp": {}}

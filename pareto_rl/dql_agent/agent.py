@@ -42,7 +42,7 @@ def configure_subparsers(subparsers):
 
 
 def get_pokemon_list():
-    joined_teams = "".join([VGC_1, VGC_2])
+    joined_teams = "".join([VGC_1])
     return joined_teams[1:-1].split("\n\n")
 
 
@@ -324,16 +324,16 @@ def main(args):
     args = {
         "batch_size": 128,
         "gamma": 0.999,
-        "target_update": 5000,
+        "target_update": 1000,
         "eval_interval": 200,
         "eval_interval_episodes": 100,
         "eps_start": 0.9,
         "eps_end": 0.05,
-        "eps_decay": 600,
+        "eps_decay": 1500,
         "input_size": input_size,
         "hidden_layers": hidden_layers,
-        "train_episodes": 2000,
-        "memory": 128 * 20,
+        "train_episodes": 4000,
+        "memory": 128 * 40,
         "combined_actions": True,
         "fixed_team": True,
         "fill_memory": True,
@@ -355,41 +355,22 @@ def main(args):
     )
 
     if args["combined_actions"]:
-        if not args["pareto"]:
-            agent = CombineActionRLPlayer(
-                args["input_size"],
-                args["hidden_layers"],
-                n_switches,
-                n_moves,
-                n_targets,
-                args["eps_start"],
-                args["eps_end"],
-                args["eps_decay"],
-                args["batch_size"],
-                args["gamma"],
-                battle_format=battle_format,
-                player_configuration=darkrai_player_config,
-                opponent=opponent,
-                start_timer_on_battle_start=True,
-            )
-        else:
-            agent = ParetoRLPLayer(
-                args["input_size"],
-                args["hidden_layers"],
-                n_switches,
-                n_moves,
-                n_targets,
-                args["eps_start"],
-                args["eps_end"],
-                args["eps_decay"],
-                args["batch_size"],
-                args["gamma"],
-                battle_format=battle_format,
-                player_configuration=darkrai_player_config,
-                opponent=opponent,
-                start_timer_on_battle_start=True,
-            )
-
+        agent = ParetoRLPLayer(
+            args["input_size"],
+            args["hidden_layers"],
+            n_switches,
+            n_moves,
+            n_targets,
+            args["eps_start"],
+            args["eps_end"],
+            args["eps_decay"],
+            args["batch_size"],
+            args["gamma"],
+            battle_format=battle_format,
+            player_configuration=darkrai_player_config,
+            opponent=opponent,
+            start_timer_on_battle_start=True,
+        )
     else:
         agent = DoubleActionRLPlayer(
             args["input_size"],

@@ -35,12 +35,9 @@ class PokemonMapper:
     def __init__(
         self,
         battle: DoubleBattle,
-        full_team: Set[str],
         showdown_opp_team: Optional[str] = None,
     ) -> None:
         self.battle: DoubleBattle = battle
-        # Damn you, Urshifu-*, Zacian-*, and Zamazenta-*!
-        self.full_team: Set[str] = {mon_name.split("-*")[0] for mon_name in full_team}
         self.opponent_info: Optional[Dict[str, List[OriginalMove]]] = self.parse_team(
             showdown_opp_team
         )
@@ -191,6 +188,8 @@ class PokemonMapper:
             - mon: Pokemon, the mon that we are considering
             - pos: the position on the field of the mon
         """
+        # Damn you, Urshifu-*, Zacian-*, and Zamazenta-*!
+        full_team: Set[str] = {get_pokemon_showdown_name(mon).split("-*")[0] for mon in self.battle._teampreview_opponent_team}
         # get moves target
         targets: Dict[Move, List[int]] = {}
         original_targets: Dict[Move, List[int]] = {}
@@ -243,8 +242,9 @@ class PokemonMapper:
                 if not opp.fainted and not showdown_name in active_opps:
                     possible_switches.append(showdown_name)
 
-            remaining_opps: List[str] = list(self.full_team.difference(known_opp))
+            remaining_opps: List[str] = list(full_team.difference(known_opp))
             to_sample: int = self.battle.max_team_size - len(known_opp)
+            possible_switches.extend(random.sample(remaining_opps, to_sample))
 
             self.available_switches[pos] = [
                 Pokemon(species=to_id_str(showdown_name))

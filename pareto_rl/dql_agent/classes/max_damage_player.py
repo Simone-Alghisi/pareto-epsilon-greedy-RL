@@ -33,7 +33,7 @@ class DoubleMaxDamagePlayer(MaxBasePowerPlayer):
     def choose_max_doubles_move(
         self, battle: DoubleBattle
     ) -> Union[DoubleBattleOrder, DefaultBattleOrder]:
-        pm: PokemonMapper = PokemonMapper(battle, self.full_team)
+        pm: PokemonMapper = PokemonMapper(battle)
         orders = pm.available_orders
         data = {"requests": []}
         valid_orders: List[DoubleBattleOrder] = []
