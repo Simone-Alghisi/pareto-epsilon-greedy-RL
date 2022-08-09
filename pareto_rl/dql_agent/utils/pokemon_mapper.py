@@ -144,6 +144,17 @@ class PokemonMapper:
                         tmp_targets.remove(t)
                 self.moves_targets[pos][m] = tmp_targets
 
+        tmp: Dict[int, Dict[Move, List[int]]] = {}
+        for pos, moves in self.moves_targets.items():
+            for m, targets in moves.items():
+                if len(targets) > 0:
+                    if pos not in tmp:
+                        tmp[pos] = {}
+                    tmp[pos][m] = targets
+
+        self.moves_targets = tmp
+
+
     def extract_weighted_move(
         self, possible_moves: OrderedDict[str, float]
     ) -> OriginalMove:

@@ -830,4 +830,5 @@ class ParetoRLPLayer(CombineActionRLPlayer):
         self.agent.last_turn = []
 
     def episode_reset(self):
+        self.agent.full_team = set()
         self.agent.estimates = {"mon": {}, "opp": {}}

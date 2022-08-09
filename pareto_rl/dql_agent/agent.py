@@ -21,6 +21,8 @@ from pareto_rl.dql_agent.utils.utils import (
     get_run_number,
 )
 
+from pareto_rl.dql_agent.utils.teams import VGC_1,VGC_2
+from random import sample
 
 def configure_subparsers(subparsers):
     r"""Configure a new subparser for DQL agent.
@@ -37,6 +39,13 @@ def configure_subparsers(subparsers):
     parser = subparsers.add_parser("rlagent", help="Train/test reinforcement learning")
     parser.set_defaults(func=main)
 
+
+def get_pokemon_list():
+    joined_teams = "".join([VGC_1,VGC_2])
+    return joined_teams[1:-1].split("\n\n")
+
+def sample_team(pokemon_list):
+    return "\n\n".join(sample(pokemon_list,2))
 
 def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
     player.policy_net.eval()
@@ -96,11 +105,10 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
 
                 # Move to the next state
                 state = next_state
-
                 if done:
+                    player.opponent._team = StaticTeambuilder(sample_team(args['pokemon_list']))
+                    player.set_opponent(player.opponent)
                     break
-            player.opponent._team = StaticTeambuilder(TEAM)
-            player.set_opponent(player.opponent)
             player.step_reset()
             player.episode_reset()
 
@@ -298,6 +306,8 @@ def main(args):
     n_switches = 0
     n_targets = 5
     input_size = 124
+    pokemon_list = get_pokemon_list()
+
     args = {
         "batch_size": 128,
         "gamma": 0.999,
@@ -316,6 +326,7 @@ def main(args):
         "fill_memory": True,
         "pareto": True,
         "pareto_p": 0.7,
+        "pokemon_list": pokemon_list
     }
 
     battle_format = (
