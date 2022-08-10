@@ -32,13 +32,13 @@ PARETO_FLAG :=
 
 # ======= PARETO BATTLE =========
 PARETO_BATTLE := pareto-battle
-PARETO_BATTLE_FLAG := 
+PARETO_BATTLE_FLAG := --player ParetePareteParete
 
 # ======= DOC   =========
 AUTHORS := --author "Simone Alghisi, Samuele Bortolotti, Massimo Rizzoli, Erich Robbi"
 VERSION :=-r 0.1
 LANGUAGE := --language en
-SPHINX_EXTENSIONS := --extensions sphinx.ext.autodoc --extensions sphinx.ext.napoleon --extensions sphinx.ext.viewcode
+SPHINX_EXTENSIONS := --extensions sphinx.ext.autodoc --extensions sphinx.ext.napoleon --extensions sphinx.ext.viewcode --extensions myst_parser
 DOC_FOLDER := docs
 
 ## Quickstart
@@ -61,7 +61,8 @@ define INDEX
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-.. include:: ../../README.rst
+.. include:: ../../README.md
+	 :parser: myst_parser.sphinx_
 
 .. toctree::
    :maxdepth: 5

@@ -1,4 +1,4 @@
-""" disk_clutch_brake.py
+""" NSGA-II working on Pokemon battles's turns
 Module which contanis some util functions using the inspyred library.
 
 This program is free software: you can use, modify and/or
