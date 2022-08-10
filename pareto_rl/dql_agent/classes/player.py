@@ -16,7 +16,7 @@ from poke_env.player.battle_order import BattleOrder, DefaultBattleOrder, Double
 from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
 from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder, bind_pareto
 from pareto_rl.dql_agent.utils.move import Move
-from pareto_rl.dql_agent.utils.teams import VGC_2_4VS4 as TEAM
+from pareto_rl.dql_agent.utils.teams import VGC_2_2VS2 as TEAM
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from pareto_rl.pareto_front.pareto_search import pareto_search
 
@@ -221,7 +221,7 @@ class SimpleRLPlayer(Gen8EnvSinglePlayer):
                 bench.extend(mon_data)
 
         benched_mons = (len(bench)//mon_data_len)
-        bench.extend([-1 for _ in range(mon_data_len)]*(len(self.agent.full_team)-2-benched_mons))
+        bench.extend([-1 for _ in range(mon_data_len)]*(len(battle._teampreview_opponent_team)-2-benched_mons))
         obs.extend(active)
         obs.extend(bench)
 
@@ -274,7 +274,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         self.optimiser = optim.Adam(self.policy_net.parameters())
 
     def update_pm(self):
-        self.pm: PokemonMapper = PokemonMapper(self.current_battle, self.agent.full_team)
+        self.pm: PokemonMapper = PokemonMapper(self.current_battle)
 
     def update_target(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
@@ -797,7 +797,7 @@ class ParetoRLPLayer(CombineActionRLPlayer):
         self.eps_threshold = eps_threshold
 
         self.agent.analyse_previous_turn(self.pm)
-        action = None
+        action: Optional[int] = None
         if sample > eps_threshold or not eps_greedy:
             with torch.no_grad():
                 output = self.policy_net(state)
@@ -812,9 +812,7 @@ class ParetoRLPLayer(CombineActionRLPlayer):
             if random.random() < pareto and not sum(self.current_battle.force_switch) > 0:
                 args = Namespace(dry=True)
                 pareto_orders = pareto_search(args, self.current_battle, self.pm, self.agent)
-                unique_pareto_orders = self.get_unique_orders(pareto_orders)
-                # mask = self.mask_unavailable_moves(unique_pareto_orders).to(self.device)
-                random_order = random.choice(unique_pareto_orders)
+                random_order = random.choice(pareto_orders)
             else:
                 random_order = random.choice(self.pm.available_orders)
             action = self.encode_action(random_order)
