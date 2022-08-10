@@ -797,7 +797,7 @@ class ParetoRLPLayer(CombineActionRLPlayer):
         self.eps_threshold = eps_threshold
 
         self.agent.analyse_previous_turn(self.pm)
-        action = None
+        action: Optional[int] = None
         if sample > eps_threshold or not eps_greedy:
             with torch.no_grad():
                 output = self.policy_net(state)
@@ -812,9 +812,7 @@ class ParetoRLPLayer(CombineActionRLPlayer):
             if random.random() < pareto and not sum(self.current_battle.force_switch) > 0:
                 args = Namespace(dry=True)
                 pareto_orders = pareto_search(args, self.current_battle, self.pm, self.agent)
-                unique_pareto_orders = self.get_unique_orders(pareto_orders)
-                # mask = self.mask_unavailable_moves(unique_pareto_orders).to(self.device)
-                random_order = random.choice(unique_pareto_orders)
+                random_order = random.choice(pareto_orders)
             else:
                 random_order = random.choice(self.pm.available_orders)
             action = self.encode_action(random_order)
