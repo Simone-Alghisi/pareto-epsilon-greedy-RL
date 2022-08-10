@@ -9,20 +9,18 @@ from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder
 from pareto_rl.dql_agent.classes.player import (
     BaseRLPlayer,
     DoubleActionRLPlayer,
-    CombineActionRLPlayer,
     ParetoRLPLayer,
 )
 from poke_env.player_configuration import PlayerConfiguration
 from pareto_rl.dql_agent.classes.max_damage_player import DoubleMaxDamagePlayer
-from pareto_rl.dql_agent.utils.teams import VGC_2_2VS2 as TEAM
+from pareto_rl.dql_agent.utils.teams import VGC_1
 from pareto_rl.dql_agent.utils.utils import (
     is_anyone_someone,
     does_anybody_have_tabu_moves,
     get_run_number,
+    get_pokemon_list,
+    sample_team,
 )
-
-from pareto_rl.dql_agent.utils.teams import VGC_1, VGC_2
-from random import sample
 
 
 def configure_subparsers(subparsers):
@@ -39,15 +37,6 @@ def configure_subparsers(subparsers):
   """
     parser = subparsers.add_parser("rlagent", help="Train/test reinforcement learning")
     parser.set_defaults(func=main)
-
-
-def get_pokemon_list():
-    joined_teams = "".join([VGC_1])
-    return joined_teams[1:-1].split("\n\n")
-
-
-def sample_team(pokemon_list):
-    return "\n\n".join(sample(pokemon_list, 2))
 
 
 def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
@@ -319,7 +308,7 @@ def main(args):
     n_switches = 0
     n_targets = 5
     input_size = 124
-    pokemon_list = get_pokemon_list()
+    pokemon_list = get_pokemon_list([VGC_1])
 
     args = {
         "batch_size": 128,

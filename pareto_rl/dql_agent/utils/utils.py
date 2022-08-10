@@ -7,6 +7,7 @@ from poke_env.environment.move_category import MoveCategory
 from poke_env.environment.pokemon import Pokemon
 from poke_env.environment.pokemon_type import PokemonType
 from poke_env.environment.double_battle import DoubleBattle
+from random import sample
 from typing import Dict, List, Any, Tuple, Optional
 
 # https://github.com/hsahovic/poke-env/blob/1a35c10648fd99797c0e4fe1eb595c295b4ea8ba/src/poke_env/environment/double_battle.py#L215
@@ -203,3 +204,12 @@ def get_run_folder(folder: str) -> str:
     if run_number is not None:
         folder = f"{folder}/{run_number}/"
     return folder
+
+
+def get_pokemon_list(teams_str: List[str]) -> List[str]:
+    joined_teams = "".join(teams_str)
+    return joined_teams[1:-1].split("\n\n")
+
+
+def sample_team(pokemon_list: List[str], team_size: int = 2) -> str:
+    return "\n\n".join(sample(pokemon_list, team_size))
