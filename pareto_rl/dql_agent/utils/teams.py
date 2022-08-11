@@ -292,6 +292,27 @@ IVs: 0 Atk
 - Earth Power
 """
 
+VGC_3_2VS2 = """
+Calyrex-Shadow @ Focus Sash
+Ability: As One (Spectrier)
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+IVs: 0 Atk
+- Astral Barrage
+- Protect
+- Will-O-Wisp
+- Expanding Force
+
+Groudon @ Assault Vest
+Ability: Drought
+EVs: 252 HP / 252 Atk / 4 SpD
+Adamant Nature
+- Rock Slide
+- Heat Crash
+- Precipice Blades
+- Shadow Claw
+"""
+
 TEST_TEAM_1 = """
 Zigzagoon-Galar @ Aguav Berry
 Ability: Quick Feet
