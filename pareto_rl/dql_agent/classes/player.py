@@ -271,7 +271,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         self.target_net = DarkrAI(input_size, hidden_layers, self.output_size).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimiser = optim.Adam(self.policy_net.parameters())
+        self.optimiser = optim.Adam(self.policy_net.parameters(), lr=1e-4, eps=1e-6)
 
     def update_pm(self):
         self.pm: PokemonMapper = PokemonMapper(self.current_battle)
@@ -556,6 +556,7 @@ class CombineActionRLPlayer(BaseRLPlayer):
         self.policy_net.train()
         self.policy_net.zero_grad()
         self.optimiser.zero_grad()
+        self.target_net.eval()
         transitions = memory.sample(self.batch_size)
         # Transpose the batch (see https://stackoverflow.com/a/19343/3343043 for
         # detailed explanation). This converts batch-array of Transitions
@@ -597,8 +598,9 @@ class CombineActionRLPlayer(BaseRLPlayer):
 
         # Optimize the model
         loss.backward()
-        for param in self.policy_net.parameters():
-            param.grad.data.clamp_(-1, 1)
+        nn.utils.clip_grad_norm_(self.policy_net.parameters(), 10)
+        #for param in self.policy_net.parameters():
+        #    param.grad.data.clamp_(-1, 1)
         self.optimiser.step()
 
         return loss_cpy
@@ -791,9 +793,10 @@ class ParetoRLPLayer(CombineActionRLPlayer):
     def policy(self, state, step: int = 0, eps_greedy: bool = True, pareto: float = 1.0):
         self.policy_net.eval()
         sample = random.random()
-        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
-            -1.0 * step / self.eps_decay
-        )
+        #eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
+        #    -1.0 * step / self.eps_decay
+        #)
+        eps_threshold = (1-step/self.eps_decay)*self.eps_start + (step/self.eps_decay)*self.eps_end
         self.eps_threshold = eps_threshold
 
         self.agent.analyse_previous_turn(self.pm)
