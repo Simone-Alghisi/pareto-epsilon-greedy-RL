@@ -324,7 +324,7 @@ def main(args):
         "target_update": 1000,
         "eval_interval": 200,
         "eval_interval_episodes": 100,
-        "memory": 32 * 40,
+        "memory": 128 * 40,
         "combined_actions": True,
         "fixed_team": True,
         "fill_memory": True,

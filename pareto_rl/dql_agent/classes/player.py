@@ -317,7 +317,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
 
     def get_eps_threshold(self, i_episode) -> float:
         """
-        eps decreases from 1.0 to 0.1 from episode 0 to 
+        eps decreases from 1.0 to 0.1 from episode 0 to
         0.4*train_episodes, then from 0.1 to 0.01 after
         episode 0.4*train_episodes to train_episodes
         """
@@ -329,7 +329,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         else:
             eps_thresh = (1 - (i_episode*correction_frame) / (self.train_episodes*(1-correction_frame))) * self.exp_rate_start + (
                 (i_episode*correction_frame) / (self.train_episodes*(1-correction_frame))
-            ) * self.exp_rate_end
+            ) * (self.exp_rate_end*0.1)
         return eps_thresh
 
     def step_reset(self):
