@@ -8,7 +8,7 @@ class DarkrAI(nn.Module):
     r"""
     Args:
       input_size: number of inputs
-      layers: ordered list of hidden layer lenghts
+      layers: ordered list of hidden layer lengths
       output_size: size last layer and number of outputs
     """
     super(DarkrAI, self).__init__()

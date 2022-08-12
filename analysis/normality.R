@@ -43,6 +43,7 @@ shapiro.test(df$winrate)
 # what the test does is:
 # H0: sample distribution is normal
 # HA: sample distribution is not normal
+# Shapiro would be a good test when our sample is below 40 observation (rule of thumb)
 
 # kolmogorov-smirnov normality test
 print("Kolmogorov Smirnov test [expected p-value to be >> 0.05]")
@@ -52,6 +53,9 @@ ks.test(df$winrate, 'pnorm', mean(df$winrate), sd(df$winrate))
 # what the test does is:
 # H0: sample distribution is normal
 # HA: sample distribution is not normal
+# When we have > 40 observations it would be better to use KS instead of shapiro
+#
+# we could also use KS test to see if winrate of Net A is stochastically greater than winrate of Net B (the expected win rate of Net A is greater than the expected win rate of net B)
 
 #### Few notes on data normality #####
 # How to Handle Non-Normal Data

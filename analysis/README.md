@@ -72,6 +72,17 @@ An example of a box plot is the following:
 
 ![Example box plot](https://upload.wikimedia.org/wikipedia/commons/2/2a/Boxplots_with_skewness.png)
 
+
+## Testing our Empirical Data
+
+### % Winrate Test 
+
+We model $X \sim Ber(p)$ that represents the outcome of a battle between Pareto_Net (trained with the Pareto front) and Standard_Net, $X = 1$ if Pareto_Net wins, $X = 0$ otherwise. We then let Pareto_Net play against Standard_Net $n$ times (with $n$ as large as possible). If we now assume that $X_1 , ... , X_n \stackrel{i.i.d.}{\sim} Ber(p)$, we can define $Y = \sum_{i=1}^{n} X_i \sim Bin(n,p)$ and perform a likelihood ratio test to test whether $p > 0.5%$.
+
+### Evaluation Reward Mean Test
+
+Let $\mu_p$ be the mean of the evaluation reward of Pareto_Net during training, and let $\mu_s$ be the mean of the evaluation reward of Standard_Net. We perform a two-sample location t-test to see whether $\mu_p > \mu_s$.
+
 # Sources
 
 - [towardsdatascience](https://towardsdatascience.com/)

@@ -226,8 +226,6 @@ class TestDamageCalculator(unittest.TestCase):
             sium[0]["0"]["damage"], [5, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 7]
         ) 
 
-    # ============== CHANGED NATURE DAMAGE ========================
-
 
 if __name__ == "__main__":
     unittest.main()

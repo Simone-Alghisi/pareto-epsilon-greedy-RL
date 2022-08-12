@@ -22,21 +22,19 @@ from pokemon_info.scraper import scrape_mon_data
 
 
 class PokemonMapper:
-    r"""
-    PokemonMapper class which is used in order to retrieve
-    basic information which are going to be passed to the pareto
-    and could be useful for other applications, e.g.
-    - moves_targets: dictionary that given the mon position (int), returns
-    the possible targets' position (int) for each of the mon moves
-    - pos_to_mon: a dictionary that given a position, returns the mon in it
-    - mon_indexes: a list used to link mon to genotype
-    """
-
     def __init__(
         self,
         battle: DoubleBattle,
         showdown_opp_team: Optional[str] = None,
     ) -> None:
+        r"""
+        PokemonMapper class which is used in order to retrieve basic
+        information which are going to be passed to pareto and could
+        be useful for other applications.
+        Args:
+            battle: a DoubleBattle instance
+            showdown_opp_team: the opponent team in showdown format
+        """
         self.battle: DoubleBattle = battle
         self.opponent_info: Optional[Dict[str, List[OriginalMove]]] = self.parse_team(
             showdown_opp_team
@@ -103,10 +101,10 @@ class PokemonMapper:
                         possible_moves: OrderedDict[str, float] = ordered_dict()
                         tmp: List[Tuple[str, float]] = []
                         if not os.path.isfile(path):
-                          try:
-                            scrape_mon_data([showdown_name])
-                          except:
-                            print(f'Failed to download info for {showdown_name}')
+                            try:
+                                scrape_mon_data([showdown_name])
+                            except:
+                                print(f"Failed to download info for {showdown_name}")
                         if os.path.isfile(path):
                             with open(path) as move_file:
                                 reader = csv.DictReader(
@@ -151,10 +149,17 @@ class PokemonMapper:
 
         self.moves_targets = tmp
 
-
     def extract_weighted_move(
         self, possible_moves: OrderedDict[str, float]
     ) -> OriginalMove:
+        r"""
+        Extracts a move by considering their weighted probability
+        Args:
+            possible_moves: a ordered dict containing the move name
+                            with its probability
+        Returns:
+            weigthed_move: the move that has been selected
+        """
         rand_val = random.random()
         total = sum(list(possible_moves.values()))
         summed_prob = 0
@@ -177,19 +182,25 @@ class PokemonMapper:
         orders: Optional[List[BattleOrder]] = None,
     ) -> None:
         r"""
-        Given a mon, its set of moves, and its position of the field, makes
-        available additional information to the mapper, i.e.
-        - moves_targets: dictionary that given the mon position (int), returns
-        the possible targets' position (int) for each of the mon moves
-        - pos_to_mon: a dictionary that given a position, returns the mon in it
-        - mon_indexes: a list used to link mon to genotype
+        Given a mon, their set of moves, switches, position on the field,
+        combine such information for pareto, i.e.
+        moves_targets: dictionary that given the mon position (int), returns
+                        the possible targets' position (int) for each of the
+                        mon moves
+        pos_to_mon: a dictionary that given a position, returns the mon in it
+        mon_indexes: a list used to link mon to genotype
         Args:
-            - moves: Set[Move], set containing the moves of a mon
-            - mon: Pokemon, the mon that we are considering
-            - pos: the position on the field of the mon
+            moves: Set[Move], set containing the moves of a mon
+            mon: Pokemon, the mon that we are considering
+            pos: the position on the field of the mon
+            available_switches: the switch available for mon
+            orders: the orders that can be executed by poke-env
         """
         # Damn you, Urshifu-*, Zacian-*, and Zamazenta-*!
-        full_team: Set[str] = {get_pokemon_showdown_name(mon).split("-*")[0] for mon in self.battle._teampreview_opponent_team}
+        full_team: Set[str] = {
+            get_pokemon_showdown_name(mon).split("-*")[0]
+            for mon in self.battle._teampreview_opponent_team
+        }
         # get moves target
         targets: Dict[Move, List[int]] = {}
         original_targets: Dict[Move, List[int]] = {}
@@ -253,7 +264,7 @@ class PokemonMapper:
 
     def alive_pokemon_number(self) -> int:
         r"""
-        basic function to return the number of currently alive mons
+        Basic function to return the number of currently alive mons
         on the field.
         Returns:
             n_alive_mon: the number of mons alive
@@ -262,10 +273,10 @@ class PokemonMapper:
 
     def get_field_pos_from_genotype(self, index: int) -> int:
         r"""
-        retrieves the position of the mon associated to a certain
+        Retrieves the position of the mon associated to a certain
         gene index in the genotype.
         Args:
-            - index: the index of a gene in the genotype
+            index: the index of a gene in the genotype
         Returns:
             pos: the position of the mon associated to index
         """
@@ -273,10 +284,10 @@ class PokemonMapper:
 
     def get_gene_idx_from_field_pos(self, pos: int) -> int:
         r"""
-        retrieves the gene index of the mon associated to a certain
+        Retrieves the gene index of the mon associated to a certain
         field position.
         Args:
-            - pos: the position of the mon associated to index
+            pos: the position of the mon associated to index
         Returns:
             index: the index of a gene in the genotype
         """
@@ -285,6 +296,15 @@ class PokemonMapper:
     def parse_team(
         self, showdown_opp_team: Optional[str]
     ) -> Optional[Dict[str, List[OriginalMove]]]:
+        r"""
+        Parses the opponent's team and extract info about their
+        pokemons
+        Args:
+            showdown_opp_team: opponent's team in showdown format
+        Returns:
+            parsed_team: dict (containing pokemon species and their
+                         move) or None
+        """
         if showdown_opp_team is None:
             return None
         opponent_info: Dict[str, List[OriginalMove]] = {}

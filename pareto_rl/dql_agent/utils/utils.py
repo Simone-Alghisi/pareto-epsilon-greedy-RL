@@ -27,9 +27,9 @@ def get_possible_showdown_targets(
         - pokemon: Pokemon
         - move: Move
         - sel_position: int
-        - dymax: bool
+        - dynamax: bool
 e   Returns
-        - : Tuple[List[int], List[int]]:
+        - targets: Tuple[List[int], List[int]]:
     """
     # Struggle or Recharge
     if move.id in SPECIAL_MOVES and move.id == "recharge":

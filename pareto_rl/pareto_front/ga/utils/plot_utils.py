@@ -493,15 +493,19 @@ def generate_multilevel_diagram(population_fitness, title,norm_order=2):
     # we calculate distance of each solution from the worst point
     for element in normalized_fitness:
         ideal_distance.append(np.linalg.norm(element,ord=norm_order))
-
+    
+    # we attach the distances list as a new column in the populaiton fitness, and we convert it as a dataframe
+    # Mon_Dmg | Opp_Dmg | Mon_HP | Opp_HP | dist
     df = pd.DataFrame(np.c_[population_fitness,ideal_distance],columns=["Mon_Dmg","Opp_Dmg","Mon_HP","Opp_HP","dist"])
     df['index'] = np.arange(df.shape[0])
 
+    #2 rows, 2 columns as we have 4 objectives
     fig, axs = plt.subplots(2, 2)
     fig.suptitle(title)
 
     custom_palette = sns.color_palette("colorblind", df.shape[0])
-
+    
+    #creating a scatterplot for each objective, Y = distance X = value of the objective
     sns.scatterplot(y="dist", x= "Mon_Dmg", data=df, ax=axs[0,0], hue = "index", style = "index", legend = False, palette = custom_palette)
     axs[0, 0].set_title('Mon Dmg')
     axs[0, 0].set_xlabel('Mon Dmg')
