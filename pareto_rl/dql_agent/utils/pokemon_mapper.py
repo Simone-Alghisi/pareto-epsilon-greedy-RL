@@ -254,7 +254,7 @@ class PokemonMapper:
     def alive_pokemon_number(self) -> int:
         r"""
         basic function to return the number of currently alive mons
-        on the fied.
+        on the field.
         Returns:
             n_alive_mon: the number of mons alive
         """

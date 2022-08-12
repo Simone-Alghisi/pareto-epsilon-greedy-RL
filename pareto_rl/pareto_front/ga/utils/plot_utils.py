@@ -457,7 +457,7 @@ def generate_multilevel_diagram_different_population(population_fitness_list, ti
 
     plt.show()
 
-def generate_multilevel_diagram(population_fitness, title):
+def generate_multilevel_diagram(population_fitness, title,norm_order=2):
     '''
     Function that plots a multilevel diagram. Each diagram is a plot
     having axis ( Objective_i , Distance to worst point)
@@ -492,7 +492,7 @@ def generate_multilevel_diagram(population_fitness, title):
 
     # we calculate distance of each solution from the worst point
     for element in normalized_fitness:
-        ideal_distance.append(np.linalg.norm(element))
+        ideal_distance.append(np.linalg.norm(element,ord=norm_order))
 
     df = pd.DataFrame(np.c_[population_fitness,ideal_distance],columns=["Mon_Dmg","Opp_Dmg","Mon_HP","Opp_HP","dist"])
     df['index'] = np.arange(df.shape[0])
