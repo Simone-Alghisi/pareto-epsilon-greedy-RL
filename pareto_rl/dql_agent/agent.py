@@ -1,5 +1,5 @@
-import torch
 import os
+import torch
 import wandb
 from math import inf
 from tqdm import tqdm
@@ -8,12 +8,14 @@ from pareto_rl.dql_agent.classes.darkr_ai import ReplayMemory
 from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder
 from pareto_rl.dql_agent.classes.player import (
     BaseRLPlayer,
+    CombineActionRLPlayer,
     DoubleActionRLPlayer,
-    ParetoRLPLayer,
 )
 from poke_env.player_configuration import PlayerConfiguration
 from pareto_rl.dql_agent.classes.max_damage_player import DoubleMaxDamagePlayer
+from pareto_rl.dql_agent.classes.random_player import DoubleRandomPlayer
 from pareto_rl.dql_agent.utils.teams import VGC_1
+from pareto_rl.dql_agent.utils.teams import VGC_3_2VS2 as TEAM
 from pareto_rl.dql_agent.utils.utils import (
     is_anyone_someone,
     does_anybody_have_tabu_moves,
@@ -71,9 +73,8 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
             for _ in count():
                 player.update_pm()
                 # Select and perform an action
-                action = player.policy(state, args["step"], pareto=args["pareto_p"])
+                action = player.policy(state, i_episode=0, pareto=args["pareto_p"])
 
-                # if not args['combined_actions']:
                 if isinstance(player, DoubleActionRLPlayer):
                     observation, reward, done, _ = player.step(
                         player._encode_actions(action.tolist())
@@ -303,58 +304,64 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
 
 
 def main(args):
-    hidden_layers = [256, 128]
-    n_moves = 4
     n_switches = 0
+    n_moves = 4
     n_targets = 5
     input_size = 124
-    pokemon_list = get_pokemon_list([VGC_1])
+    hidden_layers = [256, 128]
 
     args = {
+        "exp_rate_start": 1.0,
+        "exp_rate_end": 0.10,
+        "train_episodes": 10000,
         "batch_size": 32,
         "gamma": 0.999,
+        "team": TEAM,
+        "lr": 1e-4,
+        "eps": 1e-6,
+        "input_size": input_size,
+        "hidden_layers": hidden_layers,
         "target_update": 1000,
         "eval_interval": 200,
         "eval_interval_episodes": 100,
-        "eps_start": 1.0,
-        "eps_end": 0.10,
-        "eps_decay": 10000,
-        "input_size": input_size,
-        "hidden_layers": hidden_layers,
-        "train_episodes": 10000,
         "memory": 32 * 40,
         "combined_actions": True,
         "fixed_team": True,
         "fill_memory": True,
         "pareto": False,
         "pareto_p": 0.0,
-        "pokemon_list": pokemon_list,
+        "pokemon_list": get_pokemon_list([VGC_1]),
     }
 
-    battle_format = (
-        "gen8doublesubers" if args["fixed_team"] else "gen8randomdoublesbattle"
-    )
-
     darkrai_player_config = PlayerConfiguration("DarkrAI", None)
-    # opponent_config = PlayerConfiguration('RandomMeansRandom',None)
-    # opponent = DoubleRandomPlayer(battle_format=battle_format, player_configuration=opponent_config)
-    opponent_config = PlayerConfiguration("ThatsALottaDamage", None)
-    opponent = DoubleMaxDamagePlayer(
-        battle_format=battle_format, player_configuration=opponent_config
-    )
+    if args["fixed_team"]:
+        battle_format = "gen8doublesubers"
+        opponent_config = PlayerConfiguration("ThatsALottaDamage", None)
+        opponent = DoubleMaxDamagePlayer(
+            battle_format=battle_format, player_configuration=opponent_config
+        )
+    else:
+        battle_format = "gen8randomdoublesbattle"
+        opponent_config = PlayerConfiguration("RandomMeansRandom", None)
+        opponent = DoubleRandomPlayer(
+            battle_format=battle_format, player_configuration=opponent_config
+        )
 
     if args["combined_actions"]:
-        agent = ParetoRLPLayer(
+        agent = CombineActionRLPlayer(
             args["input_size"],
             args["hidden_layers"],
             n_switches,
             n_moves,
             n_targets,
-            args["eps_start"],
-            args["eps_end"],
-            args["eps_decay"],
+            args["exp_rate_start"],
+            args["exp_rate_end"],
+            args["train_episodes"],
             args["batch_size"],
             args["gamma"],
+            args["team"],
+            args["lr"],
+            args["eps"],
             battle_format=battle_format,
             player_configuration=darkrai_player_config,
             opponent=opponent,
@@ -367,11 +374,14 @@ def main(args):
             n_switches,
             n_moves,
             n_targets,
-            args["eps_start"],
-            args["eps_end"],
-            args["eps_decay"],
+            args["exp_rate_start"],
+            args["exp_rate_end"],
+            args["train_episodes"],
             args["batch_size"],
             args["gamma"],
+            args["team"],
+            args["lr"],
+            args["eps"],
             battle_format=battle_format,
             player_configuration=darkrai_player_config,
             opponent=opponent,

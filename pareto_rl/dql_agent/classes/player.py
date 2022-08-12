@@ -1,6 +1,5 @@
-import torch
 import random
-import math
+import torch
 import torch.nn as nn
 import torch.optim as optim
 from argparse import Namespace
@@ -21,7 +20,6 @@ from poke_env.player.battle_order import (
 from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
 from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder, bind_pareto
 from pareto_rl.dql_agent.utils.move import Move
-from pareto_rl.dql_agent.utils.teams import VGC_3_2VS2 as TEAM
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from pareto_rl.pareto_front.pareto_search import pareto_search
 
@@ -262,16 +260,19 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         n_switches: int,
         n_moves: int,
         n_targets: int,
-        eps_start: float,
-        eps_end: float,
-        eps_decay: float,
+        exp_rate_start: float,
+        exp_rate_end: float,
+        train_episodes: float,
         batch_size: int,
         gamma: float,
+        team: str,
+        lr: float = 1e-4,
+        eps: float = 1e-6,
         **kwargs
     ):
         super(BaseRLPlayer, self).__init__(
             team=(
-                StaticTeambuilder(TEAM)
+                StaticTeambuilder(team)
                 if kwargs["battle_format"] == "gen8doublesubers"
                 else None
             ),
@@ -282,15 +283,17 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         self.n_targets = n_targets
         self.n_switches = n_switches
         self.n_moves = n_moves
-        self.eps_start = eps_start
-        self.eps_end = eps_end
-        self.eps_decay = eps_decay
+        self.exp_rate_start = exp_rate_start
+        self.exp_rate_end = exp_rate_end
+        self.train_episodes = train_episodes
         self.eps_threshold = 1
         self.batch_size = batch_size
         self.gamma = gamma
         self.n_actions = None
         self.output_size = None
-        self.pm: Optional[PokemonMapper] = None
+        self.pm: PokemonMapper
+        self.lr = lr
+        self.eps = eps
         bind_pareto(self.agent)
 
     def _init_model(self, input_size, hidden_layers):
@@ -302,14 +305,32 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         )
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimiser = optim.Adam(self.policy_net.parameters(), lr=1e-4, eps=1e-6)
-        # self.optimiser = optim.Adam(self.policy_net.parameters())
+        self.optimiser = optim.Adam(
+            self.policy_net.parameters(), lr=self.lr, eps=self.eps
+        )
 
     def update_pm(self):
-        self.pm: PokemonMapper = PokemonMapper(self.current_battle)
+        self.pm = PokemonMapper(self.current_battle)
 
     def update_target(self):
         self.target_net.load_state_dict(self.policy_net.state_dict())
+
+    def get_eps_threshold(self, i_episode) -> float:
+        """
+        eps decreases from 1.0 to 0.1 from episode 0 to 
+        0.4*train_episodes, then from 0.1 to 0.01 after
+        episode 0.4*train_episodes to train_episodes
+        """
+        correction_frame = 0.4
+        if i_episode < int(correction_frame*self.train_episodes):
+            eps_thresh = (1 - i_episode / (self.train_episodes*correction_frame)) * self.exp_rate_start + (
+                i_episode / (self.train_episodes*correction_frame)
+            ) * self.exp_rate_end
+        else:
+            eps_thresh = (1 - (i_episode*correction_frame) / (self.train_episodes*(1-correction_frame))) * self.exp_rate_start + (
+                (i_episode*correction_frame) / (self.train_episodes*(1-correction_frame))
+            ) * self.exp_rate_end
+        return eps_thresh
 
     def step_reset(self):
         pass
@@ -323,7 +344,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
 
     @abstractmethod
     def policy(
-        self, state, step: int = 0, eps_greedy: bool = True, pareto: float = 0.0
+        self, state, i_episode: int = 0, eps_greedy: bool = True, pareto: float = 0.0
     ):
         pass
 
@@ -336,22 +357,28 @@ class DoubleActionRLPlayer(BaseRLPlayer):
         n_switches: int,
         n_moves: int,
         n_targets: int,
-        eps_start: float,
-        eps_end: float,
-        eps_decay: float,
+        exp_rate_start: float,
+        exp_rate_end: float,
+        train_episodes: float,
         batch_size: int,
         gamma: float,
+        team: str,
+        lr: float = 1e-4,
+        eps: float = 1e-6,
         **kwargs
     ):
         super(DoubleActionRLPlayer, self).__init__(
             n_switches,
             n_moves,
             n_targets,
-            eps_start,
-            eps_end,
-            eps_decay,
+            exp_rate_start,
+            exp_rate_end,
+            train_episodes,
             batch_size,
             gamma,
+            team,
+            lr,
+            eps,
             **kwargs
         )
         self.output_size = (n_moves * n_targets + n_switches) * 2
@@ -570,16 +597,12 @@ class DoubleActionRLPlayer(BaseRLPlayer):
             return torch.tensor([actions[idx][move[idx]] for idx in [0, 1]])
 
     def policy(
-        self, state, step: int = 0, eps_greedy: bool = True, pareto: float = 0.0
+        self, state, i_episode: int = 0, eps_greedy: bool = True, pareto: float = 0.0
     ):
         self.policy_net.eval()
-
-        if eps_greedy:
-            sample = random.random()
-            eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
-                -1.0 * step / self.eps_decay
-            )
-            self.eps_threshold = eps_threshold
+        sample = random.random()
+        eps_threshold = self.get_eps_threshold(i_episode)
+        self.eps_threshold = eps_threshold
 
         if not eps_greedy or sample > eps_threshold:
             with torch.no_grad():
@@ -616,22 +639,28 @@ class CombineActionRLPlayer(BaseRLPlayer):
         n_switches: int,
         n_moves: int,
         n_targets: int,
-        eps_start: float,
-        eps_end: float,
-        eps_decay: float,
+        exp_rate_start: float,
+        exp_rate_end: float,
+        train_episodes: float,
         batch_size: int,
         gamma: float,
+        team: str,
+        lr: float = 1e-4,
+        eps: float = 1e-6,
         **kwargs
     ):
         super(CombineActionRLPlayer, self).__init__(
             n_switches,
             n_moves,
             n_targets,
-            eps_start,
-            eps_end,
-            eps_decay,
+            exp_rate_start,
+            exp_rate_end,
+            train_episodes,
             batch_size,
             gamma,
+            team,
+            lr,
+            eps,
             **kwargs
         )
         self.n_actions = n_moves * n_targets + n_switches
@@ -705,23 +734,21 @@ class CombineActionRLPlayer(BaseRLPlayer):
         # Optimize the model
         loss.backward()
         nn.utils.clip_grad_norm_(self.policy_net.parameters(), 10)
-        # for param in self.policy_net.parameters():
-        #    param.grad.data.clamp_(-1, 1)
         self.optimiser.step()
 
         return loss_cpy
 
     def policy(
-        self, state, step: int = 0, eps_greedy: bool = True, pareto: float = 0.0
+        self, state, i_episode: int = 0, eps_greedy: bool = True, pareto: float = 1.0
     ):
         self.policy_net.eval()
         sample = random.random()
-        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
-            -1.0 * step / self.eps_decay
-        )
+        eps_threshold = self.get_eps_threshold(i_episode)
         self.eps_threshold = eps_threshold
 
-        if sample > eps_threshold or not eps_greedy:
+        self.agent.analyse_previous_turn(self.pm)
+        action: Optional[int] = None
+        if not eps_greedy or sample > eps_threshold:
             with torch.no_grad():
                 output = self.policy_net(state)
                 mask = self.mask_unavailable_moves(self.pm.available_orders).to(
@@ -732,12 +759,23 @@ class CombineActionRLPlayer(BaseRLPlayer):
                 indexes = indexes[mask]
                 max_utility = output.max(0)[1].item()
                 best_action = indexes[max_utility].item()
-                return best_action
+                action = int(best_action)
         else:
-            random_order = self.pm.available_orders[
-                int(random.random() * len(self.pm.available_orders))
-            ]
-            return self.encode_action(random_order)
+            if (
+                random.random() < pareto
+                and not sum(self.current_battle.force_switch) > 0
+            ):
+                args = Namespace(dry=True)
+                pareto_orders = pareto_search(
+                    args, self.current_battle, self.pm, self.agent
+                )
+                random_order = random.choice(pareto_orders)
+            else:
+                random_order = random.choice(self.pm.available_orders)
+            action = self.encode_action(random_order)
+
+        self.step_reset()
+        return action
 
     def decode_action(
         self,
@@ -872,8 +910,9 @@ class CombineActionRLPlayer(BaseRLPlayer):
             for i, mon in enumerate(switches):
                 if mon.species == order.order.species:
                     return self.n_targets * self.n_moves + i
+        raise "could not encode an order"
 
-    def mask_unavailable_moves(self, orders: List[DoubleBattleOrder]) -> torch.Tensor:
+    def mask_unavailable_moves(self, orders: List[Union[DoubleBattleOrder, DefaultBattleOrder]]) -> torch.Tensor:
         mask = torch.zeros(self.output_size, dtype=torch.bool)
         if orders:
             for order in orders:
@@ -886,82 +925,6 @@ class CombineActionRLPlayer(BaseRLPlayer):
             idx = self.encode_action(DefaultBattleOrder())
             mask[idx] = True
         return mask
-
-
-class ParetoRLPLayer(CombineActionRLPlayer):
-    def __init__(
-        self,
-        input_size: int,
-        hidden_layers: List[int],
-        n_switches: int,
-        n_moves: int,
-        n_targets: int,
-        eps_start: float,
-        eps_end: float,
-        eps_decay: float,
-        batch_size: int,
-        gamma: float,
-        **kwargs
-    ):
-        super(ParetoRLPLayer, self).__init__(
-            input_size,
-            hidden_layers,
-            n_switches,
-            n_moves,
-            n_targets,
-            eps_start,
-            eps_end,
-            eps_decay,
-            batch_size,
-            gamma,
-            **kwargs
-        )
-
-    def policy(
-        self, state, step: int = 0, eps_greedy: bool = True, pareto: float = 1.0
-    ):
-        self.policy_net.eval()
-        sample = random.random()
-        # eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
-        #     -1.0 * step / self.eps_decay
-        # )
-        eps_threshold = (1-step/self.eps_decay)*self.eps_start + (step/self.eps_decay)*self.eps_end
-        self.eps_threshold = eps_threshold
-
-        self.agent.analyse_previous_turn(self.pm)
-        action: Optional[int] = None
-        if sample > eps_threshold or not eps_greedy:
-            with torch.no_grad():
-                output = self.policy_net(state)
-                mask = self.mask_unavailable_moves(self.pm.available_orders).to(
-                    self.device
-                )
-                indexes = torch.arange(start=0, end=self.output_size)
-                output = output[mask]
-                indexes = indexes[mask]
-                max_utility = output.max(0)[1].item()
-                best_action = indexes[max_utility].item()
-                action = best_action
-        else:
-            if (
-                random.random() < pareto
-                and not sum(self.current_battle.force_switch) > 0
-            ):
-                args = Namespace(dry=True)
-                pareto_orders = pareto_search(
-                    args, self.current_battle, self.pm, self.agent
-                )
-                random_order = random.choice(pareto_orders)
-            else:
-                random_order = random.choice(self.pm.available_orders)
-            action = self.encode_action(random_order)
-
-        self.step_reset()
-        return action
-
-    def get_unique_orders(self, orders: List[DoubleBattleOrder]):
-        actions = {self.encode_action(order) for order in orders}
-        return [self.decode_action(action) for action in actions]
 
     def step_reset(self):
         self.agent.last_turn = []
