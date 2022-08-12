@@ -327,7 +327,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
                 i_episode / (self.train_episodes*correction_frame)
             ) * self.exp_rate_end
         else:
-            eps_thresh = (1 - (i_episode*correction_frame) / (self.train_episodes*(1-correction_frame))) * self.exp_rate_start + (
+            eps_thresh = (1 - (i_episode*correction_frame) / (self.train_episodes*(1-correction_frame))) * self.exp_rate_end + (
                 (i_episode*correction_frame) / (self.train_episodes*(1-correction_frame))
             ) * (self.exp_rate_end*0.1)
         return eps_thresh
