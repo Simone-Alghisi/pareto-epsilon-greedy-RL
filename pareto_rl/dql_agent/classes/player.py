@@ -271,8 +271,8 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         self.target_net = DarkrAI(input_size, hidden_layers, self.output_size).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        # self.optimiser = optim.Adam(self.policy_net.parameters(), lr=1e-4, eps=1e-6)
-        self.optimiser = optim.Adam(self.policy_net.parameters())
+        self.optimiser = optim.Adam(self.policy_net.parameters(), lr=1e-4, eps=1e-6)
+        # self.optimiser = optim.Adam(self.policy_net.parameters())
 
     def update_pm(self):
         self.pm: PokemonMapper = PokemonMapper(self.current_battle)
