@@ -318,7 +318,7 @@ def main(args):
         "eval_interval_episodes": 100,
         "eps_start": 1.0,
         "eps_end": 0.10,
-        "eps_decay": 6000,
+        "eps_decay": 1300,
         "input_size": input_size,
         "hidden_layers": hidden_layers,
         "train_episodes": 6000,
