@@ -311,7 +311,7 @@ def main(args):
     pokemon_list = get_pokemon_list([VGC_1])
 
     args = {
-        "batch_size": 128,
+        "batch_size": 32,
         "gamma": 0.999,
         "target_update": 1000,
         "eval_interval": 200,
@@ -322,7 +322,7 @@ def main(args):
         "input_size": input_size,
         "hidden_layers": hidden_layers,
         "train_episodes": 6000,
-        "memory": 128 * 40,
+        "memory": 32 * 40,
         "combined_actions": True,
         "fixed_team": True,
         "fill_memory": True,
