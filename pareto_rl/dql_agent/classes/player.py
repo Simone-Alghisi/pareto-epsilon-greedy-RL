@@ -922,10 +922,10 @@ class ParetoRLPLayer(CombineActionRLPlayer):
     ):
         self.policy_net.eval()
         sample = random.random()
-        eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
-            -1.0 * step / self.eps_decay
-        )
-        # eps_threshold = (1-step/self.eps_decay)*self.eps_start + (step/self.eps_decay)*self.eps_end
+        # eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
+        #     -1.0 * step / self.eps_decay
+        # )
+        eps_threshold = (1-step/self.eps_decay)*self.eps_start + (step/self.eps_decay)*self.eps_end
         self.eps_threshold = eps_threshold
 
         self.agent.analyse_previous_turn(self.pm)
