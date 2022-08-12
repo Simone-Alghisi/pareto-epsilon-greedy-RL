@@ -168,7 +168,7 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
 
             player.update_pm()
             # Select and perform an action
-            action = player.policy(state, args["step"], pareto=args["pareto_p"])
+            action = player.policy(state, i_episode, pareto=args["pareto_p"])
 
             # if not args['combined_actions']:
             if isinstance(player, DoubleActionRLPlayer):
@@ -318,16 +318,16 @@ def main(args):
         "eval_interval_episodes": 100,
         "eps_start": 1.0,
         "eps_end": 0.10,
-        "eps_decay": 1500,
+        "eps_decay": 6000,
         "input_size": input_size,
         "hidden_layers": hidden_layers,
-        "train_episodes": 4000,
+        "train_episodes": 6000,
         "memory": 128 * 40,
         "combined_actions": True,
         "fixed_team": True,
         "fill_memory": True,
-        "pareto": True,
-        "pareto_p": 0.7,
+        "pareto": False,
+        "pareto_p": 0.0,
         "pokemon_list": pokemon_list,
     }
 

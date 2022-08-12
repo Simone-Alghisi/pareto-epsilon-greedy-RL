@@ -16,7 +16,7 @@ from poke_env.player.battle_order import BattleOrder, DefaultBattleOrder, Double
 from pareto_rl.dql_agent.classes.darkr_ai import DarkrAI, Transition, ReplayMemory
 from pareto_rl.dql_agent.classes.pareto_player import StaticTeambuilder, bind_pareto
 from pareto_rl.dql_agent.utils.move import Move
-from pareto_rl.dql_agent.utils.teams import VGC_2_2VS2 as TEAM
+from pareto_rl.dql_agent.utils.teams import VGC_3_2VS2 as TEAM
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from pareto_rl.pareto_front.pareto_search import pareto_search
 
@@ -271,7 +271,8 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         self.target_net = DarkrAI(input_size, hidden_layers, self.output_size).to(self.device)
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.target_net.eval()
-        self.optimiser = optim.Adam(self.policy_net.parameters(), lr=1e-4, eps=1e-6)
+        # self.optimiser = optim.Adam(self.policy_net.parameters(), lr=1e-4, eps=1e-6)
+        self.optimiser = optim.Adam(self.policy_net.parameters())
 
     def update_pm(self):
         self.pm: PokemonMapper = PokemonMapper(self.current_battle)
@@ -793,9 +794,9 @@ class ParetoRLPLayer(CombineActionRLPlayer):
     def policy(self, state, step: int = 0, eps_greedy: bool = True, pareto: float = 1.0):
         self.policy_net.eval()
         sample = random.random()
-        #eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
+        # eps_threshold = self.eps_end + (self.eps_start - self.eps_end) * math.exp(
         #    -1.0 * step / self.eps_decay
-        #)
+        # )
         eps_threshold = (1-step/self.eps_decay)*self.eps_start + (step/self.eps_decay)*self.eps_end
         self.eps_threshold = eps_threshold
 
