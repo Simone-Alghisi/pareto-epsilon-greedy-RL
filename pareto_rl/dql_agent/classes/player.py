@@ -695,9 +695,10 @@ class CombineActionRLPlayer(BaseRLPlayer):
             device=self.device,
             dtype=torch.bool,
         )
-        non_final_next_states = torch.stack(
-            [s for s in batch.next_state if s is not None]
-        )
+        non_final_next_states_list = [s for s in batch.next_state if s is not None]
+        if len(non_final_next_states_list) == 0:
+          return
+        non_final_next_states = torch.stack(non_final_next_states_list)
 
         state_batch = torch.stack(batch.state)
         action_batch = torch.tensor(batch.action, device=self.device)

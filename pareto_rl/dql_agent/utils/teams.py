@@ -301,7 +301,7 @@ IVs: 0 Atk
 - Astral Barrage
 - Protect
 - Will-O-Wisp
-- Expanding Force
+- Substitute
 
 Groudon @ Assault Vest
 Ability: Drought
