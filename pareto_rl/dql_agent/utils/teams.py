@@ -313,6 +313,27 @@ Adamant Nature
 - Shadow Claw
 """
 
+VGC_4_2VS2 = """
+Pheromosa @ King's Rock
+Ability: Beast Boost
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Fling
+- Ice Beam
+- Bug Buzz
+- Protect
+
+Calyrex-Shadow @ Choice Specs
+Ability: As One (Spectrier)
+EVs: 4 HP / 252 SpA / 252 Spe
+Modest Nature
+IVs: 0 Atk
+- Astral Barrage
+- Expanding Force
+- Leaf Storm
+- Psyshock
+"""
+
 TEST_TEAM_1 = """
 Zigzagoon-Galar @ Aguav Berry
 Ability: Quick Feet
