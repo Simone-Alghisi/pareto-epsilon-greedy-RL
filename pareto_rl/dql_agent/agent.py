@@ -73,7 +73,7 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
             for _ in count():
                 player.update_pm()
                 # Select and perform an action
-                action = player.policy(state, i_episode=0, pareto=args["pareto_p"])
+                action = player.policy(state, args, i_episode=0)
 
                 if isinstance(player, DoubleActionRLPlayer):
                     observation, reward, done, _ = player.step(
@@ -169,7 +169,7 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
 
             player.update_pm()
             # Select and perform an action
-            action = player.policy(state, i_episode, pareto=0.0)
+            action = player.policy(state, args, i_episode)
 
             # if not args['combined_actions']:
             if isinstance(player, DoubleActionRLPlayer):
@@ -269,7 +269,7 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
         for t in count():
             player.update_pm()
             # Follow learned policy (eps_greedy=False -> never choose random move)
-            actions = player.policy(state, eps_greedy=False, pareto=0.0)
+            actions = player.policy(state, args, eps_greedy=False)
 
             if isinstance(player, DoubleActionRLPlayer):
                 observation, reward, done, _ = player.step(
@@ -328,8 +328,8 @@ def main(args):
         "combined_actions": True,
         "fixed_team": True,
         "fill_memory": True,
-        "pareto": False,
         "pareto_p": 0.0,
+        "pareto_thresh": 0.2,
         "pokemon_list": get_pokemon_list([VGC_1, VGC_2_5VS5]),
     }
 

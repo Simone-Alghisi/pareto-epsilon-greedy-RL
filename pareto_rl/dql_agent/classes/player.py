@@ -322,14 +322,23 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         episode 0.4*train_episodes to train_episodes
         """
         correction_frame = 0.4
-        if i_episode < int(correction_frame*self.train_episodes):
-            eps_thresh = (1 - i_episode / (self.train_episodes*correction_frame)) * self.exp_rate_start + (
-                i_episode / (self.train_episodes*correction_frame)
+        if i_episode < int(correction_frame * self.train_episodes):
+            eps_thresh = (
+                1 - i_episode / (self.train_episodes * correction_frame)
+            ) * self.exp_rate_start + (
+                i_episode / (self.train_episodes * correction_frame)
             ) * self.exp_rate_end
         else:
-            eps_thresh = (1 - (i_episode-self.train_episodes*correction_frame) / (self.train_episodes*(1-correction_frame))) * self.exp_rate_end + (
-                (i_episode-self.train_episodes*correction_frame) / (self.train_episodes*(1-correction_frame))
-            ) * (self.exp_rate_end*0.1)
+            eps_thresh = (
+                1
+                - (i_episode - self.train_episodes * correction_frame)
+                / (self.train_episodes * (1 - correction_frame))
+            ) * self.exp_rate_end + (
+                (i_episode - self.train_episodes * correction_frame)
+                / (self.train_episodes * (1 - correction_frame))
+            ) * (
+                self.exp_rate_end * 0.1
+            )
         return eps_thresh
 
     def step_reset(self):
@@ -343,9 +352,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         pass
 
     @abstractmethod
-    def policy(
-        self, state, i_episode: int = 0, eps_greedy: bool = True, pareto: float = 0.0
-    ):
+    def policy(self, state, args, i_episode: int = 0, eps_greedy: bool = True):
         pass
 
 
@@ -596,9 +603,7 @@ class DoubleActionRLPlayer(BaseRLPlayer):
         else:
             return torch.tensor([actions[idx][move[idx]] for idx in [0, 1]])
 
-    def policy(
-        self, state, i_episode: int = 0, eps_greedy: bool = True, pareto: float = 0.0
-    ):
+    def policy(self, state, args, i_episode: int = 0, eps_greedy: bool = True):
         self.policy_net.eval()
         sample = random.random()
         eps_threshold = self.get_eps_threshold(i_episode)
@@ -697,7 +702,7 @@ class CombineActionRLPlayer(BaseRLPlayer):
         )
         non_final_next_states_list = [s for s in batch.next_state if s is not None]
         if len(non_final_next_states_list) == 0:
-          return
+            return
         non_final_next_states = torch.stack(non_final_next_states_list)
 
         state_batch = torch.stack(batch.state)
@@ -739,9 +744,7 @@ class CombineActionRLPlayer(BaseRLPlayer):
 
         return loss_cpy
 
-    def policy(
-        self, state, i_episode: int = 0, eps_greedy: bool = True, pareto: float = 1.0
-    ):
+    def policy(self, state, args, i_episode: int = 0, eps_greedy: bool = True):
         self.policy_net.eval()
         sample = random.random()
         eps_threshold = self.get_eps_threshold(i_episode)
@@ -762,8 +765,10 @@ class CombineActionRLPlayer(BaseRLPlayer):
                 best_action = indexes[max_utility].item()
                 action = int(best_action)
         else:
+            thresh = i_episode / self.train_episodes
             if (
-                random.random() < pareto
+                random.random() < args["pareto_p"]
+                and thresh <= args["pareto_thresh"]
                 and not sum(self.current_battle.force_switch) > 0
             ):
                 args = Namespace(dry=True)
@@ -913,7 +918,9 @@ class CombineActionRLPlayer(BaseRLPlayer):
                     return self.n_targets * self.n_moves + i
         raise "could not encode an order"
 
-    def mask_unavailable_moves(self, orders: List[Union[DoubleBattleOrder, DefaultBattleOrder]]) -> torch.Tensor:
+    def mask_unavailable_moves(
+        self, orders: List[Union[DoubleBattleOrder, DefaultBattleOrder]]
+    ) -> torch.Tensor:
         mask = torch.zeros(self.output_size, dtype=torch.bool)
         if orders:
             for order in orders:
