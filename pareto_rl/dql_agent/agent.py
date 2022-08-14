@@ -14,8 +14,8 @@ from pareto_rl.dql_agent.classes.player import (
 from poke_env.player_configuration import PlayerConfiguration
 from pareto_rl.dql_agent.classes.max_damage_player import DoubleMaxDamagePlayer
 from pareto_rl.dql_agent.classes.random_player import DoubleRandomPlayer
-from pareto_rl.dql_agent.utils.teams import VGC_3_2VS2
-from pareto_rl.dql_agent.utils.teams import VGC_4_2VS2 as TEAM
+from pareto_rl.dql_agent.utils.teams import VGC_1, VGC_2_5VS5
+from pareto_rl.dql_agent.utils.teams import VGC_3_2VS2 as TEAM
 from pareto_rl.dql_agent.utils.utils import (
     is_anyone_someone,
     does_anybody_have_tabu_moves,
@@ -169,7 +169,7 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
 
             player.update_pm()
             # Select and perform an action
-            action = player.policy(state, i_episode, pareto=args["pareto_p"])
+            action = player.policy(state, i_episode, pareto=0.0)
 
             # if not args['combined_actions']:
             if isinstance(player, DoubleActionRLPlayer):
@@ -313,7 +313,7 @@ def main(args):
     args = {
         "exp_rate_start": 1.0,
         "exp_rate_end": 0.10,
-        "train_episodes": 4000,
+        "train_episodes": 6000,
         "batch_size": 32,
         "gamma": 0.999,
         "team": TEAM,
@@ -330,7 +330,7 @@ def main(args):
         "fill_memory": True,
         "pareto": False,
         "pareto_p": 0.0,
-        "pokemon_list": get_pokemon_list([VGC_3_2VS2]),
+        "pokemon_list": get_pokemon_list([VGC_1, VGC_2_5VS5]),
     }
 
     darkrai_player_config = PlayerConfiguration("DarkrAI", None)
