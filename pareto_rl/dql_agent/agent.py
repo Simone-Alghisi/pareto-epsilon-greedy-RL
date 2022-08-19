@@ -1,4 +1,5 @@
 import os
+from time import sleep
 import torch
 import wandb
 from math import inf
@@ -14,8 +15,8 @@ from pareto_rl.dql_agent.classes.player import (
 from poke_env.player_configuration import PlayerConfiguration
 from pareto_rl.dql_agent.classes.max_damage_player import DoubleMaxDamagePlayer
 from pareto_rl.dql_agent.classes.random_player import DoubleRandomPlayer
-from pareto_rl.dql_agent.utils.teams import VGC_1, VGC_2_5VS5
-from pareto_rl.dql_agent.utils.teams import VGC_3_2VS2 as TEAM
+from pareto_rl.dql_agent.utils.teams import VGC_1, VGC_2
+from pareto_rl.dql_agent.utils.teams import VGC_2_2VS2 as TEAM
 from pareto_rl.dql_agent.utils.utils import (
     is_anyone_someone,
     does_anybody_have_tabu_moves,
@@ -99,11 +100,15 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
                 # Move to the next state
                 state = next_state
                 if done:
-                    player.opponent._team = StaticTeambuilder(
+                    player.agent._team = StaticTeambuilder(
                         sample_team(args["pokemon_list"])
+                    )
+                    player.opponent._team = StaticTeambuilder(
+                        sample_team(args["opponent_list"])
                     )
                     player.set_opponent(player.opponent)
                     break
+                sleep(10)
             player.step_reset()
             player.episode_reset()
 
@@ -212,8 +217,11 @@ def train(player: BaseRLPlayer, num_episodes: int, args):
             wandb.log(step_info)
 
             if done:
-                player.opponent._team = StaticTeambuilder(
+                player.agent._team = StaticTeambuilder(
                     sample_team(args["pokemon_list"])
+                )
+                player.opponent._team = StaticTeambuilder(
+                    sample_team(args["opponent_list"])
                 )
                 player.set_opponent(player.opponent)
                 break
@@ -287,8 +295,11 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
             if not done:
                 next_state = observation
             else:
-                player.opponent._team = StaticTeambuilder(
+                player.agent._team = StaticTeambuilder(
                     sample_team(args["pokemon_list"])
+                )
+                player.opponent._team = StaticTeambuilder(
+                    sample_team(args["opponent_list"])
                 )
                 player.set_opponent(player.opponent)
                 break
@@ -322,15 +333,16 @@ def main(args):
         "input_size": input_size,
         "hidden_layers": hidden_layers,
         "target_update": 1000,
-        "eval_interval": 200,
-        "eval_interval_episodes": 100,
+        "eval_interval": 400,
+        "eval_interval_episodes": 300,
         "memory": 128 * 40,
         "combined_actions": True,
         "fixed_team": True,
         "fill_memory": True,
         "pareto_p": 0.0,
         "pareto_thresh": 0.2,
-        "pokemon_list": get_pokemon_list([VGC_1, VGC_2_5VS5]),
+        "pokemon_list": get_pokemon_list([VGC_2]),
+        "opponent_list": get_pokemon_list([VGC_1]),
     }
 
     darkrai_player_config = PlayerConfiguration("DarkrAI", None)
