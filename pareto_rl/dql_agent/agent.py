@@ -108,7 +108,6 @@ def fill_memory(player: BaseRLPlayer, memory: ReplayMemory, args):
                     )
                     player.set_opponent(player.opponent)
                     break
-                sleep(10)
             player.step_reset()
             player.episode_reset()
 
