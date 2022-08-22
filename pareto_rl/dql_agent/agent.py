@@ -18,10 +18,10 @@ from poke_env.player_configuration import PlayerConfiguration
 from pareto_rl.dql_agent.classes.max_damage_player import DoubleMaxDamagePlayer
 from pareto_rl.dql_agent.classes.random_player import DoubleRandomPlayer
 from pareto_rl.dql_agent.classes.wrapper_player import WrapperPlayer
-# from pareto_rl.dql_agent.utils.teams import VGC_1_2VS2 as OPP_TEAM
-# from pareto_rl.dql_agent.utils.teams import VGC_2_2VS2 as TEAM
-from pareto_rl.dql_agent.utils.teams import VGC_1 as OPP_TEAM
-from pareto_rl.dql_agent.utils.teams import VGC_3_2VS2 as TEAM
+from pareto_rl.dql_agent.utils.teams import VGC_1_2VS2 as OPP_TEAM
+from pareto_rl.dql_agent.utils.teams import VGC_2_2VS2 as TEAM
+# from pareto_rl.dql_agent.utils.teams import VGC_1 as OPP_TEAM
+# from pareto_rl.dql_agent.utils.teams import VGC_3_2VS2 as TEAM
 from pareto_rl.dql_agent.utils.utils import (
     is_anyone_someone,
     does_anybody_have_tabu_moves,
@@ -443,7 +443,7 @@ def train_handler(args, darkrai_player_config, battle_format, opponent):
     # parameters of the run
     args["n_actions"] = agent.n_actions
     args["output_size"] = agent.output_size
-    # wandb.init(project="DarkrAI", entity="darkr-ai", config=args)
+    wandb.init(project="DarkrAI", entity="darkr-ai", config=args)
 
     args.update(
         {
@@ -565,8 +565,8 @@ def main(args):
         "input_size": 124,
         "hidden_layers": [256,128],
         "target_update": 1000,
-        "eval_interval": 200,
-        "eval_interval_episodes": 100,
+        "eval_interval": 500,
+        "eval_interval_episodes": 300,
         "memory": 32 * 40,
         "combined_actions": True,
         "fixed_team": True,
