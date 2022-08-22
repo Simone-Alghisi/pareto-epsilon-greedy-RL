@@ -19,9 +19,17 @@ def get_possible_showdown_targets(
     dynamax: bool = False,
 ) -> Tuple[List[int], List[int]]:
     r"""
-    Custom implementation of the get_possible_showdown_targets method provided
-    by poke_env. The advantage is that the current version can also provide
-    targets for non-allies.
+        Custom implementation of the get_possible_showdown_targets method provided
+        by poke_env. The advantage is that the current version can also provide
+        targets for non-allies.
+        Args:
+            - battle: DoubleBattle the pokemon double battle
+            - pokemon: Pokemon
+            - move: Move
+            - sel_position: int
+            - dynamax: bool
+    e   Returns
+            - targets: Tuple[List[int], List[int]]:
     """
     # Struggle or Recharge
     if move.id in SPECIAL_MOVES and move.id == "recharge":

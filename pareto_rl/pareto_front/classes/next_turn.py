@@ -38,13 +38,16 @@ from copy import deepcopy
 
 
 class NextTurn(benchmarks.Benchmark):
-    r"""NextTurn, which inherit from the benchmarks.Benchmark
-
-    It is the problem class which deals with a Pokémon battle
-    attached to one Showdown pokémon battle
-    """
-
     def __init__(self, battle: DoubleBattle, pm: PokemonMapper, player):
+        r"""NextTurn, which inherit from the benchmarks.Benchmark
+
+        It is the problem class which deals with a Pokémon battle
+        on Showdown
+        Args:
+            battle: a DoubleBattle
+            pm: an instance of PokemonMapper
+            player: a poke-env Player
+        """
         # n_dimensions and n_objectives
         benchmarks.Benchmark.__init__(self, pm.alive_pokemon_number() * 2, 4)
         self.maximize = True
@@ -54,43 +57,61 @@ class NextTurn(benchmarks.Benchmark):
         # buffer for the actual turn, it stores the result of the damage calculator
         # without the need of sending a request
         self.turn_buffer = {}
+        # switch probability
         self.p_switch = 0.05
 
     def generator(self, random, args) -> List[Union[Move, int]]:
         r"""
         Returns an initial set of individuals with a fixed
         number of genes (two for each mon) that is used to encode
-        the moves performed and the target in the current turn.
+        either
+        - the moves performed with its target
+        - the switch
+        in the current turn.
         Args:
-            - random: a random generator
-            - args: args passed to the instance
+            random: a random generator
+            args: args passed to the instance
         Returns:
-            - candidates [List]: the initial list of candidates for the
-            current turn
+            candidates: the initial list of candidates for the
+                        current turn
         """
         turn = []
         # who does what against who
-        # for _, moves in self.pm.moves_targets.items():
         available_switches = deepcopy(self.pm.available_switches)
         for pos in self.pm.pos_to_mon.keys():
-            if len(available_switches[pos]) > 0:
-                if random.random() < self.p_switch:
-                    turn += [
-                        self._choose_random_switch(random, available_switches, pos),
-                        None,
-                    ]
-                else:
-                    turn += self._choose_random_move(random, pos)
+            if len(available_switches[pos]) > 0 and random.random() < self.p_switch:
+                turn += [
+                    self._choose_random_switch(random, available_switches, pos),
+                    None,
+                ]
             else:
                 turn += self._choose_random_move(random, pos)
         return turn
 
     def _choose_random_switch(self, random, available_switches, pos) -> Pokemon:
+        r"""
+        Returns a random switch ensuring that next switches are
+        feasible (no switches are performed twice)
+        Args:
+            random: a random generator
+            available_switches: a dict of possible switch per mon
+            pos: on-field position of a pokemon
+        Returns:
+            switch: a random switch
+        """
         switch = random.choice(available_switches[pos])
         self._remove_inconsistent_switches(available_switches, pos, switch)
         return switch
 
     def _remove_inconsistent_switches(self, available_switches, pos, switch) -> None:
+        r"""
+        Removes switch from pos' ally to avoid that they could
+        make the same switch later on and end in an invalid state
+        Args:
+            available_switches: a dict of possible switch per mon
+            pos: on-field position of a pokemon
+            switch: the switch that needs to be removed
+        """
         ally_pos = (abs(pos) % 2 + 1) * (pos / abs(pos))
         if ally_pos in available_switches:
             for i, mon in enumerate(available_switches[ally_pos]):
@@ -99,16 +120,43 @@ class NextTurn(benchmarks.Benchmark):
                     break
 
     def _add_consistent_switches(self, available_switches, pos, switch) -> None:
+        r"""
+        Adds switch to pos' ally
+        Args:
+            available_switches: a dict of possible switch per mon
+            pos: on-field position of a pokemon
+            switch: the switch that needs to be added
+        """
         ally_pos = (abs(pos) % 2 + 1) * (pos / abs(pos))
         if ally_pos in available_switches:
             available_switches[ally_pos].append(switch)
 
     def _choose_random_move(self, random, pos) -> List[Union[Move, int]]:
+        r"""
+        Returns a random move and a random target for the pokemon
+        in pos
+        Args:
+            random: a random generator
+            pos: on-field position of a pokemon
+        Returns:
+            move: a random move
+            target: a random target
+        """
         random_move = random.choice(list(self.pm.moves_targets[pos].keys()))
         random_target = random.choice(self.pm.moves_targets[pos][random_move])
         return [random_move, random_target]
 
     def _repair_switches(self, random, pos, child) -> None:
+        r"""
+        Repairs the genotype of a candidate after a crossover to
+        ensure that no allies make the same switch. In particular,
+        one of the two is chosen and its incompatible action is
+        changed
+        Args:
+            random: a random generator
+            pos: on-field position of a pokemon
+            child: the candidate to be repaired
+        """
         if pos in self.pm.available_switches:
             ally_pos = int((abs(pos) % 2 + 1) * (pos / abs(pos)))
             if ally_pos in self.pm.available_switches:
@@ -122,7 +170,9 @@ class NextTurn(benchmarks.Benchmark):
                     available_switches = deepcopy(self.pm.available_switches)
                     switch = child[idx]
                     self._remove_inconsistent_switches(available_switches, pos, switch)
-                    self._remove_inconsistent_switches(available_switches, ally_pos, switch)
+                    self._remove_inconsistent_switches(
+                        available_switches, ally_pos, switch
+                    )
                     if random.random() < 0.5:
                         moves = self.pm.moves_targets[pos]
                         mutate(random, available_switches, pos, child, self, moves, idx)
@@ -147,10 +197,10 @@ class NextTurn(benchmarks.Benchmark):
         For the computation of the damage, smogon damage_calculator is
         used (request to a local instance).
         Args:
-            - candidates: set of candidate individuals
+            candidates: set of candidate individuals
         Returns:
-            - fitness: list containing a Pareto problem with the value
-            for the 4 objectives that need to be maximized
+            fitness: list containing a Pareto problem with the value
+                     for the 4 objectives that need to be maximized
         """
         fitness = []
         pm = self.pm
@@ -282,19 +332,23 @@ class NextTurn(benchmarks.Benchmark):
 def next_turn_mutation(random, candidate, args):
     r"""
     NextTurn mutation function.
-    The mutation consists in choosing for the individual a new random move, which
-    must be performed on a valid target.
-    If the newly defined move cannot be performed on the target of the old one, then a
-    new target is defined.
-    If that is not possible, then the move is not changed. In such way, we are able to
-    perform a mutation operator without affecting the validity of the individual.
+    The mutation consists in choosing for the individual a
+    new random action, which must be performed on a valid
+    target. If the newly defined move cannot be performed on
+    the target of the old one, then a new target is defined.
+    If that is not possible, then the move is not changed. In
+    such way, we are able to perform a mutation operator
+    without affecting the validity of the individual.
+    Switch are made consistent at the beginning by removing
+    the one already present in the candidate, and removing or
+    adding them back as the mutation goes on.
 
     Args:
-        - random: random number generator
-        - candidate: candidate individual
-        - args: inspyred parameter.
+        random: random number generator
+        candidate: candidate individual
+        args: inspyred parameter.
     Returns:
-        - mutant: mutated individual (if mutated)
+        mutant: mutated individual (if mutated)
     """
     mut_rate = args.setdefault("mutation_rate", 0.1)
     mutant = copy.deepcopy(candidate)
@@ -331,6 +385,21 @@ def next_turn_mutation(random, candidate, args):
 
 
 def mutate(random, available_switches, pos, mutant, problem, moves, idx) -> bool:
+    r"""
+    Mutatates the idx gene of mutant by choosing a new move, target
+    or switch, ensuring that it is consistent
+    Args:
+        random: a random generator
+        available_switches: a dict of possible switch per mon
+        mutant: candidate genotype that can be mutated
+        pos: on-field position of a pokemon
+        problem: NextTurn problem instance
+        moves: set of available moves
+        idx: position of mutant that can be mutated
+    Returns:
+        already_mutated: whether the next gene has already been
+                         mutated to make mutant consistent
+    """
     already_mutated = False
     if len(available_switches[pos]) > 0 and random.random() < problem.p_switch:
         if isinstance(mutant[idx], Pokemon):
@@ -403,15 +472,19 @@ def prepare_request(
     c, pm: PokemonMapper, turn_order: List[int]
 ) -> Tuple[Dict[int, Dict[str, Dict[str, Any]]], OrderedDict[int, Pokemon]]:
     r"""
-    Function which prepares the requests to send to the damage calculator
-    server in order to evaluate the individual fitness
+    Prepares the requests to send to the damage calculator
+    server in order to evaluate the individual fitness. Switches
+    are handled by modifying the current pos_to_mon, i.e. the mon
+    that are actually on-field.
 
     Args:
-    - c: candidate individual
-    - pm [PokemonMapper]
+      c: candidate individual
+      pm: PokemonMapper instance
+      turn_order: turn order prediction based on known info
 
     Returns:
-    - requests [Dict]: request ready to be sent.
+      requests: a dict containing the requests to be sent.
+      pos_to_mon: on-field mon described by the current candidate
     """
     request = {}
     pos_to_mon: OrderedDict[int, Pokemon] = pm.pos_to_mon.copy()
@@ -474,18 +547,19 @@ def prepare_request(
 
 def get_turn_order(c, pm: PokemonMapper, player) -> List[int]:
     r"""
-    Returns a possible turn order (prediction) based on the current moves
-    to be perfomed in the genotype for the current turn and the estimated
-    speed.
+    Returns a possible turn order (prediction) based on the
+    current moves to be perfomed in the genotype for the current
+    turn and the estimated speed.
+
     Args:
-        - c: a candidate (genotype) encoding moves and target for each
-        attacker
-        - pm [PokemonMapper]
-        - last_turn: the last turn which has been performed
+        c: a candidate (genotype) encoding moves and target for each
+             attacker
+        pm: PokemonMapper instance
+        player: a poke-env Player
     Returns:
-        turn_order [List[int]]: a list encoding the possible turn order
-        containing the position of the attacker that will act (from first
-        to last)
+        turn_order [List[int]]: a list encoding the possible turn
+        order containing the position of the attacker that will
+        act (from first to last)
     """
     turn_order: List[Tuple[int, int, int]] = []
 
@@ -509,6 +583,16 @@ def get_turn_order(c, pm: PokemonMapper, player) -> List[int]:
 def map_abstract_target(
     abs_target: int, attacker_pos: int, pm: PokemonMapper
 ) -> List[int]:
+    r"""
+    Maps an abstract target defined by the PokemonMapper to
+    the actual on-field targets
+    Args:
+        abs_target: an abstract target
+        attacker_pos: on-field pos of the attacker
+        pm: PokemonMapper instance
+    Returns:
+        targets: the actual targets of the move
+    """
     if abs_target <= 2:
         return [abs_target]
     elif abs_target == 3:

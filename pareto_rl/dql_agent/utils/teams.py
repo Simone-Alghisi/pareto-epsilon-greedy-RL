@@ -205,6 +205,55 @@ Jolly Nature
 - Surging Strikes
 """
 
+VGC_2_5VS5 = """
+Zacian-Crowned @ Rusted Sword
+Ability: Intrepid Sword
+EVs: 252 Atk / 4 SpD / 252 Spe
+Jolly Nature
+- Substitute
+- Behemoth Blade
+- Sacred Sword
+- Protect
+
+Landorus-Therian (M) @ Sitrus Berry
+Ability: Intimidate
+EVs: 68 HP / 252 Atk / 4 SpD / 184 Spe
+Jolly Nature
+- Rock Slide
+- Earthquake
+- Protect
+- Swords Dance
+
+Groudon @ Assault Vest
+Ability: Drought
+EVs: 252 HP / 252 Atk / 4 SpD
+Adamant Nature
+- Rock Slide
+- Fire Punch
+- Precipice Blades
+- Dragon Claw
+
+Charizard @ Life Orb
+Ability: Solar Power
+EVs: 252 SpA / 4 SpD / 252 Spe
+Timid Nature
+IVs: 0 Atk
+- Air Slash
+- Protect
+- Solar Beam
+- Heat Wave
+
+Venusaur (F) @ Coba Berry
+Ability: Chlorophyll
+EVs: 180 HP / 76 SpA / 252 Spe
+IVs: 0 Atk
+- Protect
+- Sleep Powder
+- Leaf Storm
+- Earth Power
+"""
+
+
 VGC_2_4VS4 = """
 Zacian-Crowned @ Rusted Sword
 Ability: Intrepid Sword
@@ -290,6 +339,48 @@ IVs: 0 Atk
 - Sleep Powder
 - Leaf Storm
 - Earth Power
+"""
+
+VGC_3_2VS2 = """
+Calyrex-Shadow @ Focus Sash
+Ability: As One (Spectrier)
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+IVs: 0 Atk
+- Astral Barrage
+- Protect
+- Will-O-Wisp
+- Substitute
+
+Groudon @ Assault Vest
+Ability: Drought
+EVs: 252 HP / 252 Atk / 4 SpD
+Adamant Nature
+- Rock Slide
+- Heat Crash
+- Precipice Blades
+- Shadow Claw
+"""
+
+VGC_4_2VS2 = """
+Pheromosa @ King's Rock
+Ability: Beast Boost
+EVs: 4 HP / 252 SpA / 252 Spe
+Timid Nature
+- Fling
+- Ice Beam
+- Bug Buzz
+- Protect
+
+Calyrex-Shadow @ Choice Specs
+Ability: As One (Spectrier)
+EVs: 4 HP / 252 SpA / 252 Spe
+Modest Nature
+IVs: 0 Atk
+- Astral Barrage
+- Expanding Force
+- Leaf Storm
+- Psyshock
 """
 
 TEST_TEAM_1 = """
