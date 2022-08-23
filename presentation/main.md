@@ -103,7 +103,8 @@ Mutation is performed for each gene in a genotype with probability $\mathbb{P}_{
 :::: {.column width=50%}
 
 ## Recombination
- Instead, we used Uniform Crossover in a particular way: given that each Pokémon is represented by a valid $(a, t)$ pair, we perform crossover by selecting the whole pair from one of the parents to avoid inconsistencies. Furthermore, crossover is performed with $\mathbb{P}_{c} = 100\%$, and $\mathbb{P}_{bias} = 50\%$ (i.e. the bias towards a certain offspring).
+Instead, we used Uniform Crossover in a particular way: given that each Pokémon is represented by a valid $(a, t)$ pair, we perform crossover by selecting the whole pair from one of the parents to avoid inconsistencies. Furthermore, crossover is performed with $\mathbb{P}_{c} = 100\%$, and $\mathbb{P}_{bias} = 50\%$ (i.e. the bias towards a certain offspring).
+
 ::::
 
 :::
@@ -111,19 +112,25 @@ Mutation is performed for each gene in a genotype with probability $\mathbb{P}_{
 # Search strategy
 
 # Objective & Optimisation
+Concerning the *Pareto front* we have considered four variables, therefore the final optimisation problem is:
 
+$$\underline{x} = (x_1,x_2,x_3,x_4) \in \mathbb{R}^4$$
 
-# Il Sium del Re Bomba
+where $x_1$ is the damage dealt by the ally Pokémons to the opponents, $x_2$ is the damage dealt by the opponents' Pokémons to the allies, $x_3$ is the health points remaining of the player's Pokémons, $x_4$ is the health points remaining of the opponent's Pokémons, and $\mathbb{R}^4$ is our search space, defined as:
+
+$$\mathbb{R}^4 = \{(x_1,x_2,x_3,x_4) : 0 \leq x_1,x_2,x_3,x_4 \leq 100\}$$
+
+# Model testing
 
 ::: {.columns align=center}
 
-:::: column
+:::: {.column width=50%}
 
 ## A
 
 ::::
 
-:::: column
+:::: {.column width=50%}
 
 ## B
 
@@ -135,11 +142,43 @@ Mutation is performed for each gene in a genotype with probability $\mathbb{P}_{
 
 \centering
 \movie[
-  width=0.4\linewidth,
-  height=0.3\linewidth,
+  width=0.7\linewidth,
+  height=0.6\linewidth,
   showcontrols,
   poster
 ]{}{./assets/rock.mp4}
+
+# Statistical tests
+
+We have tested both the normality and the statistical significance.
+
+::: {.columns align=center}
+
+:::: {.column width=50%}
+
+## Normality
+* Quantile-Quantile plot
+* Shapiro-Wilk test
+* Kolmogorov-Smirnov nomality test
+
+::::
+
+:::: {.column width=50%}
+
+## Statistical significance
+* Box plot
+* t-test
+* Wilcoxon rank mean test
+
+::::
+
+:::
+
+# Data test
+
+# Difficulties
+
+# Contributions
 
 # Gif in PDF
 
