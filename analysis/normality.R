@@ -10,11 +10,11 @@ set.seed(32)
 
 name_test = 'reward'
 
-df_pareto <- read.csv('./data/reward_561.csv') %>% 
+df_pareto <- read.csv('./data/reward_598.csv') %>% 
   dplyr::select(mean_reward) %>%
   tibble::as_tibble()
 
-df_random <- read.csv('./data/reward_587.csv') %>% 
+df_random <- read.csv('./data/reward_596.csv') %>% 
   dplyr::select(mean_reward) %>%
   tibble::as_tibble()
 

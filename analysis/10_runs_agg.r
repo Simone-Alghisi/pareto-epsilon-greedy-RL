@@ -20,7 +20,7 @@ ggplot(data=export,aes(x=episode)) +
   labs(x="Episode",y="Episode Reward") +
   scale_color_manual(name = c("Pareto", "Random"), 
                      values = c("pareto" = "blue", "random" = "red"))+
-  guides(col=guide_legend(title="SIUM"))
+  guides(col=guide_legend(title="Method"))
 
 # are mean pareto and mean random sampled from the same distribution?
 ks.test(export$mean_pareto,export$mean_random)
