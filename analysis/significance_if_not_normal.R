@@ -8,25 +8,40 @@ library(tibble)
 set.seed(32)
 
 # ========= import the data =================
-# **NOTE:** here since we do not have the data I assume it is not sampled from a normal distribution
-winrate_with_pareto_data <- rgamma(20, shape = 1, rate = 3) # gamma distribution
-winrate_without_pareto_data <- rbeta(20, shape1 = 2, shape2 = 4) # Beta distribution
 
-winrate_with_pareto <- tibble(method = rep("With Pareto", length(winrate_with_pareto_data)), rate = winrate_with_pareto_data)
-winrate_without_pareto <- tibble(method = rep("Without Pareto", length(winrate_without_pareto_data)), rate = winrate_without_pareto_data)
-winrate <- dplyr::bind_rows(winrate_with_pareto, winrate_without_pareto)
+name_test = 'reward'
+
+df_pareto_raw <- read.csv('./data/reward_561.csv') %>% 
+  dplyr::select(mean_reward) %>%
+  dplyr::rename(value = mean_reward) %>%
+  tibble::as_tibble()
+
+df_random_raw <- read.csv('./data/reward_587.csv') %>% 
+  dplyr::select(mean_reward) %>%
+  dplyr::rename(value = mean_reward) %>%
+  tibble::as_tibble()
+
+df_pareto <- tibble(method = rep("Pareto", nrow(df_pareto_raw)), value = df_pareto_raw$value)
+df_random <- tibble(method = rep("Random", nrow(df_random_raw)), value = df_random_raw$value)
+df <- dplyr::bind_rows(df_pareto, df_random)
+df <- df %>%
+  group_by(method) %>%
+  mutate(outlier = (value > median(value) + IQR(value) * 1.5 | value < median(value) - IQR(value) * 1.5)) %>% 
+  ungroup
 
 # ========= plot the data ===================
+
 file_name <- "box_plot.pdf"
 print(paste("Creating box plot in", file_name))
 pdf(file_name)
-g <- ggplot(winrate, aes(x = method, y = rate)) + 
-  geom_boxplot() + 
+g <- ggplot(df, aes(x = method, y = value)) + 
+  geom_boxplot(outlier.shape = NA) + 
+  geom_point(data = function(x) dplyr::filter_(x, ~ outlier), position = 'jitter') +
   theme_minimal() +
   labs(
     title = "Box plot", 
     subtitle = "Reinforcement Learning with and without NSGA2 solution warm up",
-    y = "Winrate",
+    y = name_test,
     x = "Method"
   )
 plot(g)
@@ -34,7 +49,7 @@ invisible(dev.off())
 
 # Wilcoxon rank mean test
 print("Wilcoxon rank mean test [expected p-value to be << 0.05]")
-wilcox.test(winrate_without_pareto_data, winrate_with_pareto_data, alternative = "g") 
+wilcox.test(df_pareto_raw$value, df_random_raw$value, alternative = "g") 
 
 # if the p-value is less than 0.05 then we can reject the null-hypothesis -> statistical significance is proven
 # what the test does is:

@@ -1,10 +1,7 @@
 library(tidyverse)
 
-dir <- "/home/metrobobbi/Documenti/uni/DS/Projects/pareto-epsilon-greedy-RL/analysis"
-setwd(dir)
-
-runs.random <- read.csv("data/random_run.csv")
-runs.pareto <- read.csv("data/pareto_run.csv")
+runs.random <- read.csv("./data/random_run.csv")
+runs.pareto <- read.csv("./data/pareto_run.csv")
 
 runs.pareto <- runs.pareto %>% select(contains("ep_reward") & -contains("MIN") & -contains("MAX") | contains("episode"))
 runs.random <- runs.random %>% select(contains("ep_reward") & -contains("MIN") & -contains("MAX"))
@@ -31,5 +28,3 @@ ks.test(export$mean_pareto,export$mean_random)
 
 #is pareto variable dominating over random variable?
 ks.test(export$mean_pareto,export$mean_random,alternative = "l")
-
-

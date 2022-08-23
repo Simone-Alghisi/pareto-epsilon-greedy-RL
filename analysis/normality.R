@@ -8,13 +8,17 @@ set.seed(32)
 
 # ========= import the data =================
 
-# **NOTE:** here since we do not have the data I assume it is mtcars with mpg as column
-data(mtcars) 
+name_test = 'reward'
 
-df <- mtcars %>% 
-  dplyr::select(mpg) %>%
-  dplyr::rename(winrate = mpg) %>%
+df_pareto <- read.csv('./data/reward_561.csv') %>% 
+  dplyr::select(mean_reward) %>%
   tibble::as_tibble()
+
+df_random <- read.csv('./data/reward_587.csv') %>% 
+  dplyr::select(mean_reward) %>%
+  tibble::as_tibble()
+
+df <- data.frame(diff=df_pareto$mean_reward - df_random$mean_reward)
 
 # ========= normality tests =================
 
@@ -22,12 +26,12 @@ df <- mtcars %>%
 file_name <- "Normality_QQ.pdf"
 print(paste("Creating Q-Q plot in", file_name))
 pdf(file_name)
-qq <- ggplot(df, aes(sample = winrate)) +
+qq <- ggplot(df, aes(sample = diff)) +
   stat_qq() +
   stat_qq_line() +
   labs(
     title = "Normal Q-Q plot",
-    subtitle = "Winrate normality visual test"
+    subtitle = paste(name_test, "normality visual test"),
     y = "Sample Quantiles",
     x = "Theoretical Quantiles"
   ) +
@@ -37,7 +41,7 @@ invisible(dev.off())
 
 # shapiro-wilk test
 print("Shapiro Normality test [expected p-value to be >> 0.05]")
-shapiro.test(df$winrate)
+shapiro.test(df$diff)
 # If the p-value is much greater than 0.05 we cannot reject that the null hypothesis which states that the sample distribution is normal distributed 
 # (note, this does not imply our data is normal distributed, for this reason I have run more tests)
 # what the test does is:
@@ -47,7 +51,7 @@ shapiro.test(df$winrate)
 
 # kolmogorov-smirnov normality test
 print("Kolmogorov Smirnov test [expected p-value to be >> 0.05]")
-ks.test(df$winrate, 'pnorm', mean(df$winrate), sd(df$winrate))
+ks.test(df$diff, 'pnorm', mean(df$diff), sd(df$diff))
 # If the p-value is much greater than 0.05 we cannot reject that the null hypothesis which states that the sample distribution is normal distributed 
 # (note, this does not imply our data is normal distributed, for this reason I have run more tests)
 # what the test does is:
