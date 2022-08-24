@@ -90,35 +90,46 @@ The idea is that, given that the search space is very big - there are $10^{354}$
 Generally, in a Pokémon battle two actions are possible, i.e. performing a move or a switch. Moreover, depending on the type of battle, it may be necessary to specify the target of the move. To encode such a thing, we came up with the following genotype: each Pokémon is represented using two genes, i.e. action and target (optional) $(a, t)$. The whole genotype tells us who is going
 to perform what on whom.
 
-# Genetic operators
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{./assets/genotype_representation}
+\caption{Genotype representation}
+\end{figure}
 
-::: {.columns align=center}
-
-:::: {.column width=50%}
-
-## Mutation
+# Genetic operators - Mutation
 Mutation is performed for each gene in a genotype with probability $\mathbb{P}_{m} = 10\%$: both the action and the target may be mutated, meaning that it is possible to go from a move to a switch (and vice-versa).
-::::
 
-:::: {.column width=50%}
+\begin{figure}
+\centering
+\includegraphics[scale=.45]{./assets/mutation}
+\caption{Mutation}
+\end{figure}
 
-## Recombination
+# Genetic operators - Recombination
 Instead, we used Uniform Crossover in a particular way: given that each Pokémon is represented by a valid $(a, t)$ pair, we perform crossover by selecting the whole pair from one of the parents to avoid inconsistencies. Furthermore, crossover is performed with $\mathbb{P}_{c} = 100\%$, and $\mathbb{P}_{bias} = 50\%$ (i.e. the bias towards a certain offspring).
 
-::::
-
-:::
-
-# Search strategy
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{./assets/crossover}
+\caption{Recombination}
+\end{figure}
 
 # Objective & Optimisation
-Concerning the *Pareto front* we have considered four variables, therefore the final optimisation problem is:
+Concerning the *Pareto front* we have considered four variables with the following optimisation problem:
 
 $$\underline{x} = (x_1,x_2,x_3,x_4) \in \mathbb{R}^4$$
 
 where $x_1$ is the damage dealt by the ally Pokémons to the opponents, $x_2$ is the damage dealt by the opponents' Pokémons to the allies, $x_3$ is the health points remaining of the player's Pokémons, $x_4$ is the health points remaining of the opponent's Pokémons, and $\mathbb{R}^4$ is our search space, defined as:
 
 $$\mathbb{R}^4 = \{(x_1,x_2,x_3,x_4) : 0 \leq x_1,x_2,x_3,x_4 \leq 100\}$$
+
+# Program structure
+
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{./assets/program_structure}
+\caption{Program structure}
+\end{figure}
 
 # Model testing
 
@@ -150,7 +161,7 @@ $$\mathbb{R}^4 = \{(x_1,x_2,x_3,x_4) : 0 \leq x_1,x_2,x_3,x_4 \leq 100\}$$
 
 # Statistical tests
 
-We have tested both the normality and the statistical significance.
+We have tested both the normality and the statistical significance of the proposed solution with the employment of the following graphical and analytical tools:
 
 ::: {.columns align=center}
 
@@ -174,21 +185,26 @@ We have tested both the normality and the statistical significance.
 
 :::
 
-# Data test
+# Empirical results
 
 # Difficulties
+The main difficulties we have encountered concern:
+
+* Damage calculator
+* Hyperparameters selection and topology search
+* Pokémon double battles
+* Pokémon battle switches
 
 # Contributions
 
-# Gif in PDF
-
+<!-- # Gif in PDF -->
 <!-- comandi totali: -->
 <!-- convert -coalesce something.gif something.png -> questo fa in modo di avere una png per frame --> 
 <!-- magick identify -verbose something.gif | grep 'Delay' -> questo fa in modo di ritornare il framerate della gif --> 
 <!-- Aprire il pdf con Okular o Adobe Acrobat, forse su Chrome? -->
 <!-- https://tex.stackexchange.com/questions/240243/getting-gif-and-or-moving-images-into-a-latex-presentation per più info -->
 <!-- Parametri: FPS - preambolo dei png - 0 perche si e 12 sono i frame totali -->
-\centering\animategraphics[autoplay,loop,width=0.5\linewidth]{10}{./assets/lol-}{0}{12}
+<!--\centering\animategraphics[autoplay,loop,width=0.5\linewidth]{10}{./assets/lol-}{0}{12}-->
 
 # Resources
 
