@@ -116,7 +116,6 @@ help:
 	* open-doc 			: opens the documentation\n \
 	* train 			: train the network\n \
 	* test 			: test the network\n \
-	* pareto 			: run the pareto front algorithm\n \
 	* start-showdown 		: starts the showdown server\n \
 	* start-damage-calc-server 	: starts the damage calculator server\n \
 	* pareto-battle 		: starts a battle with an agents having Pareto optimal moves"
@@ -206,11 +205,6 @@ unittest:
 pareto-battle:
 	@$(ECHO) '$(BLUE)Battle with Pareto moves..$(NONE)'
 	@$(PYTHON) $(PYFLAGS) $(MAIN) $(MAIN_FLAGS) $(PARETO_BATTLE) $(PARETO_BATTLE_FLAG)
-	@$(ECHO) '$(BLUE)Done$(NONE)'
-
-pareto:
-	@$(ECHO) '$(BLUE)Running the pareto..$(NONE)'
-	@$(PYTHON) $(PYFLAGS) $(MAIN) $(MAIN_FLAGS) $(PARETO) $(PARETO_FLAG)
 	@$(ECHO) '$(BLUE)Done$(NONE)'
 
 format:

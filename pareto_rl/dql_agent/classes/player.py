@@ -268,7 +268,7 @@ class BaseRLPlayer(SimpleRLPlayer, ABC):
         team: str,
         lr: float = 1e-4,
         eps: float = 1e-6,
-        weights_path = None,
+        weights_path=None,
         **kwargs
     ):
         super(BaseRLPlayer, self).__init__(
@@ -376,7 +376,7 @@ class DoubleActionRLPlayer(BaseRLPlayer):
         team: str,
         lr: float = 1e-4,
         eps: float = 1e-6,
-        weights_path = None,
+        weights_path=None,
         **kwargs
     ):
         super(DoubleActionRLPlayer, self).__init__(
@@ -658,9 +658,9 @@ class CombineActionRLPlayer(BaseRLPlayer):
         team: str,
         lr: float = 1e-4,
         eps: float = 1e-6,
-        pareto_p = 0,
-        pareto_thresh = 0.2,
-        weights_path = None,
+        pareto_p=0,
+        pareto_thresh=0.2,
+        weights_path=None,
         **kwargs
     ):
         super(CombineActionRLPlayer, self).__init__(
@@ -803,7 +803,7 @@ class CombineActionRLPlayer(BaseRLPlayer):
             first_order = None
             second_order = None
             # the first one wants to make a move
-            act_1 = neuron_pos // self.n_actions    # [0, self.n_targets*self.n_moves)
+            act_1 = neuron_pos // self.n_actions  # [0, self.n_targets*self.n_moves)
             first_order = self.decode_order(act_1, -1)
             act_2 = neuron_pos % self.n_actions  # [0, self.n_actions)
             second_order = self.decode_order(act_2, -2)

@@ -26,7 +26,7 @@ from pareto_rl.pareto_front.ga.nsga2 import (
     nsga2,
     init_nsga2,
     get_evaluations,
-    parse_evaluation
+    parse_evaluation,
 )
 from poke_env.player.battle_order import BattleOrder, DoubleBattleOrder
 from pareto_rl.pareto_front.classes.next_turn import (
@@ -36,6 +36,7 @@ from pareto_rl.pareto_front.classes.next_turn import (
 )
 import pareto_rl.pareto_front.ga.utils.plot_utils as plot_utils
 import matplotlib.pyplot as plt
+
 # from adjustText import adjust_text
 from pareto_rl.dql_agent.utils.pokemon_mapper import PokemonMapper
 from pathlib import Path
@@ -44,53 +45,6 @@ import numpy as np
 import seaborn as sb
 import pandas as pd
 
-def configure_subparsers(subparsers):
-    r"""Configure a new subparser for testing the Pareto search.
-
-    Args:
-      subparsers: subparser
-    """
-
-    """
-    Subparser parameters:
-    Args:
-        dry [bool]: whether to run without showing any plot
-    """
-    parser = subparsers.add_parser("pareto", help="Test the Pareto search")
-    parser.add_argument(
-        "--dry", action="store_true", default=False, help="Run without showing plots"
-    )
-    parser.set_defaults(func=main)
-
-
-def main(args):
-    r"""Checks the command line arguments and then runs pareto_search.
-    Args:
-      args: command line arguments
-    """
-
-    print("\n### Pareto search ###")
-    print("> Parameters:")
-    for p, v in zip(args.__dict__.keys(), args.__dict__.values()):
-        print("\t{}: {}".format(p, v))
-    print("\n")
-
-    # init nsga2
-    init_nsga2()
-
-    pareto_search(args)
-
-    # plot the diagrams
-    if not args.dry:
-        folder = get_run_folder(f"{Path(__file__).parent.absolute()}/../../nsga2_runs/")
-        files = get_evaluations(folder)
-        populations = []
-        for i, file in enumerate(files):
-            population, args = parse_evaluation(file)
-            populations.append(population)
-            plot_utils.generate_multilevel_diagram(population, f"NSGA2 run {i} multilevel diagram")
-            plot_utils.plot_results_multi_objective_PF(population, f"NSGA2 run {i} objective vs objective", args)
-        plot_utils.generate_multilevel_diagram_different_population(populations, "NSGA2 runs comparisons multilevel diagram")
 
 def pareto_search(
     args,
@@ -131,9 +85,7 @@ def pareto_search(
     rng = NumpyRandomWrapper()
 
     # runs nsga2
-    final_pop, final_pop_fitnesses = nsga2(
-        rng, problem, num_vars=8, **nsga2_args
-    )
+    final_pop, final_pop_fitnesses = nsga2(rng, problem, num_vars=8, **nsga2_args)
 
     if not args.dry:
         print("Final Population\n", final_pop)

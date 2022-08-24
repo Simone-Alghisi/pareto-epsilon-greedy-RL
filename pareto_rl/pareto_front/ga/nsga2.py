@@ -32,11 +32,11 @@ from pathlib import Path
 # NSGA runs folder
 FOLDER = f"{Path(__file__).parent.absolute()}/../../../nsga2_runs/"
 
+
 def init_nsga2():
-    r"""NSGA2 algorithm initialization, it clears the folder of the nsga2
-    """
+    r"""NSGA2 algorithm initialization, it clears the folder of the nsga2"""
     for filename in os.listdir(get_run_folder(FOLDER)):
-        if not filename.startswith('.gitignore'):
+        if not filename.startswith(".gitignore"):
             file_path = os.path.join(get_run_folder(FOLDER), filename)
             try:
                 if os.path.isfile(file_path) or os.path.islink(file_path):
@@ -44,7 +44,7 @@ def init_nsga2():
                 elif os.path.isdir(file_path):
                     shutil.rmtree(file_path)
             except Exception as e:
-                print('Failed to delete %s. Reason: %s' % (file_path, e))
+                print("Failed to delete %s. Reason: %s" % (file_path, e))
 
 
 def nsga2(random, problem, num_vars=0, variator=None, **kwargs):
@@ -90,7 +90,7 @@ def nsga2(random, problem, num_vars=0, variator=None, **kwargs):
         initial_pop_storage=initial_pop_storage,
         num_vars=num_vars,
         generator=problem.generator,
-        **kwargs
+        **kwargs,
     )
 
     best_guy = final_pop[0].candidate[0:num_vars]
@@ -106,10 +106,11 @@ def nsga2(random, problem, num_vars=0, variator=None, **kwargs):
 
     return final_pop_candidates, final_pop_fitnesses
 
+
 def current_millis_time():
-    r"""Gets the current time millis
-    """
+    r"""Gets the current time millis"""
     return round(time.time() * 10**7)
+
 
 def save_current_population(population, kwargs):
     """
@@ -123,12 +124,13 @@ def save_current_population(population, kwargs):
     folder = get_run_folder(FOLDER)
     if not os.path.isdir(folder):
         os.makedirs(folder)
-    with open(f"{folder}{get_file_name}.csv",'w') as f:
+    with open(f"{folder}{get_file_name}.csv", "w") as f:
         writer = csv.writer(f)
-        writer.writerow(["population","args"]) # header
+        writer.writerow(["population", "args"])  # header
         pop = json.dumps(population)
-        arg = json.dumps({k: v for k, v in kwargs.items() if k.startswith('objective')})
-        writer.writerow([pop,arg])
+        arg = json.dumps({k: v for k, v in kwargs.items() if k.startswith("objective")})
+        writer.writerow([pop, arg])
+
 
 def get_evaluations(foldername):
     """
@@ -138,12 +140,14 @@ def get_evaluations(foldername):
         foldername: foldername
     """
     visible_files = [
-        file.name for file in Path(foldername).iterdir() if not file.name.startswith(".")
+        file.name
+        for file in Path(foldername).iterdir()
+        if not file.name.startswith(".")
     ]
 
     files = sorted(
-        filter( lambda x: os.path.isfile(os.path.join(foldername, x)), visible_files),
-        key = lambda x: int(x.split('.', 1)[0])
+        filter(lambda x: os.path.isfile(os.path.join(foldername, x)), visible_files),
+        key=lambda x: int(x.split(".", 1)[0]),
     )
 
     return list(map(lambda x: f"{foldername}{x}", files))

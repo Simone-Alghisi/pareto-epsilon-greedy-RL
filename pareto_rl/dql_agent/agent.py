@@ -20,6 +20,7 @@ from pareto_rl.dql_agent.classes.random_player import DoubleRandomPlayer
 from pareto_rl.dql_agent.classes.wrapper_player import WrapperPlayer
 from pareto_rl.dql_agent.utils.teams import VGC_1_2VS2 as OPP_TEAM
 from pareto_rl.dql_agent.utils.teams import VGC_2_2VS2 as TEAM
+
 # from pareto_rl.dql_agent.utils.teams import VGC_1 as OPP_TEAM
 # from pareto_rl.dql_agent.utils.teams import VGC_3_2VS2 as TEAM
 from pareto_rl.dql_agent.utils.utils import (
@@ -43,11 +44,24 @@ def configure_subparsers(subparsers):
     Args:
 
     """
-    parser: ArgumentParser = subparsers.add_parser("rlagent", help="Train/test reinforcement learning")
-    parser.add_argument('--test', metavar='RUN_NUMBER', nargs='+', type=int,
-                                         help='One or two run numbers. If one, test against DoubleMaxDamagePlayer, if two test against eachother.')
-    parser.add_argument('-fc','--fitness_metric', type=str, choices={'winrate','reward'},
-                                         default='reward', help='Fitness metric to use in test.')
+    parser: ArgumentParser = subparsers.add_parser(
+        "rlagent", help="Train/test reinforcement learning"
+    )
+    parser.add_argument(
+        "--test",
+        metavar="RUN_NUMBER",
+        nargs="+",
+        type=int,
+        help="One or two run numbers. If one, test against DoubleMaxDamagePlayer, if two test against eachother.",
+    )
+    parser.add_argument(
+        "-fc",
+        "--fitness_metric",
+        type=str,
+        choices={"winrate", "reward"},
+        default="reward",
+        help="Fitness metric to use in test.",
+    )
     parser.set_defaults(func=main)
 
 
@@ -321,6 +335,7 @@ def eval(player: BaseRLPlayer, num_episodes: int, **args):
     print(f"DarkrAI has won {player.n_won_battles} out of {num_episodes} games")
     return player.n_won_battles / num_episodes, episode_reward / num_episodes
 
+
 def test(player: BaseRLPlayer, num_episodes: int, **args):
     player.policy_net.eval()
 
@@ -330,7 +345,7 @@ def test(player: BaseRLPlayer, num_episodes: int, **args):
         player.start_challenging()
 
     lines = []
-    lines.append(['mean_reward', 'won', 'n_turns', 'wct'])
+    lines.append(["mean_reward", "won", "n_turns", "wct"])
     for _ in tqdm(range(num_episodes), desc="Evaluating", unit="episodes"):
 
         mean_reward = 0
@@ -385,12 +400,16 @@ def test(player: BaseRLPlayer, num_episodes: int, **args):
             state = next_state
         # CSV
         wct = time_ns() - start
-        lines.append([mean_reward/(t+1), int(player.current_battle.won), t+1, wct])
+        lines.append(
+            [mean_reward / (t + 1), int(player.current_battle.won), t + 1, wct]
+        )
 
         player.step_reset()
         player.episode_reset()
 
-    with open(f"./analysis/data/{args['fitness_metric']}_{args['test'][0]}.csv",'w') as f:
+    with open(
+        f"./analysis/data/{args['fitness_metric']}_{args['test'][0]}.csv", "w"
+    ) as f:
         writer = csv.writer(f)
         writer.writerows(lines)
     print(f"DarkrAI has won {player.n_won_battles} out of {num_episodes} games")
@@ -454,6 +473,7 @@ def train_handler(args, darkrai_player_config, battle_format, opponent):
 
     best_winrate, best_reward = train(agent, args["train_episodes"], args)
     wandb.log({"best_winrate": best_winrate, "best_reward": best_reward})
+
 
 def test_handler(args, darkrai_player_config, battle_format, opponent):
     # fitness_metric = 'reward'
@@ -544,38 +564,39 @@ def test_handler(args, darkrai_player_config, battle_format, opponent):
         }
     )
     agent.start_challenging()
-    test(agent,1000,**args)
-
+    test(agent, 1000, **args)
 
 
 def main(args):
     args = vars(args)
-    args.update({
-        "exp_rate_start": 1.0,
-        "exp_rate_end": 0.10,
-        "train_episodes": 3000,
-        "batch_size": 32,
-        "gamma": 0.999,
-        "team": TEAM,
-        "lr": 1e-4,
-        "eps": 1e-6,
-        "n_switches": 0,
-        "n_moves": 4,
-        "n_targets": 5,
-        "input_size": 124,
-        "hidden_layers": [256,128],
-        "target_update": 1000,
-        "eval_interval": 500,
-        "eval_interval_episodes": 300,
-        "memory": 32 * 40,
-        "combined_actions": True,
-        "fixed_team": True,
-        "fill_memory": True,
-        "pareto_p": 0.7,
-        "pareto_thresh": 0.2,
-        "pokemon_list": get_pokemon_list([TEAM]),
-        "opponent_list": get_pokemon_list([OPP_TEAM]),
-    })
+    args.update(
+        {
+            "exp_rate_start": 1.0,
+            "exp_rate_end": 0.10,
+            "train_episodes": 3000,
+            "batch_size": 32,
+            "gamma": 0.999,
+            "team": TEAM,
+            "lr": 1e-4,
+            "eps": 1e-6,
+            "n_switches": 0,
+            "n_moves": 4,
+            "n_targets": 5,
+            "input_size": 124,
+            "hidden_layers": [256, 128],
+            "target_update": 1000,
+            "eval_interval": 500,
+            "eval_interval_episodes": 300,
+            "memory": 32 * 40,
+            "combined_actions": True,
+            "fixed_team": True,
+            "fill_memory": True,
+            "pareto_p": 0.7,
+            "pareto_thresh": 0.2,
+            "pokemon_list": get_pokemon_list([TEAM]),
+            "opponent_list": get_pokemon_list([OPP_TEAM]),
+        }
+    )
 
     darkrai_player_config = PlayerConfiguration("DarkrAI", None)
     if args["fixed_team"]:
@@ -591,7 +612,7 @@ def main(args):
             battle_format=battle_format, player_configuration=opponent_config
         )
 
-    if args['test'] is None:
+    if args["test"] is None:
         train_handler(args, darkrai_player_config, battle_format, opponent)
     else:
         test_handler(args, darkrai_player_config, battle_format, opponent)

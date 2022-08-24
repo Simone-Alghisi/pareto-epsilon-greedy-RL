@@ -38,7 +38,9 @@ class ParetoPlayer(Player):
             return self.choose_random_doubles_move(battle)
         args = Namespace(dry=True)
         orders = pareto_search(args, battle, pm, self)
-        return orders[int(random.random() * len(orders))]
+        index = int(random.random() * len(orders))
+        print(index)
+        return orders[index]
 
     def get_mon_estimates(self, mon: Pokemon, pos: int) -> Dict[str, int]:
         pass

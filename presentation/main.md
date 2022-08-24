@@ -98,12 +98,14 @@ Instead, we used Uniform Crossover in a particular way: given that each Pokémon
 
 # Objective & Optimisation
 Concerning the *Pareto front* we have considered four variables with the following optimisation problem:
+$$\underline{x} = (x_1,x_2,x_3,x_4) \in \mathbb{R}^4 \quad \text{where} \;\; \mathbb{R}^4 = \{(x_1,x_2,x_3,x_4) : 0 \leq x_1,x_2,x_3,x_4 \leq 100\}$$
+where $x_1$ is the damage dealt by the ally Pokémons to the opponents, $x_2$ is the damage dealt by the opponents' Pokémons to the allies, $x_3$ is the health points remaining of the player's Pokémons and $x_4$ is the health points remaining of the opponent's Pokémons.
 
-$$\underline{x} = (x_1,x_2,x_3,x_4) \in \mathbb{R}^4$$
-
-where $x_1$ is the damage dealt by the ally Pokémons to the opponents, $x_2$ is the damage dealt by the opponents' Pokémons to the allies, $x_3$ is the health points remaining of the player's Pokémons, $x_4$ is the health points remaining of the opponent's Pokémons, and $\mathbb{R}^4$ is our search space, defined as:
-
-$$\mathbb{R}^4 = \{(x_1,x_2,x_3,x_4) : 0 \leq x_1,x_2,x_3,x_4 \leq 100\}$$
+\begin{figure}
+\centering
+\includegraphics[width=0.9\linewidth]{./assets/pareto_front}
+\caption{Recombination}
+\end{figure}
 
 # Architecture details
 The agent architecture is a four-layer deep *Multilayer Perceptron (MLP)*, which employs *ReLU* as activation function. In particular:
@@ -132,7 +134,14 @@ The standard agent uses a simple $\varepsilon$-greedy policy:
 \caption{Program structure}
 \end{figure}
 
-# Model testing
+# Experiments
+All agents were trained by having them fight against *MaxDamagePlayer*, i.e. a bot which always chooses the combination of moves that deals the highest amount of damage.
+
+Several situations were considered, such as:
+
+- 2 VS 2 battle with a static teams;
+- 2 VS 2 battle with a single victory condition;
+- 2 VS 2 battle with teams sampled randomly from a pool of possible Pokémons.
 
 ::: {.columns align=center}
 
@@ -187,6 +196,7 @@ We have tested both the normality and the statistical significance of the propos
 :::
 
 # Empirical results
+
 
 # Difficulties
 The main difficulties we have encountered concern:

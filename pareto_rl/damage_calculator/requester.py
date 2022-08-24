@@ -24,6 +24,7 @@ import requests
 #: node server url, in the case it is employed
 SERVER_URL = "http://localhost:8080/api/v1/damagecalc"
 
+
 def is_transpiled(file_path: str) -> bool:
     r"""Returns true if the TypeScript file has been transpiled
 
@@ -44,7 +45,9 @@ def damage_request_server(request: dict):
     """
     result = requests.post(SERVER_URL, json=request)
     if result.status_code != 200:
-        raise Exception(f"Error in the request format, server answered with status code {result.status_code}")
+        raise Exception(
+            f"Error in the request format, server answered with status code {result.status_code}"
+        )
     return result.text
 
 
@@ -67,7 +70,11 @@ def damage_request_subprocess(parameters: str = ""):
     try:
         # call node function
         output = subprocess.check_output(
-            ("node", "{}/ts/dmg_calculator.js".format(dir_path), "{}".format(parameters))
+            (
+                "node",
+                "{}/ts/dmg_calculator.js".format(dir_path),
+                "{}".format(parameters),
+            )
         )
         # decode the bytes read
         output = output.decode("utf-8").strip()

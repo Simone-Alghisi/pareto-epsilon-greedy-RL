@@ -44,16 +44,23 @@ def get_args():
 
     # subparsers
     subparsers = parser.add_subparsers(help="sub-commands help")
-    pareto_processor.pareto_search.configure_subparsers(subparsers)
     test_processor.pareto_battle.configure_subparsers(subparsers)
     agent.configure_subparsers(subparsers)
 
     # arguments of the parser
     parser.add_argument(
-        "--logger-level", "-ll", choices=LOGGER_LEVELS.keys(), default="WARNING", help="Logger level"
+        "--logger-level",
+        "-ll",
+        choices=LOGGER_LEVELS.keys(),
+        default="WARNING",
+        help="Logger level",
     )
     parser.add_argument(
-        "--matplotlib-backend", "-mb", choices=matplotlib.rcsetup.interactive_bk, default="QtAgg", help="Matplotlib interactive backend"
+        "--matplotlib-backend",
+        "-mb",
+        choices=matplotlib.rcsetup.interactive_bk,
+        default="QtAgg",
+        help="Matplotlib interactive backend",
     )
 
     # parse arguments

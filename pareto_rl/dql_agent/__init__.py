@@ -11,4 +11,4 @@ Authors:
 Università di Trento 2022
 """
 
-__all__ = ['agent']
+__all__ = ["agent"]

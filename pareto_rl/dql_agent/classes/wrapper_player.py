@@ -26,4 +26,4 @@ class WrapperPlayer(Player):
     def choose_move(self, battle) -> Union[DoubleBattleOrder, DefaultBattleOrder]:
         state = self.model.embed_battle(battle)
         self.model.pm = PokemonMapper(battle)
-        return self.model.decode_action(self.model.policy(state,eps_greedy=False))
+        return self.model.decode_action(self.model.policy(state, eps_greedy=False))
