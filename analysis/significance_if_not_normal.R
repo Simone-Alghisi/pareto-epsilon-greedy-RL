@@ -50,9 +50,12 @@ invisible(dev.off())
 
 # Wilcoxon rank mean test
 print("Wilcoxon rank mean test [expected p-value to be << 0.05]")
-wilcox.test(df_random_raw$value, df_pareto_raw$value, alternative = "g") 
+
+wilcox.test(df_pareto_raw$won, df_random_raw$won,alternative="g") 
 
 # if the p-value is less than 0.05 then we can reject the null-hypothesis -> statistical significance is proven
 # what the test does is:
 # H0: µ1 = µ2 (the two means are equal)
 # HA: µ1 ≠ µ2 (the two means are not equal)
+
+
