@@ -35,24 +35,6 @@ nocite: |
 
 # Introduction
 
-1. introducing pokemon, and RL in a few words
-2. describe why the training becomes very difficult (THE NUMBERS MASON, WHAT DO THEY MEAN)
-3. propose the solution with NSGA-II in order to have a controlled search rather than a completely random one
-4. describe the multi-objective problem:
-  - genotype representation
-  - mutation and recombination strategy 
-  - search strategy
-  - defining objectives and the optimisation
-5. specify what kind of tests have been conducted, and why (IDK EITHER il re bomba)
-6. live demo
-7. analysis of the results
-  - pareto front (we show both plots of the same pareto front)
-  - training convergence
-8. difficulties
-9. contributions
-
-# Introduction
-
 ::: {.columns align=center}
 
 :::: {.column width=50%}
@@ -78,7 +60,7 @@ Pokémon uses a turn-based system: at the start of each turn, both sides can cho
 *Reinforcement learning (RL)* is an area of Machine Learning where an agent receives a reward based on the action it has performed. Actions allow the agent to transition from a state to another. The final objective is to learn a policy to reach a terminal state with the best reward achievable.
 
 ## Deep Q-Learning
-The reinforcement learning technique we have employed is called *Deep Q-Learning*, which maps input states to a pair of actions and Q-values using an Artificial Neural Network. *Q-Learning* is based on the *Q-function*, namely $Q : S \times A \rightarrow R$, which returns - given a state-action pair ($s, a \in S \times A$) - the expected discounted reward ($r \in R$) for future states. 
+The reinforcement learning technique we have employed is called *Deep Q-Learning*, which maps input states to a pair of actions and Q-values using an Artificial Neural Network. *Q-Learning* is based on the *Q-function*, namely $Q : S \times A \rightarrow R$, which returns - given a state-action pair ($s, a \in S \times A$) - the expected discounted reward ($r \in R$) for future states.
 
 # NSGA-II
 *NSGA-II* is a Evolutionary Algorithm that allows to produce *Pareto-equivalent* (or non-dominated) solutions of a multi-objective optimisation problem.
@@ -122,6 +104,25 @@ $$\underline{x} = (x_1,x_2,x_3,x_4) \in \mathbb{R}^4$$
 where $x_1$ is the damage dealt by the ally Pokémons to the opponents, $x_2$ is the damage dealt by the opponents' Pokémons to the allies, $x_3$ is the health points remaining of the player's Pokémons, $x_4$ is the health points remaining of the opponent's Pokémons, and $\mathbb{R}^4$ is our search space, defined as:
 
 $$\mathbb{R}^4 = \{(x_1,x_2,x_3,x_4) : 0 \leq x_1,x_2,x_3,x_4 \leq 100\}$$
+
+# Architecture details
+The agent architecture is a four-layer deep *Multilayer Perceptron (MLP)*, which employs *ReLU* as activation function. In particular:
+
+- input and output layers size depend on the type of battle the network is facing (e.g. a $4 \text{ VS } 4$ battle implies a size of $244$ input neurons);
+- two hidden hidden layers of size $256$ and $128$, respectively.
+
+# Players
+The standard agent uses a simple $\varepsilon$-greedy policy:
+
+- it starts from a probability $\mathbb{P}_r=1.0$ to perform a random action;
+- it linearly decreases to $\mathbb{P}_r=0.1$ in the first $40\%$ of the training;
+- for the remaining $60\%$ of the training it linearly decreases to $\mathbb{P}_r=0.01$.
+
+## ParetoPlayer
+*ParetoPlayer* embeds the Pareto search of non-dominated moves:
+
+- it performs a random move chosen from the ones returned by *NSGA-II* with $70\%$ probability;
+- a completely random one with $30\%$ probability.
 
 # Program structure
 
@@ -197,14 +198,22 @@ The main difficulties we have encountered concern:
 
 # Contributions
 
-<!-- # Gif in PDF -->
-<!-- comandi totali: -->
-<!-- convert -coalesce something.gif something.png -> questo fa in modo di avere una png per frame --> 
-<!-- magick identify -verbose something.gif | grep 'Delay' -> questo fa in modo di ritornare il framerate della gif --> 
-<!-- Aprire il pdf con Okular o Adobe Acrobat, forse su Chrome? -->
-<!-- https://tex.stackexchange.com/questions/240243/getting-gif-and-or-moving-images-into-a-latex-presentation per più info -->
-<!-- Parametri: FPS - preambolo dei png - 0 perche si e 12 sono i frame totali -->
-<!--\centering\animategraphics[autoplay,loop,width=0.5\linewidth]{10}{./assets/lol-}{0}{12}-->
+<!-- # Gif in PDF
+comandi totali:
+convert -coalesce something.gif something.png -> questo fa in modo di avere una png per frame
+magick identify -verbose something.gif | grep 'Delay' -> questo fa in modo di ritornare il framerate della gif
+Aprire il pdf con Okular o Adobe Acrobat
+https://tex.stackexchange.com/questions/240243/getting-gif-and-or-moving-images-into-a-latex-presentation per più info
+Parametri: FPS - preambolo dei png - 0 perche si e 12 sono i frame totali
+
+\centering\animategraphics[autoplay,loop,width=0.5\linewidth]{10}{./assets/lol-}{0}{12}
+-->
+
+# Conclusions
+
+\begin{center}
+  \LARGE{Thanks for your attention!}
+\end{center}
 
 # Resources
 
@@ -221,15 +230,26 @@ The main difficulties we have encountered concern:
 * [Massimo Rizzoli](https://github.com/massimo-rizzoli)
 * [Erich Robbi](https://github.com/erich-r)
 
-# Conclusions
+<!-- # Appendix
+## Appendix content
+The appendix contains the topics we are not able to discuss during the oral examination
+-->
 
-\begin{center}
-  \LARGE{Thanks for your attention!}
-\end{center}
+<!-- # Guidelines 
 
-<!--# Appendix-->
-<!---->
-<!--## Appendix content-->
-<!--The appendix contains the topics we are not able to discuss during the oral examination-->
-
-# References {.allowframebreaks}
+1. introducing pokemon, and RL in a few words
+2. describe why the training becomes very difficult (THE NUMBERS MASON, WHAT DO THEY MEAN)
+3. propose the solution with NSGA-II in order to have a controlled search rather than a completely random one
+4. describe the multi-objective problem:
+  - genotype representation
+  - mutation and recombination strategy 
+  - search strategy
+  - defining objectives and the optimisation
+5. specify what kind of tests have been conducted, and why (IDK EITHER il re bomba)
+6. live demo
+7. analysis of the results
+  - pareto front (we show both plots of the same pareto front)
+  - training convergence
+8. difficulties
+9. contributions
+-->
