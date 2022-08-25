@@ -1,6 +1,6 @@
 ---
 title:
-- IL RE BOMBA
+- "DarkrAI: a Pareto ε-greedy policy"
 subtitle:
 - Improving Pokémon AI Traning With NSGA-II
 aspectratio:
@@ -14,8 +14,6 @@ author:
 - \href{mailto:erich.robbi@studenti.unitn.it}{Erich Robbi}
 date:
 - \today
-lang:
-- en-US
 section-titles:
 - false
 theme:
@@ -26,7 +24,6 @@ navigation:
 - horizontal
 logo:
 - assets/unitn.pdf
-bibliography: bibliography.bib
 fontsize: 9pt
 link-citations: true
 nocite: |
@@ -103,7 +100,7 @@ where $x_1$ is the damage dealt by the ally Pokémons to the opponents, $x_2$ is
 
 \begin{figure}
 \centering
-\includegraphics[width=0.9\linewidth]{./assets/pareto_front}
+\includegraphics[width=0.8\linewidth]{./assets/pareto_front}
 \caption{Recombination}
 \end{figure}
 
@@ -139,35 +136,8 @@ All agents were trained by having them fight against *MaxDamagePlayer*, i.e. a b
 
 Several situations were considered, such as:
 
-- 2 VS 2 battle with a static teams;
-- 2 VS 2 battle with a single victory condition;
-- 2 VS 2 battle with teams sampled randomly from a pool of possible Pokémons.
-
-::: {.columns align=center}
-
-:::: {.column width=50%}
-
-## A
-
-::::
-
-:::: {.column width=50%}
-
-## B
-
-::::
-
-:::
-
-# Live Demo
-
-\centering
-\movie[
-  width=0.7\linewidth,
-  height=0.6\linewidth,
-  showcontrols,
-  poster
-]{}{./assets/rock.mp4}
+- 2 VS 2 battle with static teams;
+- 2 VS 2 battle with the opponent team sampled randomly from a pool of possible Pokémons.
 
 # Statistical tests
 
@@ -195,7 +165,93 @@ We have tested both the normality and the statistical significance of the propos
 
 :::
 
-# Empirical results
+# Empirical results - Fixed teams
+
+::: {.columns align=center}
+
+:::: {.column width=50%}
+
+*  We expect the episode reward of ParetoPlayer to be higher than the episode reward of Player ($p \leq 2.2 \cdot 10^{-16}$).
+*  Training runs of ParetoPlayer tends to produce higher reward values ($p \leq 2.886 \cdot 10^{-12}$), but in some cases the rewards are almost equivalent.
+*  During evaluation ParetoPlayer tends to win more ($p \leq 3.048 \cdot 10^{-5}$)
+::::
+
+:::: {.column width=50%}
+
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{./assets/reward_on_episode.pdf}
+\caption{Row-mean reward per episode for Pareto and ParetoPlayer}
+\end{figure}
+
+::::
+
+:::
+
+# Empirical results - Fixed Teams
+
+\centering
+\movie[
+  width=0.7\linewidth,
+  height=0.6\linewidth,
+  showcontrols,
+  poster
+]{}{./assets/2v2_fixed.mp4}
+
+# Empirical results - Sampled teams
+
+::: {.columns align=center}
+
+:::: {.column width=50%}
+
+*  We still expect the episode reward of ParetoPlayer to be higher than the episode reward of Player 
+*  ParetoPlayers' reward distributions have a significant shift location to the right w.r.t to the Player's distribution ($p \leq 0.002278$ and $p \leq 0.01931$)
+*  The winning percentage is not always in favour of ParetoPlayer (0.716 and 0.673 vs 0.694)
+::::
+
+:::: {.column width=50%}
+
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{./assets/rewardasfunctionofepisode2.pdf}
+\caption{Row-mean reward per episode for Pareto and ParetoPlayer (sampled teams)}
+\end{figure}
+
+::::
+
+:::
+
+# Empirical results - Sampled teams
+
+::: {.columns align=center}
+
+:::: {.column width=50%}
+
+## First game
+\centering
+\movie[
+  width=0.7\linewidth,
+  height=0.6\linewidth,
+  showcontrols,
+  poster
+]{}{./assets/2v2_sampled.mp4}
+
+::::
+
+:::: {.column width=50%}
+
+## Second game
+\centering
+\movie[
+  width=0.7\linewidth,
+  height=0.6\linewidth,
+  showcontrols,
+  poster
+]{}{./assets/2v2_sampled_2.mp4}
+
+::::
+
+:::
 
 
 # Difficulties
@@ -206,21 +262,16 @@ The main difficulties we have encountered concern:
 * Pokémon double battles
 * Pokémon battle switches
 
-# Contributions
-
-<!-- # Gif in PDF
-comandi totali:
-convert -coalesce something.gif something.png -> questo fa in modo di avere una png per frame
-magick identify -verbose something.gif | grep 'Delay' -> questo fa in modo di ritornare il framerate della gif
-Aprire il pdf con Okular o Adobe Acrobat
-https://tex.stackexchange.com/questions/240243/getting-gif-and-or-moving-images-into-a-latex-presentation per più info
-Parametri: FPS - preambolo dei png - 0 perche si e 12 sono i frame totali
-
-\centering\animategraphics[autoplay,loop,width=0.5\linewidth]{10}{./assets/lol-}{0}{12}
--->
-
 # Conclusions
+- ParetoPlayer is able to positively bias the training by providing higher rewards
+- when the search space is small enough and a single win condition is presented, Player outperforms ParetoPlayer
 
+## Future works
+- perform better topology and hyperparameters search
+- reduce NSGA-II performance bottleneck (time-consuming operations)
+- use another network to properly address forced switch
+
+#
 \begin{center}
   \LARGE{Thanks for your attention!}
 \end{center}
@@ -245,6 +296,59 @@ Parametri: FPS - preambolo dei png - 0 perche si e 12 sono i frame totali
 The appendix contains the topics we are not able to discuss during the oral examination
 -->
 
+
+# Normality - Fixed teams 
+
+::: {.columns align=center}
+
+:::: {.column width=50%}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\linewidth]{./assets/Normality_QQ_Pareto.pdf}
+\caption{Quantile-Quantile plot episode reward computed on $1000$ battles during ParetoPlayer model evaluation}
+\end{figure}
+
+::::
+
+:::: {.column width=50%}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\linewidth]{./assets/Normality_QQ_Random.pdf}
+\caption{Quantile-Quantile plot episode reward computed on $1000$ battles during Player model evaluation}
+\end{figure}
+
+::::
+
+:::
+
+# Additional results - Box plots
+
+::: {.columns align=center}
+
+:::: {.column width=50%}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\linewidth]{./assets/box_plot_2v2.pdf}
+\caption{Box plot computed on $1000$ battles during ParetoPlayer and Player model evaluation}
+\end{figure}
+
+::::
+
+:::: {.column width=50%}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\linewidth]{./assets/box_plot_2v2_sampled.pdf}
+\caption{Box plot computed on $1000$ battles during ParetoPlayer and Player model evaluation (with variable enemy team)}
+\end{figure}
+
+::::
+
+:::
+
 <!-- # Guidelines 
 
 1. introducing pokemon, and RL in a few words
@@ -262,4 +366,15 @@ The appendix contains the topics we are not able to discuss during the oral exam
   - training convergence
 8. difficulties
 9. contributions
+-->
+
+<!-- # Gif in PDF
+comandi totali:
+convert -coalesce something.gif something.png -> questo fa in modo di avere una png per frame
+magick identify -verbose something.gif | grep 'Delay' -> questo fa in modo di ritornare il framerate della gif
+Aprire il pdf con Okular o Adobe Acrobat
+https://tex.stackexchange.com/questions/240243/getting-gif-and-or-moving-images-into-a-latex-presentation per più info
+Parametri: FPS - preambolo dei png - 0 perche si e 12 sono i frame totali
+
+\centering\animategraphics[autoplay,loop,width=0.5\linewidth]{10}{./assets/lol-}{0}{12}
 -->
