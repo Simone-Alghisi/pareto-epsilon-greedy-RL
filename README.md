@@ -1,6 +1,30 @@
+<!-- omit in toc -->
 # Pareto Epsilon Greedy RL
 
-Repository for the I2BIAI project.
+Repository containing the project for the *Bio-Inspired Artificial Intelligence (BIAI)* course at the University of Trento.
+
+<!-- omit in toc -->
+## Table Of Content
+- [About](#about)
+- [Project description](#project-description)
+- [Proposed Approach](#proposed-approach)
+  - [Architecture](#architecture)
+  - [Genetic Algorithm](#genetic-algorithm)
+  - [Damage Calculator](#damage-calculator)
+  - [Pokémon Showdown](#pokémon-showdown)
+  - [Pikalytics](#pikalytics)
+  - [Additional materials](#additional-materials)
+- [Results](#results)
+- [Usage](#usage)
+  - [0. Set up](#0-set-up)
+  - [1. Code documentation](#1-code-documentation)
+  - [2. Server Installation](#2-server-installation)
+  - [3. Starting the servers](#3-starting-the-servers)
+  - [4. Pareto battle](#4-pareto-battle)
+  - [5. Agent Training](#5-agent-training)
+  - [6. Agent Testing](#6-agent-testing)
+  - [7. Damage Calculator Unit Test](#7-damage-calculator-unit-test)
+  - [8. Data analysis](#8-data-analysis)
 
 ## About
 
@@ -11,164 +35,46 @@ Repository for the I2BIAI project.
     -   [Robbi Erich](https://github.com/erich-r)
 -   Licence : GPL v3+
 
-## General information
+## Project description
+Nowadays, *Reinforcement Learning* is one of the most popular strategies to train agents able to play different games. In particular, *Deep-Q Learning* aims to achieve this by maximising the expected cumulative reward for future states (i.e. utility). However, while such strategy is problem agnostic, it requires an enormous amount of time to converge to a stable result. In Pokémon games, Double Battles have an extremely high complexity: in particular, there are at most $306$ different turn outcomes for each player. In this scenario, removing especially useless moves to speed up the training is fundamental. In this paper, we discuss the effectiveness of employing *NSGA-II*, a Genetic Algorithm, for training a Pokémon agent with a controlled search by solving a multi-objective optimisation problem.
 
-In order to dive deeper into the world, some base knowledge needs to be
-comprehanded. In particular, it is fundamental to understand how damage
-calculation works, because it will be (very likely) the core of both
-NSGA-II and RL.
+## Proposed Approach
+In this study, we have applied bio-inspired methods to enhance RL performances and speed up the learning process.  Firstly, we have devised a node server in order to compute the damage each move can deal. Secondly, we have set up *NSGA-II* so as to solve an optimisation problem and return the Pareto optimal moves the Pokémons can make in the current turn. Thirdly, we have designed an *Artificial Neural Network (ANN)* whose weights are learned through RL. Finally, we have evaluated our solution in terms of reward and winrate.
 
-### Damage calculation
+### Architecture
+![](./presentation/assets/program_structure.svg)
 
-More detailed info can be found
-[here](https://bulbapedia.bulbagarden.net/wiki/Damage), I will cover the
-most important parts starting from the formula, by gradually adding
-information whenever is needed in order to complicate things.
+### Genetic Algorithm
+To be able to train an agent as described above, we setup a multi-objective optimisation problem where we are trying to predict a set of non-dominated possible turn outcomes, by considering our moves and estimating the (optimal) one of the opponent. For this reason, 4 objectives are considered:
 
-$$Damage = \left( \frac{\left( \frac{2 \times Level}{5} + 2 \right) \times Power \times
-A/D}{50} + 2 \right) \times Targets \times Weather \times Critical \times random \times
-STAB \times Type \times Burn \times other$$
+- *Mon HP*, i.e. the remaining HP of the Ally Pokémon after the turn has ended;
+- *Mon Dmg*, i.e. the total damage inflicted by the Ally Pokémon to the Opponents;
+- *Opp HP*, i.e. the remaining HP of the Opponent Pokémon after the turn has ended;
+- *Opp Dmg*, i.e. the total damage inflicted by the Opponent Pokémon to the Allies;
 
-Let us now tackle the most important parts:
+### Damage Calculator
+The damage a Pokémon move can inflict does not depend only on the statistics of the attacker and those ones of the defender but also on several other factors of the battle. Moreover, in the same battle scenario the move can have a different impact according to the Pokémon generation considered.
 
--   Level is as the name suggests the level of the *attacking pokemon*
--   Power is the *base power* of the move that the attacking pokemon is
-    going to use on the defending pokemon
--   A is the *effective attack* of the *attacking pokemon*. HOWEVER,
-    keep in mind that
-    1.  this includes both boosts and debuffs (do not worry, showdown
-        always show them)
-    2.  there are 2 kinds of attacks: physical and special. This means
-        that whenever we are calculating the damage of a move, we need
-        first of all to understand if the move is physical or special,
-        to consider the correct statistic.
-    3.  if the pokemon crits... all debuffs of the attacker are ignored
-        (also buffs of the defender...)
--   D is the *effective defense* of the *defending pokemon*. Of course,
-    we have the same considerations that we did before. Furthermore, we
-    also have a bit of unknown to tackle regarding that we won't exactly
-    know the correct value of the defending one (only the game will know
-    but we could solve possibly some sort of equation to get an
-    approximation)
--   Targets is a multiplier based on the number of targets (generally 1)
--   Weather is the weather condition, which could boosts or debuffs some
-    moves, e.g.
-    1.  *sun* boosts fire type moves of 1.5 while debuffs water type
-        moves of 0.5
-    2.  *harsh sunlight* does the same... however competely nullifies
-        water type moves
--   Critical, if the pokemon perform a critical hit, the damage is
-    multipled by 1.5
--   random is a random integer percentage between 85% and 100%
-    (inclusive)
--   STAB is a 1.5 multiplier which comes from the fact that the
-    *attacker pokemon* uses a move with the same type of the pokemon
--   Type, which I would have called type resistance, is a multiplier
-    based in the effectiveness of the move used on the *defender
-    pokemon*, e.g. 
-    1.  fire is super-effective on grass, so it's 1.5
-    2.  fire is not very effective on water, so it's 0.5
--   Burn, is a status condition which halves ONLY physical damage if
-    present
--   other, you do not want to know (however just think about that there
-    are objects and abilities in this game too...)
+Therefore, to have reliable data, we have decided to compute the effects of a Pokemon move against an opponent by setting up a `node` web server infrastructure, which allows us to interface with a damage calculator Application Programming Interface (API) server. The `express` application can process several requests simultaneously with little latency, since it runs locally, obtaining exhaustive information thanks to the [Smogon Damage Calculator library](https://github.com/smogon/damage-calc).
 
-#### How to proceed
+### Pokémon Showdown
+The training environment that we decided to use is [Pokemon Showdown](https://pokemonshowdown.com/), an online Pokémon battle simulator that can also also be deployed locally. In order to interface with it, we considered instead [`poke-env`](https://github.com/hsahovic/poke-env), i.e. a Python Library that handles the various communication with the Showdown Server, and allows to develop custom trainable agents by implementing OpenAI [`gym`](https://github.com/openai/gym).
 
-I think that some of the previous multipliers are quite difficult to
-implement for the moment, so I would like to tackle them in a certain
-way in order to implement things gradually.
+### Pikalytics
+In most of the cases, information regarding the opponent’s Pokémons is not known. Thus, to overcome this problem we have employed the data available on [Pikalytics](https://www.pikalytics.com/), which provides competitive analysis and team building help. Therefore, we created [`Pokemon_info`](https://github.com/massimo-rizzoli/Pokemon_info), i.e. a Python Library to get the most popular settings and moves for each Pokémon as determined by expert players. As a result, NSGA-II always has a decent knowledge of the opponent’s team because it considers the most likely moves under uncertainty
 
-However, using a damage calculator directly could also take into account
-other stuff so the best idea is to start with this and then trasnsition
-to smogon damage calculator (even if it works with npm)
+### Additional materials
+A report describing in details the methodology that we've followed, the implementation choices, and the results, is available [here](./report/main.pdf).
 
-##### First steps
+Furthermore, the slides used for the project presentation to summarise and visually depict the idea are also available [here](./presentation/main.pdf).
 
-I think that the most painless implementation requires us to deal with
-the following information:
 
--   Level
--   Power
--   A
--   D (for the moment without worrying about the fact that it could not
-    be fixed)
--   random
--   Critical
--   STAB
--   Type (which requires a type effectiveness table of some kind)
+## Results
+Results show that ParetoPlayer is able to positively bias the training by providing higher rewards. However, when the search space is small enough and a single win condition is presented, Player outperforms ParetoPlayer. Due to a lack of resource availability and time, we were not able to study too in-depth all the components (i.e. we focused more on evaluating the proposed approach rather than searching for the best hyperparameters or network topology). Finally, at the moment the major problems are related to NSGA-II time-consuming operation, due to CPU and not GPU computation, and the inability of the trained agent to properly address forced switch, which should be handled separately from another network.
 
-##### Range
+![](./presentation/assets/2v2_fixed.gif)
 
-First of all it must be understood that damages are always between a
-range: there is no such a thing as a single number because, even if D is
-completely known, there are always Critical and also random which can
-increase/decrease the damage.
-
-For this reason, we need a way to express the range to the net and adapt
-it while we understand more things about our opponent.
-
-##### Expected damage
-
-Given that some moves deal lots of damage with high risk, I would like
-to insert in the damage calculation also the expected value of the
-damage. In particular,
-
-$$ADamage = Damage \times Accuracy$$
-
-where Accuracy is the move *effective accuracy* which depends on 1. the
-accuracy of the *attacking pokemon* 2. the evasiness of the *defending
-pokemon*
-
-At the end, this is another thing to take into account and most damage
-calculators do not actually care about it. However, I would say that is
-fundamental for Utilities.
-
-##### In which order release contraints?
-
-Very interesting question... I actually do not know myself because we
-could either go for something which seems easy and then regret that
-choice because it's actually not that easy.
-
-For example, there are only 4 weather conditions in this game + 3 very
-special ones which we could easily remove from the equation. In
-particular, - sun boosts fire type moves and decreases water type moves
-- rain... does exactly the opposite - sandstorm boosts the special
-defense of rock type pokemon AND causes damage every turn to some
-pokemon with certain types - hail does damage at every turn to all
-non-ice pokemon
-
-MOREOVER, some of them also influence the accuracy of some moves... At
-the end, it becomes a mess because even if it's not a problem for the
-final damage, it becomes a problem for the fact that we will hit or miss
-a certain move.
-
-Given that, each of the constraint can be released while keeping some
-other constraints. I would infact say that the best way to go is
-(provided that we move from 2 to 3/4 pokemon)
-
--   equation for updating the current D value
--   Burn
--   Weather (without caring about accuracy)
--   Targets
--   other
-
-##### What about showdown
-
-Once again however, everything could become quite straightforward from
-showdown because it gives us additional information about everything,
-such as
-
--   *effective attack*
--   *effective accuracy*
--   boosts and debuffs
--   weather conditions (and their duration)
--   something which I'm surely missing but could be useful
-
-At the end, depending on what we are using showdown will tell us a lot.
-
-# Usage
-
+## Usage
 To facilitate the use of the application, a `Makefile` has been
 provided; to see its functions, simply call the appropriate `help`
 command with [GNU/Make](https://www.gnu.org/software/make/)
@@ -177,53 +83,73 @@ command with [GNU/Make](https://www.gnu.org/software/make/)
 make help
 ```
 
-## 0. Set up
+However, if you feel more confident, you can still run the python commands listed below.
 
-For the development phase, the Makefile provides an automatic method to
-create a virtual environment.
+### 0. Set up
 
-If you want a virtual environment for the project, you can run the
-following commands:
+For the development phase, the Makefile provides an automatic method to create a virtual environment with your current python version.
 
-``` shell
+If you want a virtual environment for the project, you can run the following commands:
+
+```shell
 pip install --upgrade pip
 ```
 
-Virtual environment creation in the venv folder
+Virtual environment creation in the `venv` folder
 
-``` shell
+```shell
 make env
 ```
 
-Virtual environment activation
+or alternatively
 
-``` shell
+```shell
+python -m venv venv/pareto
+```
+
+You can activate the virtual environment by typing
+
+```shell
 source ./venv/pareto/bin/activate
 ```
 
-Install the requirements listed in `requirements.txt` and those ones
-listed in `package.json`
+> **Note:** that the previously described steps are optional, you may decide not to set up a virtual environment, or to set it up as you prefer.
+
+Install the requirements listed in `requirements.txt` and those ones listed in `package.json`
 
 ``` shell
 make install
 ```
 
-## 1. Documentation
+or alternatively
 
-The documentation is built using [Sphinx
-v4.3.0](https://www.sphinx-doc.org/en/master/).
+```shell
+pip install -r requirements.txt
+npm install
+```
 
-If you want to build the documentation, you need to enter the project
-folder first:
+### 1. Code documentation
+
+The code documentation and the code formatting requires the development dependencies, therefore if you are interested in these functionalities you need to install the libraries listed in `requirements.dev.txt`.
+
+```shell
+make install-dev
+```
+
+or alternatively
+
+```shell
+pip install -r requirements.dev.txt
+```
+
+The code documentation is built using [Sphinx
+v4.3.0](https://www.sphinx-doc.org/en/master/). 
+Since the `Sphinx` commands are quite verbose, we suggest you to employ the `Makefile`.
+
+If you want to build the documentation, you need to enter the project folder first:
 
 ``` shell
 cd pareto_rl
-```
-
-Install the development dependencies \[`requirements.dev.txt`\]
-
-``` shell
-make install-dev
 ```
 
 Build the Sphinx layout
@@ -238,28 +164,177 @@ Build the documentation
 make doc
 ```
 
-Open the documentation
+You can open the documentation, which once it has been created it be located in `docs/build/html/index.html`, with you default browser by typing
 
 ``` shell
 make open-doc
 ```
 
-## 2. Pareto front
+### 2. Server Installation
+For most of the operations, you need to make sure that both a *Damage Calculator* and a *Pokémon Showdown* instance are running locally on specific ports on your machine. 
 
-To run the Pareto front you can either type:
+First, if you have not done it yet, you need to install both Pokémon Showndown and the requirements of the Damage Calculator server.
 
-``` shell
-python -m pareto_rl pareto
-```
-
-Or employ the command of the GNU/Makefile
+This can be easily achievable employing the Makefile in the following way:
 
 ``` shell
-make pareto
+make install-showdown
+make install-damage-calc-server
 ```
 
-## 3. Training
+alternatively you can install them on your own by typing
 
-### Train a model
+```shell
+git clone https://github.com/smogon/pokemon-showdown.git; \
+    cd pokemon-showdown; \
+    npm install; \
+	cp config/config-example.js config/config.js; \
+	sed -i 's/exports.repl = true/exports.repl = false/g' config/config.js; \
+	sed -i 's/exports.noguestsecurity = false/exports.noguestsecurity = true/g' config/config.js
 
-## 4. Testing
+cd damage_calc_server; \
+    npm install
+```
+
+> **Note:** the additional command in the `pokémon-showdown` installation are needed in order to make the server work locally. Moreover, Pokémon Showdown should be placed inside the project folder. 
+
+### 3. Starting the servers
+You can get the servers running with the employment of the Makefile by executing 
+
+```shell
+make start-showdown
+make start-damage-calc-server
+```
+
+Instead, without the Makefile you can run
+
+```shell
+cd pokemon-showdown; \
+    npm start --no-secure
+
+cd damage_calc_server; \
+    npm run build; \
+    npm run start
+```
+
+A Pokémon Showdown instance should be running on `http://localhost:8000`, while the a Damage Calculator instance should be running on `http://localhost:8080`.
+
+### 4. Pareto battle
+You can challenge the `ParetoPlayer` in a battle on your local Pokémon Showdown instance with your team. To do that, you first need to start both servers as described above.
+
+Finally, you can start the Pokémon battle, making sure that the `PARETO_BATTLE_FLAG := --player` variable in the Makefile is equal to your Pokémon Showdown player's name.
+
+```shell
+make pareto-battle
+```
+
+or alternatively you can call
+
+```shell
+python -m pareto_rl pareto-battle --player [YOURPLAYERNAME]
+```
+
+once the command has been entered you will receive a challenge from the ParetoPlayer in the Pokémon Showdown browser window:
+
+![Pareto Battle Showdown pop-up](./presentation/assets/pareto_battle.png)
+
+by clicking accept you will challenge the ParetoPlayer.
+
+After the battle has been completed for each turn that the battle has lasted two plots concerning `NSGA-II` performances are displayed, namely:
+
+- a multi-level diagram which shows the distance from the worst individual according to each objective for the non-dominated Pareto front population after a normalisation ([L2 norm](https://mathworld.wolfram.com/L2-Norm.html)):
+![Multilevel diagram example](./presentation/assets/run_2.png)
+
+- a matrix plot which shows how the Pareto front is shaped objective against objective:
+![Matrix plot example](./presentation/assets/matrix_run_2.png)
+
+> For more information you can call the consult the help functionality
+> ```shell
+> python -m pareto_rl pareto-battle -h
+> ```
+
+### 5. Agent Training
+To effectively train the Reinforcement Learning agent you have to start, as described in [Starting the servers](#3-starting-the-servers), a Pokemon Showdown and a Damage Calculator server instance. 
+
+Once you are ready, you can train the agent by typing
+
+```shell
+make train
+```
+
+or alternatively 
+
+```shell
+python -m pareto_rl rlagent
+```
+
+During the training the agent will challenge `DoubleMaxDamagePlayer`, a simple player which will always choose the move that deals the highest damage to opposing Pokémons.
+
+**Note** that there is no explicit distinction between *Player* and *ParetoPlayer* in the code, as the agent will perform pareto optimal actions with a given probability described by the `"pareto_p"` argument in the `args` dictionary of the `main` function in [`pareto_rl/dql_agent/agent.py`](pareto_rl/dql_agent/agent.py) file.
+
+By default the probability of carrying out a move computed by `NSGA-II` is equal to $0.7$, which means that the agent which will be trained is a *ParetoPlayer*. 
+
+To switch from *ParetoPlayer* to *Player*, therefore to set up a classic Deep Q-Learning agent, you can change that probability to $0$ and run the training command.
+
+Since the agent is trained by performing battles on Pokémon Showdown it is possible to join its battles or watch the replays.
+
+> For more information you can call the consult the help functionality
+> ```shell
+> python -m pareto_rl rlagent -h
+> ```
+
+### 6. Agent Testing
+To test the Reinforcement Learning agent you have to start, as described in [Starting the servers](#3-starting-the-servers), a Pokemon Showdown and a Damage Calculator server instance. 
+
+During the tests the agent will challenge `DoubleMaxDamagePlayer`.
+
+To test the agent you need to change the `RUN_NUMBER` variable in the Makefile according to which run you are willing to evaluate and then run
+
+```shell
+make test
+```
+
+or alternatively
+
+```shell
+python -m pareto_rl rlagent --test RUN_NUMBER [--fc {winrate, reward}]
+```
+
+where `RUN_NUMBER` is the run identifier which identifies the weights of the model to load
+
+By default the tested agent will be the one with the higher `episode reward` obtained in the evaluation of the model. However, you can change the behaviour by setting `--fc` to winrate.
+
+Likewise the training, the agent is tested by performing battles on Pokémon Showdown, therefore it is possible to join its battles or watch the replays.
+
+### 7. Damage Calculator Unit Test
+To assess the correctness of the Damage Calculator combined with the data retrieved from poke-env, we have developed some simple tests which can be found in the `test` folder.
+
+To run the tests you can run
+
+```shell
+make unittest
+```
+
+or alternatively
+
+```shell
+python -m unittest discover -s test
+```
+
+### 8. Data analysis
+To analyse the quality of the result obtained we have devised some scripts in `R` language which are located inside the `analysis` folder.
+
+To install the needed requirements you need to run
+
+```shell
+Rscript requirements.R
+```
+The tests we have devised are:
+
+- [`normality.R`](analysis/normality.R) which tests the normality of the difference between data coming from the rewards of two reinforcement learning runs by default. It produces a [`Q-Q plot`](https://en.wikipedia.org/wiki/Q%E2%80%93Q_plot) and the results of the [`Shapiro-Wilk test`](https://en.wikipedia.org/wiki/Shapiro%E2%80%93Wilk_test) and the [`Kolmogorov-Smirnov nomality test`](http://www.real-statistics.com/tests-normality-and-symmetry/statistical-tests-normality-symmetry/kolmogorov-smirnov-test/). As an effective representation a produced `Q-Q plot` looks like this: ![Q-Q plot](./presentation/assets/Normality_QQ_Random.png)
+- [`regression.R`](analysis/regression.R) which produces a regression line from the average episode reward of two reinforcement Learning agents training \[OBSOLETE\].
+- [`10_runs_agg.R`](analysis/10_runs_agg.r) which produces a regression line from the average episode reward of two reinforcement Learning agents training and runs a [`Kolmogorov-Smirnov test`](https://en.wikipedia.org/wiki/Kolmogorov%E2%80%93Smirnov_test).  As an effective representation a produced `Q-Q plot` looks like this: ![Regression line](./presentation/assets/reward_on_episode.png)
+- [`significance_if_not_normal.R`](analysis/significance_if_not_normal.R) which runs a [Wilcoxon rank-sum test](https://en.wikipedia.org/wiki/Mann%E2%80%93Whitney_U_test) on the episode reward data of the two models evaluation;
+- [`significance_if_normal.R`](analysis/significance_if_normal.R.R) which runs a [Student's t-test](https://en.wikipedia.org/wiki/Student%27s_t-test) on the episode reward data of the two models evaluation.
+
+For more information about the statistical tests we have employed you can check [the analysis README](./analysis/README.md).

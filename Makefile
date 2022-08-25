@@ -11,7 +11,7 @@ MAIN_FLAGS :=
 PIP := pip
 
 # ======= TRAIN =========
-TRAIN :=
+TRAIN := rlagent
 TRAIN_FLAGS :=
 
 # ======= FORMAT ========
@@ -19,8 +19,9 @@ FORMAT := black
 FORMAT_FLAG := pareto_rl
 
 # ======= TEST  =========
-TEST :=
-TEST_FLAGS :=
+TEST := rlagent
+RUN_NUMBER := 581
+TEST_FLAGS := --test $(RUN_NUMBER) --fc reward
 
 # ======= UNIT TEST  ====
 UNITTEST := unittest
@@ -114,8 +115,8 @@ help:
 	* format 			: format the code using black\n \
 	* doc 				: generates the documentation (requires an existing documentation layout)\n \
 	* open-doc 			: opens the documentation\n \
-	* train 			: train the network\n \
-	* test 			: test the network\n \
+	* train 			: train the agent against MaxDamagePlayer\n \
+	* test 			: test the agent against MaxDamagePlayer\n \
 	* start-showdown 		: starts the showdown server\n \
 	* start-damage-calc-server 	: starts the damage calculator server\n \
 	* pareto-battle 		: starts a battle with an agents having Pareto optimal moves"

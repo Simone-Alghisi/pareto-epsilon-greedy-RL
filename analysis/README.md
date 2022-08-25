@@ -8,14 +8,14 @@ Here we present simple and brief descriptions of each of the method employed.
 
 ### Q-Q plots
 
-In statistics, Q-Q(quantile-quantile) plots play a very vital role to graphically analyze and compare two probability distributions by plotting their quantiles against each other. If the two distributions which we are comparing are exactly equal then the points on the Q-Q plot will perfectly lie on a straight line y = x.
+In statistics, *Q-Q (quantile-quantile)* plots play a very vital role to graphically analyze and compare two probability distributions by plotting their quantiles against each other. If the two distributions which we are comparing are exactly equal then the points on the *Q-Q* plot will perfectly lie on a straight line $y = x$.
 
 Q-Q plots are used to find the type of distribution for a random variable whether it be a Gaussian Distribution, Uniform Distribution, Exponential Distribution or even Pareto Distribution, etc. 
 
 You can tell the type of distribution using the power of the Q-Q plot just by looking at the plot. In general, we are talking about Normal distributions.
 Therefore, we know how much of the data lies in the range of first standard deviation, second standard deviation and third standard deviation from the mean.
 
-We plot the theoretical quantiles or basically known as the standard normal variate (a normal distribution with mean=0 and standard deviation=1)on the x-axis and the ordered values for the random variable which we want to find whether it is Gaussian distributed or not, on the y-axis. Which gives a very beautiful and a smooth straight line like structure from each point plotted on the graph.
+We plot the theoretical quantiles or basically known as the standard normal variate (a normal distribution with $mean=0$ and standard $deviation=1$) on the x-axis and the ordered values for the random variable which we want to find whether it is Gaussian distributed or not, on the y-axis. Which gives a very beautiful and a smooth straight line like structure from each point plotted on the graph.
 
 Now we have to focus on the ends of the straight line. If the points at the ends of the curve formed from the points are not falling on a straight line but indeed are scattered significantly from the positions then we cannot conclude a relationship between the x and y axes which clearly signifies that our ordered values which we wanted to calculate are not Normally distributed.
 
@@ -38,11 +38,11 @@ The basis idea behind the Shapiro-Wilk test is to estimate the variance of the s
 
 ### Kolmogorov-Smirnov nomality test
 
-In statistics, the Kolmogorov–Smirnov test (K-S test or KS test) is a nonparametric test of the equality of continuous (or discontinuous), one-dimensional probability distributions that can be used to compare a sample with a reference probability distribution (one-sample K–S test), or to compare two samples (two-sample K–S test). 
+In statistics, the Kolmogorov-Smirnov test (K-S test or KS test) is a non-parametric test of the equality of continuous (or discontinuous), one-dimensional probability distributions that can be used to compare a sample with a reference probability distribution (one-sample K-S test), or to compare two samples (two-sample K-S test). 
 
 In essence, the test answers the question "What is the probability that this collection of samples could have been drawn from that probability distribution?" or, in the second case, "What is the probability that these two sets of samples were drawn from the same (but unknown) probability distribution?".
 
-The Kolmogorov–Smirnov test can be modified to serve as a goodness of fit test. In the special case of testing for normality of the distribution, samples are standardized and compared with a standard normal distribution. This is equivalent to setting the mean and variance of the reference distribution equal to the sample estimates, and it is known that using these to define the specific reference distribution changes the null distribution of the test statistic.
+The Kolmogorov-Smirnov test can be modified to serve as a goodness of fit test. In the special case of testing for normality of the distribution, samples are standardized and compared with a standard normal distribution. This is equivalent to setting the mean and variance of the reference distribution equal to the sample estimates, and it is known that using these to define the specific reference distribution changes the null distribution of the test statistic.
 
 ## Statistical significance
 
@@ -51,6 +51,7 @@ The Kolmogorov–Smirnov test can be modified to serve as a goodness of fit test
 It is a type of inferential statistic used to study if there is a statistical difference between two groups. Mathematically, it establishes the problem by assuming that the means of the two distributions are equal ($H_0: \mu_1=\mu_2$). If the t-test rejects the null hypothesis ($H_0: \mu_1=\mu_2$), it indicates that the groups are highly probably different.
 
 The most frequently used t-tests are one-sample and two-sample tests:
+
 - A one-sample location test of whether the mean of a population has a value specified in a null hypothesis.
 - A two-sample location test of the null hypothesis such that the means of two populations are equal. 
 
