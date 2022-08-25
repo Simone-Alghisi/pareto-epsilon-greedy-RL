@@ -14,6 +14,8 @@ author:
 - \href{mailto:erich.robbi@studenti.unitn.it}{Erich Robbi}
 date:
 - \today
+lang:
+- en-US
 section-titles:
 - false
 theme:
@@ -100,7 +102,7 @@ where $x_1$ is the damage dealt by the ally Pokémons to the opponents, $x_2$ is
 
 \begin{figure}
 \centering
-\includegraphics[width=0.8\linewidth]{./assets/pareto_front}
+\includegraphics[width=0.85\linewidth]{./assets/pareto_front}
 \caption{Recombination}
 \end{figure}
 
@@ -192,7 +194,7 @@ We have tested both the normality and the statistical significance of the propos
 
 \centering
 \movie[
-  width=0.7\linewidth,
+  width=\linewidth,
   height=0.6\linewidth,
   showcontrols,
   poster
@@ -221,37 +223,23 @@ We have tested both the normality and the statistical significance of the propos
 
 :::
 
-# Empirical results - Sampled teams
-
-::: {.columns align=center}
-
-:::: {.column width=50%}
-
-## First game
-\centering
+# Empirical results - Sampled teams [First Game]
 \movie[
-  width=0.7\linewidth,
+  width=\linewidth,
   height=0.6\linewidth,
   showcontrols,
   poster
 ]{}{./assets/2v2_sampled.mp4}
 
-::::
 
-:::: {.column width=50%}
-
-## Second game
+# Empirical results - Sampled teams [Second Game]
 \centering
 \movie[
-  width=0.7\linewidth,
+  width=\linewidth,
   height=0.6\linewidth,
   showcontrols,
   poster
 ]{}{./assets/2v2_sampled_2.mp4}
-
-::::
-
-:::
 
 
 # Difficulties
