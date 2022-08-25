@@ -254,7 +254,7 @@ The main difficulties we have encountered concern:
 - ParetoPlayer is able to positively bias the training by providing higher rewards
 - when the search space is small enough and a single win condition is presented, Player outperforms ParetoPlayer
 
-## Future works
+## Future work
 - perform better topology and hyperparameters search
 - reduce NSGA-II performance bottleneck (time-consuming operations)
 - use another network to properly address forced switch
