@@ -1,0 +1,19 @@
+This section aims to describe some of the difficulties encountered during the development of the project.
+
+\subsection{Damage calculator}
+To communicate with the damage calculator, we tried at first to spawn a child process to handle the request and format the response. However, this solution turned out to be a bottleneck in terms of performance. Therefore, we have chosen to create a local server that can handle a stack of requests at once. 
+
+Furthermore, to ensure the correctness of the damage computation, we implemented some unit tests. Through Showdown's Pokémon Damage Calculator interface, we were able to determine the appropriate damage for each of the instances we outlined using a benchmark Pokémon team. However, since \texttt{poke-env} implicitly relies on the Showdown environment for several information, a number of crucial pieces of data are not directly accessible through it: e.g. the Pokémon's nature is not known; instead, its effect on the Pokemon's statistics it is. Thus, the damage computation can only provide an estimate.
+ 
+\subsection{Hyperparameters selection \& Topology search}
+Network topology search is arduous since there is no comprehensive model. In fact, while in other fields like computer vision it is possible to rely on predefined architectures, this is not particularly straightforward in RL: although the training procedure stays pretty much the same, there is no direct indication about the correct number of layers, neurons per layer, and the activation function to use, given that there is no comprehensive model.
+
+Of course, the same goes for the hyperparameters selection, e.g. the number of training epochs, how fast the probability of performing a random move should decrease, the learning rate, target update, memory size, etc. Furthermore, this issue also concerns \emph{NSGA-II}, given that the population size and the number of generations cannot be determined a priori.
+
+\subsection{Double Battles}
+The first major difficulty encountered during the development concerned the type of battle. In the Pokémon games there are mostly two ways in which a battle can be fought: namely, single and double. In single battles, an ally Pokémon fights against the opponent one. Instead, in double battles each player has two Pokémons on the battlefield. For this analysis, we choose to focus on double battles. This led to a complication as the \texttt{poke-env} API only support the development of a RL agent that plays single battles. As a consequence, we had to implement methods from scratch to allow us to train our agent in a double battle. Obviously, double battles are intrinsically more complex than single ones, given that the branching factor (i.e. the possible outcomes of each turn) are far greater. 
+Secondly, as introduced in \Cref{sec:exp}, some elements of the game cannot be completely controlled as they have a stochastic behaviour, meaning that the training results may not fully represent what the agent has learned.
+
+\subsection{Handling switches}
+Switches are actions where a Pokémon on the field is replaced by another. Differently from moves, which can only be done during a turn, switches must be performed whenever a Pokémon on the field faints and there is still someone left. Due to time constraints, we were unable to implement another network to handle them properly. Moreover, we were also forced to remove switches from the equation given that performing a random move in such a scenario only leads to more stochasticity and training instability.
+

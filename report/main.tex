@@ -1,0 +1,125 @@
+\documentclass[journal]{IEEEtran}
+
+\ifCLASSINFOpdf
+\else
+\fi
+
+% correct bad hyphenation here
+\hyphenation{op-tical net-works semi-conduc-tor}
+\usepackage[british]{babel}
+\usepackage[hidelinks, unicode]{hyperref}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{amsmath}
+\usepackage{bm}
+\usepackage{amsfonts}
+\usepackage{float}
+
+\usepackage{graphicx}
+\graphicspath{ {./images/} }
+
+\usepackage{cleveref}
+
+\begin{document}
+
+\title{\vspace{-0.5em}DarkrAI: a Pareto \bm{$\varepsilon$}-greedy policy\\[0.1em]\huge \textit{Improving Pokémon AI Training With NSGA-II}}
+\author{\href{https://github.com/Simone-Alghisi}{Simone Alghisi}, \href{https://github.com/samuelebortolotti}{Samuele Bortolotti}, \href{https://github.com/massimo-rizzoli}{Massimo Rizzoli}, \href{https://github.com/erich-r}{Erich Robbi}\\Department of Information Engineering and Computer Science\\University of Trento, Italy\\
+
+\normalsize\{\href{mailto:simone.alghisi-1@studenti.unitn.it}{\texttt{simone.alghisi-1}},  \href{mailto:samuele.bortolotti@studenti.unitn.it}{\texttt{samuele.bortolotti}}, \href{mailto:massimo.rizzoli@studenti.unitn.it}{\texttt{massimo.rizzoli}},  \href{mailto:erich.robbi@studenti.unitn.it}{\texttt{erich.robbi}}\} \texttt{@studenti.unitn.it}\vspace{-1em}}%
+
+% make the title area
+\maketitle
+
+% As a general rule, do not put math, special symbols or citations
+% in the abstract or keywords.
+\begin{abstract}
+Nowadays, Reinforcement Learning is one of the most popular strategies to train agents able to play different games. In particular, Deep-Q Learning aims to achieve this by maximising the expected cumulative reward for future states (i.e. utility). However, while such strategy is problem agnostic, it requires an enormous amount of time to converge to a stable result. In Pokémon games, Double Battles have an extremely high complexity: in particular, there are at most $306$ different turn outcomes for each player. In this scenario, removing especially useless moves to speed up the training is fundamental. In this paper, we discuss the effectiveness of employing \emph{NSGA-II}, a Genetic Algorithm, for training a Pokémon agent with a controlled search by solving a multi-objective optimisation problem.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Reinforcement Learning, NSGA-II, Multi-objective Optimisation, Genetic Algorithms
+\end{IEEEkeywords}
+
+\IEEEpeerreviewmaketitle
+
+\section{Introduction}
+\label{sec:intro}
+\input{sections/introduction}
+
+\section{Approach}
+\label{sec:approach}
+\input{sections/approach}
+
+\section{Experiments}
+\label{sec:exp}
+\input{sections/experiments}
+
+\section{Analysis}
+\label{sec:analysis}
+\input{sections/analysis}
+
+\section{Difficulties}
+\label{sec:difficulties}
+\input{sections/difficulties}
+
+\section{Conclusion}
+\label{sec:conclusions}
+\input{sections/conclusions}
+
+\clearpage
+\newpage
+\onecolumn
+\appendices
+\section{Figures and Tables}
+
+% eventuali references 
+% grafici, tabelle
+
+%\begin{figure}[h]
+%\centering
+%\includegraphics[width=0.5\textwidth]{index}
+%\caption{Il Re Bomba: L'esercito borbonico di Carlo Filangieri, principe di Satriano, che aveva mantenuto il controllo della Real cittadella, attaccò la città di Messina già i primi giorni di settembre del 1848. La città fu sottoposta a pesantissimi bombardamenti da parte dell'artiglieria borbonica, che incendiò o ridusse in macerie interi quartieri. Ferdinando II, che a causa del bombardamento di Messina fu soprannominato "re bomba".}
+%\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{images/reward_on_episode.pdf}
+    \caption{Row-mean reward per episode for Pareto and ParetoPlayer}
+    \label{fig:reward_per_episode}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\linewidth]{images/Normality_QQ_Pareto.pdf}
+    \caption{Quantile-Quantile plot episode reward computed on $1000$ battles during ParetoPlayer model evaluation}
+    \label{fig:qq_pareto}
+\end{figure}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\linewidth]{images/Normality_QQ_Random.pdf}
+    \caption{Quantile-Quantile plot episode reward computed on $1000$ battles during Player model evaluation}
+    \label{fig:qq_random}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{images/rewardasfunctionofepisode2.pdf}
+    \caption{Row-mean reward per episode for Pareto and ParetoPlayer (with variable enemy team)}
+    \label{fig:reward_per_episode_var_team}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\linewidth]{images/box_plot_2v2.pdf}
+    \caption{Box plot computed on $1000$ battles during ParetoPlayer and Player model evaluation}
+    \label{fig:box_plot_2v2}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\linewidth]{images/box_plot_2v2_sampled.pdf}
+    \caption{Box plot computed on $1000$ battles during ParetoPlayer and Player model evaluation (with variable enemy team)}
+    \label{fig:box_plot_2v2_sampled}
+\end{figure}
+
+\end{document}

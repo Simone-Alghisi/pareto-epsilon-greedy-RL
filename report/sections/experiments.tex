@@ -1,0 +1,17 @@
+% TODO: con grafici e statistical analysis (le immagini le mettiamo nell'appendice, tranquilli abbiamo visto Reports di 6 pagine di cui 4 di testo e 2 appendice.
+% qua descriviamo a parole immagini e figure.
+
+% Cosa vogliamo provare, che test e analisi andremo a fare e difficulties
+
+% TODO: parlare qua o altrove di tutti gli agenti?
+ 
+The learning was carried out through \texttt{poke-env}\footnote{\url{https://github.com/hsahovic/poke-env}}, a Python environment for training RL Pokémon agents, which interfaces with Pokemon Showdown\footnote{\url{https://pokemonshowdown.com/}}, a Pokémon battle simulator. As it concerns the $\varepsilon$-greedy policy, we started from a probability $\mathbb{P}_r=1.0$ to perform a random action, which linearly decreases to $\mathbb{P}_r=0.1$ in the first $40\%$ of the training. Then, for the remaining $60\%$ of the training, it linearly decreases to $\mathbb{P}_r=0.01$.
+
+To create an environment as stable as possible, all agents were trained by having them fight against \textit{MaxDamagePlayer}, i.e. a bot which always chooses the combination of moves that deals the highest amount of damage. Despite seeming deterministic, there is some level of stochasticity which cannot be controlled during training, e.g. additional effects such as freeze, critical hits, etc.
+% Descrivere nel dettaglio che fanno i player e come sono stati allenati
+
+\subsection{Player}
+The first Pokémon Agent has been trained using only the RL facilities provided by \texttt{poke-env}. The idea is quite straightforward: the $\varepsilon$-greedy described above is employed for the training of the network for a certain number of epochs.
+
+\subsection{ParetoPlayer}
+ParetoPlayer embeds the Pareto search of non-dominated turns, according to \Cref{subsec:search}. To this end, we changed the policy of the previous agent to perform a random move chosen from the ones returned by \emph{NSGA-II} with $70\%$ probability, while a completely random one with $30\%$ probability. The idea is that, given that the search space is very big, we would like to positively bias our model with a controlled search, removing particularly useless moves. However, to avoid biasing the search too much, such behaviour is carried out only for the first $20\%$ of the training: after that, the $\varepsilon$-greedy policy will only suggest random moves, going back to full exploration. Finally, we set for \emph{NSGA-II} a population size of $20$ paired with $20$ generations, since we saw that it was a good trade-off between performance and quality of the results.

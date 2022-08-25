@@ -1,0 +1,59 @@
+In this study, we have applied bio-inspired methods to enhance RL performances and speed up the learning process. Firstly, we have devised a \texttt{node} server in order to compute the damage each move can deal. Secondly, we have set up NSGA-II so as to solve an optimisation problem and return the Pareto optimal moves the Pokémons can make in the current turn. Thirdly, we have designed an \emph{Artificial Neural Network (ANN)} whose weights are learned through RL. Finally, we have evaluated our solution in terms of reward and winrate.
+
+\subsection{Damage calculator}
+The most trivial way to take a good move is to select the one which inflicts the highest possible damage. However, such information is difficult to retrieve since it depends on several factors (e.g. weather conditions, Pokémon statistics, etc).
+
+To compute the effects of a Pokemon move against an opponent we have set up a \texttt{node} web server infrastructure, which allows us to interface with a damage calculator \emph{Application Programming Interface (API)} server\footnote{\url{https://github.com/smogon/damage-calc}}. By doing so, we can process several requests simultaneously with little latency, since it runs locally, and acts as a glue between different libraries. In fact, our Python program can communicate with it to obtain the required information about the effectiveness of a move.
+
+\subsection{Genetic Algorithm}
+The data returned from the damage calculator is then used together with genetic algorithms to solve a multi-objective optimisation problem, by employing NSGA-II.
+
+\subsubsection{Genetic Representation}
+To find out which move is the best, we need to at least look at the current turn. Generally, in a Pokémon battle two actions are possible, i.e. performing a move or a switch. Moreover, depending on the type of battle, it may be necessary to specify the target of the move. To encode such a thing, we came up with the following genotype: each Pokémon is represented using two genes, i.e. action and target (optional) $(a, t)$. The whole genotype tells us who is going to perform what on whom. Despite being straightforward, it is mandatory to avoid illegal actions, e.g. choosing the same switching tactic for two different Pokémons.
+
+However, in most of the cases, information regarding the opponent's Pokémons is not known. Thus, to overcome this problem we have employed the data available on \texttt{pikalytics}\footnote{\url{https://www.pikalytics.com/}}, which provides competitive analysis and team building help. Therefore, by using a web scraper, it is possible to get the most popular settings and moves for each Pokémon as determined by expert players. As a result, \emph{NSGA-II} always has a decent knowledge of the opponent's team because it considers the most likely moves under uncertainty.
+
+\subsubsection{Mutation and Crossover}
+Mutation is performed for each gene in a genotype with  probability $\mathbb{P}_m = 10\%$: both the action and the target may be mutated, meaning that it is possible to go from a move to a switch (and vice-versa). For this reason, we had to check the validity of the new action, and change it accordingly otherwise.
+Instead, we used Uniform Crossover in a particular way: given that each Pokémon is represented by a valid $(a, t)$ pair, we perform crossover by selecting the whole pair from one of the parents to avoid inconsistencies. Furthermore, crossover is performed with $\mathbb{P}_c = 100\%$, and $\mathbb{P}_{bias} = 50\%$ (i.e. the bias towards a certain offspring). Moreover, we developed a custom repair algorithm that transforms an unfeasible solution into a feasible one.
+
+\subsubsection{Search Strategy}
+\label{subsec:search}
+We used \emph{NSGA-II} with the aim of approximating a \emph{Pareto Front}. Our optimisation problem can be defined as follows:
+\begin{equation*}
+    \underline{x} = (x_1,x_2,x_3,x_4) \in \mathbb{R}^4
+\end{equation*}
+where $x_1$ is the damage dealt by the ally Pokémons (\texttt{MON DMG}) to the opponents, $x_2$ is the damage dealt by the opponents' Pokémons (\texttt{OPP DMG}) to the allies, $x_3$ is the health points remaining of the player's Pokémons (\texttt{MON HP}), $x_4$ is the health points remaining of the opponent's Pokémons (\texttt{OPP HP}), and $\mathbb{R}^4$ is our search space, defined as:
+\begin{equation*}
+    \mathbb{R}^4 = \{(x_1,x_2,x_3,x_4) : 0 \leq x_1,x_2,x_3,x_4 \leq 100\}
+\end{equation*}
+This leads to the following multi-objective problem:
+\begin{equation*}
+    \max_{\underline{x} \in \mathbb{R}^4} f(\underline{x}) = (f_1(x_1),f_2(x_2),f_3(x_3),f_4(x_4))
+\end{equation*}
+where $f(\underline{x})$ is our objective vector that we want to maximise. 
+Hence, the Pareto optimal rounds are the ones which maximise the damage dealt by both ally and opponent teams, while jointly preserving as many health points as possible from both sides. Therefore, the move we are looking for is not only the best one for the ally team, but also the optimal one for the opponent team. This is motivated because if there exists an optimal move for the opponent, we assume that the opponent is going to perform it. The generation of the Pareto Front will rely greatly on the damage calculator server, as the latter provides the values of $\underline{x}$.
+
+\subsubsection{Fitness Evaluation}
+As introduced in \Cref{subsec:search}, our problem is made of 4 different objectives that need to be maximised. However, to make the computation as reliable as possible, we need to consider other elements that could affect the damage. For example, the turn order depends on the Pokemons' Speed and the Priority of their actions, meaning that a Pokémon may faint before acting if a certain condition is met. Thus, its damage should not be considered for the global objective. Instead, if a switch is encoded in the genotype, the damage should be done on the entering Pokémon.
+
+For this reason, the evaluation is performed by considering run-time elements, such as the action and the Pokémon encoded in the current genotype. Thanks to this, a turn order can be estimated, and the HP of the on-field Pokémon are considered to enhance precision. Moreover, such estimates are updated at each turn upon receiving new observations.
+
+\subsection{Reinforcement Learning}
+The reinforcement learning technique we have employed is called \emph{Deep Q-Learning}, which shares the same idea of \emph{Q-Learning (QL)}, but it employs an ANN. QL is based on the Q-function, namely $Q : S \times A \rightarrow R$, which returns - given a state-action pair ($s, a \in S \times A$) - the expected discounted reward ($r \in R$) for future states. The core idea behind RL is that an agent chooses an action $a$ in the current state $s$, then performs it, and observes the outcome which will produce a new state $s'$; finally, it measures the associated reward $r$. The learning proceeds by updating the Q-function thanks to the \emph{Bellman Equations}:
+\begin{equation*}
+    Q(s_t, a_t) \leftarrow Q(s_t, a_t) + \alpha \Big[ r_{t + 1} + \gamma \max_{a} Q(s_{t + 1}, a) - Q(s_t, a_t)\Big]
+\end{equation*}
+
+where $\alpha$ is the learning rate, $a_t$ is the action taken by the agent at time $t$ when at state $s_t$, and $r_{t + 1}$ is the reward obtained at time $t + 1$. $\gamma$ is the discount factor, a trade-off parameter that helps the algorithm to converge, scaling down future rewards.
+
+In this work, we have considered \emph{$\varepsilon$-greedy action selection}: with a small probability $\varepsilon$ the algorithm chooses to explore, i.e. performs a random move; otherwise, it exploits, i.e. performs the action with the highest reward.
+
+At inference time, the agent selects the action which maximises the Q-value.
+
+\subsubsection{Architecture}
+The agent architecture is a four-layer deep \emph{Multilayer Perceptron (MLP)}, which employs \emph{ReLU} as activation function. The structure consists of one input layer whose size depends on the type of battle the network is facing (e.g. a $4 \text{ VS } 4$ battle implies a size of $244$ input neurons), two hidden layers respectively of size $256$ and $128$, and an output layer which consists of $621$ neurons, i.e. all the possible combinations of moves.
+
+% TODO: PENSARE A UN NOME PIU DECENTE SE LO TROVIAMO ALTRIMENTI NIENTE LASCIAMO COSI
+\subsubsection{State description}
+Among all the possible information that can be considered, we focused on the following: the percentage of Pokémons alive, the weather, and the field condition; then, for each Pokémon we consider their type\footnote{\url{https://bulbapedia.bulbagarden.net/wiki/Type}} (e.g. fire, grass, ...), HP percentage, statistics (normalised), status\footnote{\url{https://bulbapedia.bulbagarden.net/wiki/Status_condition}} (e.g. asleep, poisoned, ...); lastly, for each Pokémon's move, we consider its id, priority, type, and damage it deals to the opponent active Pokémons. Other useful information may be considered; however, the problem becomes exponentially more difficult due to the curse of dimensionality.
