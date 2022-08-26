@@ -113,6 +113,10 @@ The agent architecture is a four-layer deep *Multilayer Perceptron (MLP)*, which
 - two hidden hidden layers of size $256$ and $128$, respectively.
 
 # Players
+::: {.columns align=center}
+
+:::: {.column width=60%}
+
 The standard agent uses a simple $\varepsilon$-greedy policy:
 
 - it starts from a probability $\mathbb{P}_r=1.0$ to perform a random action;
@@ -124,6 +128,19 @@ The standard agent uses a simple $\varepsilon$-greedy policy:
 
 - it performs a random move chosen from the ones returned by *NSGA-II* with $70\%$ probability;
 - a completely random one with $30\%$ probability.
+::::
+
+:::: {.column width=40%}
+
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{./assets/eps_threshold.pdf}
+\caption{eps-threshold value during the training}
+\end{figure}
+::::
+
+:::
+
 
 # Program structure
 
@@ -337,6 +354,35 @@ The appendix contains the topics we are not able to discuss during the oral exam
 
 :::
 
+# Fitness Evaluation
+
+::: {.columns align=center}
+
+:::: {.column width=50%}
+
+In order to get a good fitness evaluation of our turn, we perform the following:
+
+0. analyse the previous turn;
+1. estimate the statistics of the opponent;
+2. predict a possible turn order based on the Moves Priority and Pokémons' Speed;
+3. prepare the field by handling switches;
+4. compute the damage by either:
+   - sending a request to the server;
+   - retrieve a previous results.
+
+::::
+
+:::: {.column width=50%}
+
+\begin{figure}
+\centering
+\includegraphics[width=0.8\linewidth]{./assets/base_stats_range.png}
+\caption{A Pokémon's base stats}
+\end{figure}
+
+::::
+
+:::
 <!-- # Guidelines 
 
 1. introducing pokemon, and RL in a few words
