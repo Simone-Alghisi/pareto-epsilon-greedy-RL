@@ -300,6 +300,14 @@ The main difficulties we have encountered concern:
 The appendix contains the topics we are not able to discuss during the oral examination
 -->
 
+# Pareto Front
+
+\begin{figure}
+\captionsetup{justification=centering}
+\centering
+\includegraphics[width=0.8\linewidth]{./assets/matrix_run_2}
+\caption{Pareto Front matrix plot}
+\end{figure}
 
 # Normality - Fixed teams 
 
