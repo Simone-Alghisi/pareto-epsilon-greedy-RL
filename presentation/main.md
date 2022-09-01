@@ -101,9 +101,10 @@ $$\underline{x} = (x_1,x_2,x_3,x_4) \in \mathbb{R}^4 \quad \text{where} \;\; \ma
 where $x_1$ is the damage dealt by the ally Pokémons to the opponents, $x_2$ is the damage dealt by the opponents' Pokémons to the allies, $x_3$ is the health points remaining of the player's Pokémons and $x_4$ is the health points remaining of the opponent's Pokémons.
 
 \begin{figure}
+\captionsetup{justification=centering}
 \centering
 \includegraphics[width=0.85\linewidth]{./assets/pareto_front}
-\caption{Recombination}
+\caption{Multi-level diagram plot of the Pareto Front}
 \end{figure}
 
 # Architecture details
@@ -115,7 +116,7 @@ The agent architecture is a four-layer deep *Multilayer Perceptron (MLP)*, which
 \begin{figure}
 \centering
 \includegraphics[width=\linewidth]{./assets/ann_io}
-\caption{Artificial Neural Network}
+\caption{Forward pass of the Artificial Neural Network}
 \end{figure}
 
 # Players
@@ -310,7 +311,7 @@ The appendix contains the topics we are not able to discuss during the oral exam
 \captionsetup{justification=centering}
 \centering
 \includegraphics[width=0.8\linewidth]{./assets/Normality_QQ_Pareto}
-\caption{Quantile-Quantile plot episode reward computed on $1000$ battles during ParetoPlayer model evaluation}
+\caption{Quantile-Quantile plot episode reward computed on $1000$ battles during \textcolor{red}{ParetoPlayer} model evaluation}
 \end{figure}
 
 ::::
@@ -321,7 +322,7 @@ The appendix contains the topics we are not able to discuss during the oral exam
 \captionsetup{justification=centering}
 \centering
 \includegraphics[width=0.8\linewidth]{./assets/Normality_QQ_Random}
-\caption{Quantile-Quantile plot episode reward computed on $1000$ battles during Player model evaluation}
+\caption{Quantile-Quantile plot episode reward computed on $1000$ battles during \textcolor{blue}{Player} model evaluation}
 \end{figure}
 
 ::::
@@ -349,7 +350,7 @@ The appendix contains the topics we are not able to discuss during the oral exam
 \captionsetup{justification=centering}
 \centering
 \includegraphics[width=0.8\linewidth]{./assets/box_plot_2v2_sampled}
-\caption{Box plot computed on $1000$ battles during ParetoPlayer and Player model evaluation (with variable enemy team)}
+\caption{Box plot computed on $1000$ battles during ParetoPlayer and Player model evaluation (\textbf{with variable enemy team})}
 \end{figure}
 
 ::::
@@ -450,21 +451,21 @@ To have a better estimate of the next possible turns, the previous turn is analy
 
 # Shapiro-Wilk test
 
-The Shapiro-Wilk test is a test of normality which is frequent in statistics and it is based on the expected values of the order statistics. Its null hypothesis is whether a sample $\{x_1, \dots, x_n\}$ came from a normally distributed population:
+The Shapiro-Wilk test is a test of normality which is frequent in statistics and it is based on the expected values of the order statistics. Its null hypothesis is whether a sample $\{x_1, \dots, x_n\}$ came from a **normally distributed population**:
 
 - Thus, if the $p-$value is less than the chosen $\alpha$ level, then the null hypothesis is rejected and there is evidence that the data tested are not normally distributed;
 - On the other hand, if the $p-$value is greater than the chosen $\alpha$ level, then the null hypothesis (that the data came from a normally distributed population) can not be rejected.
 
 # Kolmogorov-Smirnov test
 
-In statistics, the Kolmogorov-Smirnov test is a nonparametric test of the equality between two distribution, namely it does not assume anything about the underlying data distribution. Its null hypothesis is whether the two set of samples were drawn from the same probability distribution:
+In statistics, the Kolmogorov-Smirnov test is a nonparametric test of the equality between two distribution, namely it does not assume anything about the underlying data distribution. Its null hypothesis is whether the two set of samples were drawn from the **same probability distribution**:
 
 - Thus, if the $p-$value is less than the chosen $\alpha$ level, then the null hypothesis is rejected and there is evidence that the data tested are not drawn from the same distribution, namely one group stochastically dominates the other;
 - On the other hand, if the $p-$value is greater than the chosen $\alpha$ level, then the null hypothesis (that the data came from the same distribution) can not be rejected.
 
 # Wilcoxon rank-sum test
 
-The Wilcoxon rank-sum test is one of the most powerful non-parametric test which is used to compare two groups of continuous measures. Its null hypothesis is whether the two populations have the same distribution and the same median:
+The Wilcoxon rank-sum test is one of the most powerful non-parametric test which is used to compare two groups of continuous measures. Its null hypothesis is whether the two populations have the **same distribution and the same median**:
 
 - Thus, if the $p-$value is less than the chosen $\alpha$ level, then the null hypothesis is rejected and there is evidence that the data tested are not drawn from the same distribution, namely one distribution is shifted to the left or right of the other;
 - On the other hand, if the $p-$value is greater than the chosen $\alpha$ level, then the null hypothesis (that the data came from the same distribution) can not be rejected.
