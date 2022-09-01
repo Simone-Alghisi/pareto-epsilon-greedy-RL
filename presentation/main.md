@@ -59,7 +59,7 @@ Pokémon uses a turn-based system: at the start of each turn, both sides can cho
 *Reinforcement learning (RL)* is an area of Machine Learning where an agent receives a reward based on the action it has performed. Actions allow the agent to transition from a state to another. The final objective is to learn a policy to reach a terminal state with the best reward achievable.
 
 ## Deep Q-Learning
-The reinforcement learning technique we have employed is called *Deep Q-Learning*, which maps input states to a pair of actions and Q-values using an Artificial Neural Network. *Q-Learning* is based on the *Q-function*, namely $Q : S \times A \rightarrow R$, which returns - given a state-action pair ($s, a) \in S \times A$ - the expected discounted reward ($r \in R$) for future states.
+The reinforcement learning technique we have employed is called *Deep Q-Learning*, which maps input states to a pair of actions and Q-values using an Artificial Neural Network. *Q-Learning* is based on the *Q-function*, namely $Q : S \times A \rightarrow R$, which returns - given a state-action pair $(s, a) \in S \times A$ - the expected discounted reward $(r \in R)$ for future states.
 
 # NSGA-II
 *NSGA-II* is a Evolutionary Algorithm that allows to produce *Pareto-equivalent* (or non-dominated) solutions of a multi-objective optimisation problem.
@@ -112,41 +112,49 @@ The agent architecture is a four-layer deep *Multilayer Perceptron (MLP)*, which
 - input and output layers size depend on the type of battle the network is facing (e.g. a $4 \text{ VS } 4$ battle implies a size of $244$ input neurons);
 - two hidden hidden layers of size $256$ and $128$, respectively.
 
+\begin{figure}
+\centering
+\includegraphics[width=\linewidth]{./assets/ann_io}
+\caption{Artificial Neural Network}
+\end{figure}
+
 # Players
-::: {.columns align=center}
-
-:::: {.column width=60%}
-
 The standard agent uses a simple $\varepsilon$-greedy policy:
 
 - it starts from a probability $\mathbb{P}_r=1.0$ to perform a random action;
 - it linearly decreases to $\mathbb{P}_r=0.1$ in the first $40\%$ of the training;
 - for the remaining $60\%$ of the training it linearly decreases to $\mathbb{P}_r=0.01$.
 
-## ParetoPlayer
-*ParetoPlayer* embeds the Pareto search of non-dominated moves:
+::: {.columns align=top}
 
-- it performs a random move chosen from the ones returned by *NSGA-II* with $70\%$ probability;
-- a completely random one with $30\%$ probability.
+:::: {.column width=55%}
+
+## ParetoPlayer
+*ParetoPlayer* embeds the Pareto search of non-dominated moves: it performs 
+
+- a random action using *NSGA-II* with $\mathbb{P}_{pareto} = 0.7$;
+- a completely random move with $\mathbb{P}_{random} = 0.3$.
+
 ::::
 
-:::: {.column width=40%}
+:::: {.column width=45%}
 
 \begin{figure}
+\captionsetup{justification=centering}
 \centering
-\includegraphics[width=\linewidth]{./assets/eps_threshold.pdf}
+\includegraphics[width=\linewidth]{./assets/eps_threshold}
 \caption{eps-threshold value during the training}
 \end{figure}
+
 ::::
 
 :::
-
 
 # Program structure
 
 \begin{figure}
 \centering
-\includegraphics[width=\linewidth]{./assets/program_structure}
+\includegraphics[width=\linewidth]{./assets/program_structure_extended}
 \caption{Program structure}
 \end{figure}
 
@@ -157,6 +165,13 @@ Several situations were considered, such as:
 
 - 2 VS 2 battle with static teams;
 - 2 VS 2 battle with the opponent team sampled randomly from a pool of possible Pokémons.
+
+\begin{figure}
+\captionsetup{justification=centering}
+\centering
+\includegraphics[width=0.8\linewidth]{./assets/battles_setup}
+\caption{Different battle settings}
+\end{figure}
 
 # Statistical tests
 
@@ -178,7 +193,7 @@ We have tested both the normality and the statistical significance of the propos
 ## Statistical significance
 * Box plot
 * t-test
-* Wilcoxon rank mean test
+* Wilcoxon rank-sum test
 
 ::::
 
@@ -198,8 +213,9 @@ We have tested both the normality and the statistical significance of the propos
 :::: {.column width=50%}
 
 \begin{figure}
+\captionsetup{justification=centering}
 \centering
-\includegraphics[width=\linewidth]{./assets/reward_on_episode.pdf}
+\includegraphics[width=\linewidth]{./assets/reward_on_episode}
 \caption{Row-mean reward per episode for Pareto and ParetoPlayer}
 \end{figure}
 
@@ -217,7 +233,7 @@ We have tested both the normality and the statistical significance of the propos
   poster
 ]{}{./assets/2v2_fixed.mp4}
 
-# Empirical results - Sampled teams
+# Empirical results - Sampled Teams
 
 ::: {.columns align=center}
 
@@ -231,33 +247,15 @@ We have tested both the normality and the statistical significance of the propos
 :::: {.column width=50%}
 
 \begin{figure}
+\captionsetup{justification=centering}
 \centering
-\includegraphics[width=\linewidth]{./assets/rewardasfunctionofepisode2.pdf}
+\includegraphics[width=\linewidth]{./assets/rewardasfunctionofepisode2}
 \caption{Row-mean reward per episode for Pareto and ParetoPlayer (sampled teams)}
 \end{figure}
 
 ::::
 
 :::
-
-# Empirical results - Sampled teams [First Game]
-\movie[
-  width=\linewidth,
-  height=0.6\linewidth,
-  showcontrols,
-  poster
-]{}{./assets/2v2_sampled.mp4}
-
-
-# Empirical results - Sampled teams [Second Game]
-\centering
-\movie[
-  width=\linewidth,
-  height=0.6\linewidth,
-  showcontrols,
-  poster
-]{}{./assets/2v2_sampled_2.mp4}
-
 
 # Difficulties
 The main difficulties we have encountered concern:
@@ -309,8 +307,9 @@ The appendix contains the topics we are not able to discuss during the oral exam
 :::: {.column width=50%}
 
 \begin{figure}
+\captionsetup{justification=centering}
 \centering
-\includegraphics[width=0.8\linewidth]{./assets/Normality_QQ_Pareto.pdf}
+\includegraphics[width=0.8\linewidth]{./assets/Normality_QQ_Pareto}
 \caption{Quantile-Quantile plot episode reward computed on $1000$ battles during ParetoPlayer model evaluation}
 \end{figure}
 
@@ -319,8 +318,9 @@ The appendix contains the topics we are not able to discuss during the oral exam
 :::: {.column width=50%}
 
 \begin{figure}
+\captionsetup{justification=centering}
 \centering
-\includegraphics[width=0.8\linewidth]{./assets/Normality_QQ_Random.pdf}
+\includegraphics[width=0.8\linewidth]{./assets/Normality_QQ_Random}
 \caption{Quantile-Quantile plot episode reward computed on $1000$ battles during Player model evaluation}
 \end{figure}
 
@@ -335,8 +335,9 @@ The appendix contains the topics we are not able to discuss during the oral exam
 :::: {.column width=50%}
 
 \begin{figure}
+\captionsetup{justification=centering}
 \centering
-\includegraphics[width=0.8\linewidth]{./assets/box_plot_2v2.pdf}
+\includegraphics[width=0.8\linewidth]{./assets/box_plot_2v2}
 \caption{Box plot computed on $1000$ battles during ParetoPlayer and Player model evaluation}
 \end{figure}
 
@@ -345,8 +346,9 @@ The appendix contains the topics we are not able to discuss during the oral exam
 :::: {.column width=50%}
 
 \begin{figure}
+\captionsetup{justification=centering}
 \centering
-\includegraphics[width=0.8\linewidth]{./assets/box_plot_2v2_sampled.pdf}
+\includegraphics[width=0.8\linewidth]{./assets/box_plot_2v2_sampled}
 \caption{Box plot computed on $1000$ battles during ParetoPlayer and Player model evaluation (with variable enemy team)}
 \end{figure}
 
@@ -354,11 +356,51 @@ The appendix contains the topics we are not able to discuss during the oral exam
 
 :::
 
+# Unknown Moves
+
+::: {.columns align=top}
+
+:::: {.column width=60%}
+
+At the beginning of the battle the agent does not know which moves the opponent Pokémon have, thus we rely on Pikalytics in order to get the most probable moves in competitive settings.
+
+To assign the most probable moves to a Pokémon we:
+
+0. normalise the probabilities obtained from Pikalytics;
+1. draw a random number;
+2. sample the corresponding move;
+3. repeat from 0 until we have a total of 4 moves.
+
+::::
+
+:::: {.column width=40%}
+
+\begin{figure}
+\captionsetup{justification=centering}
+\centering
+\includegraphics[width=\linewidth]{./assets/pikalytics}
+\caption{Zacian's possible moves on Pikalytics}
+\end{figure}
+
+::::
+
+:::
+
+# State Description
+
+Among all the possible information, we focused on the following:
+
+- the percentage of Pokémons alive;
+- the weather;
+- the field condition;
+- for each Pokémon we considered:
+  - type (e.g. fire, grass, ect.);
+  - HP percentage;
+  - statistics (normalised);
+  - status (e.g. asleep, poisoned, ect.);
+  - for each of its move, we considered: id, priority, type, and damage it deals to the opponent active Pokémons.
+
 # Fitness Evaluation
-
-::: {.columns align=center}
-
-:::: {.column width=50%}
 
 In order to get a good fitness evaluation of our turn, we perform the following:
 
@@ -368,21 +410,83 @@ In order to get a good fitness evaluation of our turn, we perform the following:
 3. prepare the field by handling switches;
 4. compute the damage by either:
    - sending a request to the server;
-   - retrieve a previous results.
+   - retrieve a previous result.
+
+\begin{figure}
+\captionsetup{justification=centering}
+\centering
+\includegraphics[width=0.9\linewidth]{./assets/damage_calculator}
+\caption{Damage calculator request}
+\end{figure}
+
+# Previous Turn Analysis
+
+::: {.columns align=center}
+
+:::: {.column width=60%}
+
+To have a better estimate of the next possible turns, the previous turn is analysed to extract unknown information (e.g. Pokemon's stats, item, etc.). In particular we
+
+0. retrieve the previous turn;
+1. extract the actions performed;
+2. simulate the actions execution using our current knowledge;
+3. compare the actual turn with the one estimated;
+4. adjust our believes if needed.
 
 ::::
 
-:::: {.column width=50%}
+:::: {.column width=40%}
 
 \begin{figure}
+\captionsetup{justification=centering}
 \centering
-\includegraphics[width=0.8\linewidth]{./assets/base_stats_range.png}
+\includegraphics[width=\linewidth]{./assets/base_stats_range}
 \caption{A Pokémon's base stats}
 \end{figure}
 
 ::::
 
 :::
+
+# Shapiro-Wilk test
+
+The Shapiro-Wilk test is a test of normality which is frequent in statistics and it is based on the expected values of the order statistics. Its null hypothesis is whether a sample $\{x_1, \dots, x_n\}$ came from a normally distributed population:
+
+- Thus, if the $p-$value is less than the chosen $\alpha$ level, then the null hypothesis is rejected and there is evidence that the data tested are not normally distributed;
+- On the other hand, if the $p-$value is greater than the chosen $\alpha$ level, then the null hypothesis (that the data came from a normally distributed population) can not be rejected.
+
+# Kolmogorov-Smirnov test
+
+In statistics, the Kolmogorov-Smirnov test is a nonparametric test of the equality between two distribution, namely it does not assume anything about the underlying data distribution. Its null hypothesis is whether the two set of samples were drawn from the same probability distribution:
+
+- Thus, if the $p-$value is less than the chosen $\alpha$ level, then the null hypothesis is rejected and there is evidence that the data tested are not drawn from the same distribution, namely one group stochastically dominates the other;
+- On the other hand, if the $p-$value is greater than the chosen $\alpha$ level, then the null hypothesis (that the data came from the same distribution) can not be rejected.
+
+# Wilcoxon rank-sum test
+
+The Wilcoxon rank-sum test is one of the most powerful non-parametric test which is used to compare two groups of continuous measures. Its null hypothesis is whether the two populations have the same distribution and the same median:
+
+- Thus, if the $p-$value is less than the chosen $\alpha$ level, then the null hypothesis is rejected and there is evidence that the data tested are not drawn from the same distribution, namely one distribution is shifted to the left or right of the other;
+- On the other hand, if the $p-$value is greater than the chosen $\alpha$ level, then the null hypothesis (that the data came from the same distribution) can not be rejected.
+
+# Empirical results - Sampled teams [First Game]
+\movie[
+  width=\linewidth,
+  height=0.6\linewidth,
+  showcontrols,
+  poster
+]{}{./assets/2v2_sampled.mp4}
+
+
+# Empirical results - Sampled teams [Second Game]
+\centering
+\movie[
+  width=\linewidth,
+  height=0.6\linewidth,
+  showcontrols,
+  poster
+]{}{./assets/2v2_sampled_2.mp4}
+
 <!-- # Guidelines 
 
 1. introducing pokemon, and RL in a few words
